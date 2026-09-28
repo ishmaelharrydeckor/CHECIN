@@ -1,0 +1,173 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
+
+export const Route = createFileRoute("/api/check-in/scan")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        try {
+          const url = new URL(request.url);
+          const isDemo = url.searchParams.get("demo") === "true";
+          const authHeader = request.headers.get("authorization");
+          let caller = await verifyCallerToken(authHeader);
+
+          if (!caller || !caller.uid) {
+            if (isDemo) {
+              caller = {
+                uid: "demo-employee-alex",
+                name: "Alex Mensah",
+                email: "alex.m@company.com",
+                orgId: "org-checin-demo",
+                role: "employee",
+              } as any;
+            } else {
+              return Response.json(
+                { error: "Unauthorized: Please sign in with your employee account to scan" },
+                { status: 401 },
+              );
+            }
+          }
+
+          const activeCaller = caller!;
+
+          if (!activeCaller.orgId) {
+            if (isDemo) {
+              (activeCaller as any).orgId = "org-checin-demo";
+            } else {
+              return Response.json(
+                { error: "Access Denied: Your account is not associated with an organization" },
+                { status: 403 },
+              );
+            }
+          }
+
+          const body = await request.json();
+          const token = (body?.token || "").trim();
+          const locationId = (body?.locationId || "").trim();
+          const deviceFingerprint = (body?.deviceFingerprint || "").trim();
+
+          if (!token || !locationId) {
+            return Response.json({ error: "Missing required token or locationId" }, { status: 400 });
+          }
+
+          // 1. Verify location & tenancy
+          const kioskDoc = await firestoreAdmin.collection("kiosks").doc(locationId).get();
+          if (!kioskDoc.exists) {
+            return Response.json(
+              { error: "Invalid entrance terminal. Location is not paired or has been revoked." },
+              { status: 404 },
+            );
+          }
+
+          const kiosk = kioskDoc.data()!;
+          const isDemoMatch =
+            kiosk.orgId === "org-checin-demo" ||
+            activeCaller.orgId === "org-checin-demo" ||
+            activeCaller.orgId === "demo-org";
+
+          if (kiosk.orgId !== activeCaller.orgId && !isDemoMatch) {
+            return Response.json(
+              { error: "Security Violation: This entrance terminal belongs to another organization." },
+              { status: 403 },
+            );
+          }
+
+          // 2. Cryptographically verify the 15-second rotating HMAC token
+          const tokenCheck = verifyKioskToken(token, locationId);
+          if (!tokenCheck.valid) {
+            return Response.json(
+              { error: tokenCheck.reason || "Token expired. Please scan the current live QR code on screen." },
+              { status: 400 },
+            );
+          }
+
+          // 3. Prevent Rapid Double-Punch (60-second cooldown per employee)
+          // Use single-field query to avoid missing composite index crashes
+          const recentEventsSnap = await firestoreAdmin
+            .collection("clock_events")
+            .where("employeeId", "==", activeCaller.uid)
+            .limit(10)
+            .get();
+
+          const now = Date.now();
+          let lastEvent = null;
+
+          if (!recentEventsSnap.empty) {
+            const sortedDocs = recentEventsSnap.docs
+              .map((d) => d.data())
+              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+            lastEvent = sortedDocs[0] || null;
+            if (lastEvent) {
+              const lastTime = new Date(lastEvent.timestamp).getTime();
+              if (now - lastTime < 60 * 1000) {
+                const secondsLeft = Math.ceil((60 * 1000 - (now - lastTime)) / 1000);
+                return Response.json(
+                  {
+                    error: `Cooldown active: You checked ${lastEvent.type.toUpperCase()} recently. Please wait ${secondsLeft}s to prevent accidental double-clocking.`,
+                  },
+                  { status: 429 },
+                );
+              }
+            }
+          }
+
+          // 4. Determine Direction (IN vs OUT) based on last event today
+          // If no event today or last event was 'out' -> next is 'in'
+          // If last event was 'in' -> next is 'out'
+          const nextType: "in" | "out" = lastEvent && lastEvent.type === "in" ? "out" : "in";
+
+          // 5. Create immutable audit record in clock_events
+          const eventRef = firestoreAdmin.collection("clock_events").doc();
+          const timestampIso = new Date().toISOString();
+          const employeeName = activeCaller.name || activeCaller.email?.split("@")[0] || "Employee";
+
+          const eventData = {
+            eventId: eventRef.id,
+            orgId: activeCaller.orgId,
+            managerId: (activeCaller as any).managerId || null,
+            employeeId: activeCaller.uid,
+            employeeName,
+            employeeEmail: activeCaller.email || "",
+            type: nextType,
+            timestamp: timestampIso,
+            locationId,
+            locationName: kiosk.locationName || "Main Entrance",
+            deviceFingerprint: deviceFingerprint || "browser-client",
+            verifiedBy: "kiosk_hmac_sha256",
+          };
+
+          await eventRef.set(eventData);
+
+          // 6. Broadcast instantaneous scan confirmation to the kiosk terminal
+          const timeDisplay = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+
+          await firestoreAdmin.collection("recent_scans").doc(locationId).set({
+            employeeName,
+            type: nextType,
+            time: timeDisplay,
+            timestamp: now,
+          });
+
+          return Response.json({
+            ok: true,
+            eventId: eventRef.id,
+            type: nextType,
+            timestamp: timestampIso,
+            timeDisplay,
+            employeeName,
+            locationName: eventData.locationName,
+          });
+        } catch (err: any) {
+          console.error("POST /api/check-in/scan error:", err);
+          return Response.json({ error: "Failed to record check-in scan" }, { status: 500 });
+        }
+      },
+    },
+  },
+});

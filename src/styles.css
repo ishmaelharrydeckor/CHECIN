@@ -1,0 +1,181 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ChecIN Exact Brand Tokens from preview.html */
+  --color-f-bg-dark: var(--f-bg-dark);
+  --color-f-bg-forest: var(--f-bg-forest);
+  --color-f-lime: var(--f-lime);
+  --color-f-lime-dark: var(--f-lime-dark);
+  --color-f-amber: var(--f-amber);
+  --color-f-butter: var(--f-butter);
+  --color-f-mint: var(--f-mint);
+  --color-f-card-dark: var(--f-card-dark);
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-geist: "Geist", system-ui, sans-serif;
+  --font-display: "Inter", system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* Exact Figma / preview.html Color Tokens */
+  --f-bg-dark: #0A1612;
+  --f-bg-forest: #0E2322;
+  --f-lime: #C0FD9B;
+  --f-lime-dark: #122300;
+  --f-amber: #FFD153;
+  --f-butter: #FCF2CB;
+  --f-mint: #CBEED3;
+  --f-card-dark: #122220;
+
+  /* Light Theme (Manager Dashboard / Admin Canvas) */
+  --background: #F8FAFC;
+  --foreground: #0E2322;
+  --card: #FFFFFF;
+  --card-foreground: #0E2322;
+  --popover: #FFFFFF;
+  --popover-foreground: #0E2322;
+  --primary: #0E2322;
+  --primary-foreground: #C0FD9B;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0E2322;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #C0FD9B;
+  --accent-foreground: #122300;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+  --warning: #F59E0B;
+  --warning-foreground: #122300;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #C0FD9B;
+}
+
+.dark {
+  /* Dark Theme (Landing Page, Kiosk Tablet, Mobile PWA Shell) */
+  --background: #0A1612;
+  --foreground: #FFFFFF;
+  --card: #0E2322;
+  --card-foreground: #FFFFFF;
+  --popover: #0E2322;
+  --popover-foreground: #FFFFFF;
+  --primary: #C0FD9B;
+  --primary-foreground: #122300;
+  --secondary: #122220;
+  --secondary-foreground: #FFFFFF;
+  --muted: #122220;
+  --muted-foreground: rgba(255, 255, 255, 0.65);
+  --accent: #C0FD9B;
+  --accent-foreground: #122300;
+  --destructive: #F87171;
+  --destructive-foreground: #FFFFFF;
+  --success: #34D399;
+  --success-foreground: #122300;
+  --warning: #FFD153;
+  --warning-foreground: #122300;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #C0FD9B;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: "Inter", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+  .font-geist {
+    font-family: "Geist", system-ui, sans-serif;
+  }
+}
+
+/* Floating Navigation Pill */
+.nav-pill {
+  background: #C0FD9B;
+  border-radius: 20px;
+}
+
+/* Glass elements */
+.glass-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+}
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Capabilities active pill */
+.cap-item.active {
+  background-color: #C0FD9B !important;
+  color: #0E2322 !important;
+}
+
+/* Smooth accordion grid wrapper */
+.faq-grid-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.faq-grid-content.open {
+  grid-template-rows: 1fr;
+}
+.faq-inner {
+  overflow: hidden;
+}
+
+/* Pulse animation for kiosk beacon */
+@keyframes beacon-pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.animate-beacon {
+  animation: beacon-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

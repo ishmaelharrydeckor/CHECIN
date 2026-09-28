@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Production and build outputs
+dist/
+.output/
+.vinxi/
+.tanstack/
+.wrangler/
+
+# Environment variables & secrets (CRITICAL: Never commit .env)
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+
+# Temporary and scratch files
+scratch/
+.playwright-mcp/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db

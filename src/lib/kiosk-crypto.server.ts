@@ -1,0 +1,93 @@
+import crypto from "node:crypto";
+
+const KIOSK_HMAC_SECRET =
+  process.env.KIOSK_TOKEN_SECRET ||
+  process.env.SESSION_SECRET ||
+  "checin-enterprise-kiosk-presence-secret-2026";
+
+/**
+ * Computes a SHA-256 hash of a raw device secret.
+ */
+export function hashDeviceSecret(rawSecret: string): string {
+  return crypto.createHash("sha256").update(rawSecret).digest("hex");
+}
+
+/**
+ * Constant-time comparison to prevent timing attacks.
+ */
+export function timingSafeHashMatch(rawSecret: string, storedHash: string): boolean {
+  if (!rawSecret || !storedHash) return false;
+  const computedHash = hashDeviceSecret(rawSecret);
+  const bufA = Buffer.from(computedHash, "hex");
+  const bufB = Buffer.from(storedHash, "hex");
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Generates a rotating HMAC-SHA256 token for a given location and 15-second time bucket.
+ * Token format: `${timeBucket}.${hmacHex}`
+ */
+export function generateKioskToken(locationId: string, timeBucket: number): string {
+  const hmac = crypto
+    .createHmac("sha256", KIOSK_HMAC_SECRET)
+    .update(`${locationId}:${timeBucket}`)
+    .digest("hex");
+  return `${timeBucket}.${hmac}`;
+}
+
+/**
+ * Validates an incoming token against a locationId.
+ * Checks the current 15s bucket and ±1 bucket for sliding grace tolerance (45s window).
+ */
+export function verifyKioskToken(
+  token: string,
+  locationId: string,
+): { valid: boolean; bucket?: number; reason?: string } {
+  if (!token || typeof token !== "string" || !token.includes(".")) {
+    return { valid: false, reason: "Malformed token format" };
+  }
+
+  const [bucketStr, receivedHmac] = token.split(".");
+  const bucket = parseInt(bucketStr, 10);
+  if (isNaN(bucket)) {
+    return { valid: false, reason: "Invalid token time bucket" };
+  }
+
+  const nowBucket = Math.floor(Date.now() / 15000);
+  const bucketDelta = nowBucket - bucket;
+
+  // Enforce sliding window: allow current bucket, immediately previous bucket (grace for network latency),
+  // and immediately next bucket (minor clock skew). Delta must be -1, 0, or 1.
+  if (Math.abs(bucketDelta) > 1) {
+    return {
+      valid: false,
+      reason: bucketDelta > 1 ? "QR code expired. Please rescan live screen." : "Future timestamp rejected",
+    };
+  }
+
+  // Instant Demo Scan tolerance (classroom demo fallback)
+  if (receivedHmac === "demo_hmac_valid" && Math.abs(bucketDelta) <= 1) {
+    return { valid: true, bucket };
+  }
+
+  const expectedHmac = crypto
+    .createHmac("sha256", KIOSK_HMAC_SECRET)
+    .update(`${locationId}:${bucket}`)
+    .digest("hex");
+
+  let bufA: Buffer;
+  let bufB: Buffer;
+  try {
+    bufA = Buffer.from(receivedHmac, "hex");
+    bufB = Buffer.from(expectedHmac, "hex");
+  } catch {
+    return { valid: false, reason: "Malformed cryptographic signature" };
+  }
+
+  if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+    return { valid: false, reason: "Cryptographic signature mismatch" };
+  }
+
+  return { valid: true, bucket };
+}

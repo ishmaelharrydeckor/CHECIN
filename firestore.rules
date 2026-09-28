@@ -1,0 +1,174 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // ChecIN Multi-Tenant Security Rules
+    // Tenancy & authorization derive exclusively from verified custom claims:
+    // request.auth.token: { role: 'org_admin' | 'manager' | 'employee', orgId, managerId }
+    // =========================================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return isSignedIn() ? request.auth.token.role : null;
+    }
+
+    function orgId() {
+      return isSignedIn() ? request.auth.token.orgId : null;
+    }
+
+    function managerId() {
+      return isSignedIn() ? request.auth.token.managerId : null;
+    }
+
+    function isOrgAdmin() {
+      return isSignedIn() && role() == "org_admin";
+    }
+
+    function isManager() {
+      return isSignedIn() && role() == "manager";
+    }
+
+    function inOrg(data) {
+      return isSignedIn() && orgId() != null && data.orgId == orgId();
+    }
+
+    function isOwnTeam(data) {
+      return inOrg(data) && managerId() != null && data.managerId == managerId();
+    }
+
+    // ---- 1. Organizations (Hard Isolation Boundary) ----
+    match /organizations/{targetOrgId} {
+      // Any signed-in member of this organization can read its metadata
+      allow read: if isSignedIn() && orgId() == targetOrgId;
+      // Only org_admin can update organization details
+      allow update: if isOrgAdmin() && orgId() == targetOrgId;
+      // Creation and deletion managed exclusively by server Admin SDK
+      allow create, delete: if false;
+    }
+
+    // ---- 2. Users (Display Profile Only — NEVER stores a role field) ----
+    match /users/{userId} {
+      // User can read their own profile, or coworkers within same org can read display info
+      allow read: if isSignedIn() && (request.auth.uid == userId || inOrg(resource.data));
+      // User can update their own display fields only
+      allow create, update: if isSignedIn() && request.auth.uid == userId
+        // Enforce security rule: profile doc must never carry a role or orgId escalation field
+        && !("role" in request.resource.data)
+        && !("customClaims" in request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---- 3. Locations (Physical entrance & office locations) ----
+    // Holds NO secrets. Holds name, orgId, createdAt.
+    match /locations/{locationId} {
+      allow read: if inOrg(resource.data);
+      allow create: if isOrgAdmin() && inOrg(request.resource.data);
+      allow update, delete: if isOrgAdmin() && inOrg(resource.data);
+    }
+
+    // ---- 4. Clock Events (Append-only physical presence scan logs) ----
+    match /clock_events/{eventId} {
+      // Employee reads own; Manager reads team's; Org Admin reads org-wide
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      // CREATION & MODIFICATION LOCKED: Created exclusively via verified-scan server route
+      // No client may write directly to clock_events
+      allow create, update, delete: if false;
+    }
+
+    // ---- 5. Leave Requests ----
+    match /leave_requests/{requestId} {
+      // Employee reads own; Manager reads team; Admin reads org
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      // Employee creates their own leave request within their org & team
+      allow create: if inOrg(request.resource.data)
+        && request.resource.data.employeeId == request.auth.uid
+        && request.resource.data.managerId == managerId();
+      // Manager approves/rejects within their own team; Org Admin can override
+      allow update: if inOrg(resource.data) && (
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        isOrgAdmin()
+      );
+      allow delete: if false;
+    }
+
+    // ---- 6. Announcements (Company & Team notice boards) ----
+    match /announcements/{announcementId} {
+      // All org members read announcements
+      allow read: if inOrg(resource.data);
+      // Org Admin can create org-wide; Manager can create team announcements
+      allow create: if inOrg(request.resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && request.resource.data.managerId == request.auth.uid)
+      );
+      allow update, delete: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid)
+      );
+    // ---- 7. User Devices (Active sessions & multi-device limit) ----
+    match /user_devices/{deviceDocId} {
+      allow read: if isSignedIn() && (resource == null || resource.data.user_id == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+    }
+
+    // =========================================================================
+    // 🔒 LOCKED COLLECTIONS (Admin SDK Only — allow read, write: if false)
+    // No direct client read or write permitted under any circumstances
+    // =========================================================================
+
+    // Kiosks: Holds kiosk_secret_hash & pairing timestamps (never readable from client)
+    match /kiosks/{locationId} {
+      allow read, write: if false;
+    }
+
+    // Kiosk Pairings: 10-minute expiring single-use pairing codes
+    match /kiosk_pairings/{code} {
+      allow read, write: if false;
+    }
+
+    // Staff Invites: 7-day single-use email-bound invite tokens
+    match /staff_invites/{token} {
+      allow read, write: if false;
+    }
+
+    // Rate Limiting: Persistent distributed counters
+    match /rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    // Web Push: Subscriptions, notification preferences, in-app messages
+    match /push_subscriptions/{subId} {
+      allow read, write: if false;
+    }
+    match /in_app_notifications/{notifId} {
+      allow read, write: if false;
+    }
+    match /notification_preferences/{prefId} {
+      allow read, write: if false;
+    }
+
+    // User Devices: Session tracking per user
+    match /user_devices/{deviceDocId} {
+      allow read, write: if isSignedIn() && (
+        resource == null || resource.data.user_id == request.auth.uid
+      );
+    }
+
+    // Default Deny: Catch-all for any collection not explicitly matched above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

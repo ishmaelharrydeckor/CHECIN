@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChecIN — Unified Attendance Platform (1:1 Figma Translation)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-geist { font-family: 'Geist', sans-serif; }
+    
+    /* Exact Figma Color Tokens */
+    :root {
+      --f-bg-dark: #0A1612;
+      --f-bg-forest: #0E2322;
+      --f-lime: #C0FD9B;
+      --f-lime-dark: #122300;
+      --f-amber: #FFD153;
+      --f-butter: #FCF2CB;
+      --f-mint: #CBEED3;
+      --f-card-dark: #122220;
+    }
+
+    /* Floating Navigation Pill */
+    .nav-pill {
+      background: #C0FD9B;
+      border-radius: 20px;
+    }
+
+    /* Glass elements */
+    .glass-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+    }
+    .glass-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Capabilities active pill */
+    .cap-item.active {
+      background-color: #C0FD9B !important;
+      color: #0E2322 !important;
+    }
+
+    /* Smooth accordion grid wrapper */
+    .faq-grid-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .faq-grid-content.open {
+      grid-template-rows: 1fr;
+    }
+    .faq-inner {
+      overflow: hidden;
+    }
+
+    /* =============================================================== */
+    /* DESKTOP 1.2x SCALE (Applies exclusively at min-width: 1024px)   */
+    /* Prototype views (/kiosk, /scan, /app) & mobile remain untouched */
+    /* =============================================================== */
+    @media (min-width: 1024px) {
+      /* 1. Main Content Containers (1280px -> 1536px, with responsive padding) */
+      #view-landing .max-w-7xl {
+        max-width: min(1536px, calc(100% - 64px)) !important;
+      }
+      #view-landing .max-w-4xl {
+        max-width: min(1080px, calc(100% - 64px)) !important;
+      }
+      #view-landing .max-w-3xl {
+        max-width: min(920px, calc(100% - 64px)) !important;
+      }
+      #view-landing .max-w-2xl {
+        max-width: min(780px, calc(100% - 64px)) !important;
+      }
+
+      /* 2. Section Vertical Padding (96px -> 115px) */
+      #view-landing section.py-24 {
+        padding-top: 115px !important;
+        padding-bottom: 115px !important;
+      }
+
+      /* 3. Global Headings & Subheadings in Landing Sections */
+      #view-landing h2 {
+        font-size: 50px !important;
+        line-height: 1.2 !important;
+        margin-bottom: 20px !important;
+      }
+      #view-landing .text-center > p {
+        font-size: 24px !important;
+        line-height: 1.4 !important;
+        max-width: 820px !important;
+      }
+
+      /* Section Badges */
+      #view-landing .inline-block.text-sm.font-geist {
+        font-size: 16px !important;
+        padding: 6px 18px !important;
+        margin-bottom: 18px !important;
+      }
+
+      /* 4. Floating Navbar (Scaled 1.2x) */
+      #main-nav {
+        height: 80px !important;
+        width: min(1350px, calc(100% - 48px)) !important;
+        border-radius: 24px !important;
+        padding-left: 28px !important;
+        padding-right: 28px !important;
+      }
+      #main-nav a svg {
+        width: 35px !important;
+        height: 35px !important;
+      }
+      #main-nav a span {
+        font-size: 34px !important;
+      }
+      #main-nav nav {
+        gap: 34px !important;
+      }
+      #main-nav nav a {
+        font-size: 18px !important;
+      }
+      #main-nav button {
+        height: 52px !important;
+        border-radius: 17px !important;
+        font-size: 16px !important;
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+      }
+
+      /* 5. Hero Section */
+      #hero {
+        padding-top: 210px !important;
+      }
+      #hero .max-w-\[1040px\] {
+        max-width: min(1250px, calc(100% - 48px)) !important;
+      }
+      #hero-badge {
+        font-size: 17px !important;
+        padding: 8px 20px !important;
+        border-radius: 12px !important;
+        margin-bottom: 38px !important;
+      }
+      #hero-h1 {
+        font-size: 96px !important;
+        line-height: 1.0 !important;
+        margin-bottom: 28px !important;
+      }
+      #hero-sub {
+        font-size: 21.5px !important;
+        max-width: 820px !important;
+        line-height: 1.5 !important;
+        margin-bottom: 48px !important;
+      }
+      #hero-ctas {
+        gap: 16px !important;
+        margin-bottom: 68px !important;
+      }
+      #hero-ctas button {
+        height: 58px !important;
+        padding-left: 34px !important;
+        padding-right: 34px !important;
+        font-size: 18px !important;
+        border-radius: 17px !important;
+      }
+      #hero-mockup {
+        max-width: min(1350px, calc(100% - 48px)) !important;
+        border-top-left-radius: 24px !important;
+        border-top-right-radius: 24px !important;
+      }
+      #hero-mockup img {
+        border-top-left-radius: 24px !important;
+        border-top-right-radius: 24px !important;
+      }
+
+      /* 6. Benefits Section */
+      #benefits .grid {
+        gap: 34px !important;
+      }
+      #benefits .relative.h-\[530px\] {
+        height: 636px !important;
+        border-radius: 28px !important;
+      }
+      #benefits .relative.h-\[530px\] > div {
+        padding: 38px !important;
+      }
+      #benefits .text-\[54px\] {
+        font-size: 65px !important;
+      }
+      #benefits .text-\[18px\] {
+        font-size: 21.5px !important;
+        line-height: 1.45 !important;
+      }
+      #benefits h3 {
+        font-size: 34px !important;
+        margin-bottom: 12px !important;
+      }
+
+      /* 7. Why ChecIN Bento */
+      #why .grid {
+        gap: 38px !important;
+      }
+      #why .rounded-\[32px\] {
+        border-radius: 38px !important;
+        padding: 48px !important;
+      }
+      #why h3 {
+        font-size: 34px !important;
+        margin-bottom: 14px !important;
+      }
+      #why p.text-base {
+        font-size: 21.5px !important;
+        line-height: 1.45 !important;
+      }
+
+      /* 8. Core Capabilities */
+      #capabilities .grid {
+        gap: 38px !important;
+      }
+      #capabilities .cap-item {
+        padding: 32px 34px !important;
+        font-size: 29px !important;
+        border-radius: 17px !important;
+      }
+      #capabilities .cap-item span:last-child {
+        font-size: 29px !important;
+      }
+      #capabilities .rounded-\[32px\] {
+        border-radius: 38px !important;
+        padding: 38px !important;
+      }
+
+      /* 9. Built For Every Team */
+      #teams .max-w-4xl.relative {
+        max-width: min(1080px, calc(100% - 48px)) !important;
+        padding-top: 38px !important;
+        padding-bottom: 38px !important;
+      }
+      #teams .flex-wrap {
+        gap: 16px !important;
+        margin-top: 38px !important;
+      }
+      #teams .flex-wrap > span {
+        padding: 10px 24px !important;
+        font-size: 19px !important;
+      }
+
+      /* 10. Transparent Pricing */
+      #pricing .mb-14 {
+        margin-bottom: 68px !important;
+      }
+      #pricing #bill-monthly,
+      #pricing #bill-yearly {
+        padding: 10px 28px !important;
+        font-size: 21.5px !important;
+      }
+      #pricing .grid {
+        gap: 38px !important;
+      }
+      #pricing .rounded-\[32px\] {
+        border-radius: 38px !important;
+        padding: 48px !important;
+      }
+      #pricing h3 {
+        font-size: 34px !important;
+        margin-bottom: 10px !important;
+      }
+      #pricing .text-base.sm\:text-\[20px\] {
+        font-size: 24px !important;
+        margin-bottom: 28px !important;
+      }
+      #pricing .text-5xl.sm\:text-\[58px\] {
+        font-size: 70px !important;
+      }
+      #pricing .text-base.sm\:text-\[20px\].ml-2 {
+        font-size: 24px !important;
+      }
+      #pricing .rounded-md {
+        font-size: 17px !important;
+        padding: 8px 16px !important;
+        margin-bottom: 38px !important;
+      }
+      #pricing ul.space-y-4 {
+        margin-top: 8px !important;
+      }
+      #pricing ul.space-y-4 li {
+        font-size: 19px !important;
+        margin-bottom: 18px !important;
+      }
+      #pricing ul.space-y-4 li span {
+        font-size: 22px !important;
+        margin-right: 14px !important;
+      }
+      #pricing button.w-full {
+        margin-top: 48px !important;
+        padding-top: 17px !important;
+        padding-bottom: 17px !important;
+        font-size: 19px !important;
+      }
+
+      /* 11. Customer Stories Coming Soon */
+      #stories .max-w-2xl {
+        max-width: min(800px, calc(100% - 48px)) !important;
+        padding: 58px !important;
+        border-radius: 34px !important;
+      }
+      #stories .max-w-2xl svg {
+        width: 32px !important;
+        height: 32px !important;
+      }
+      #stories .max-w-2xl .w-12.h-12 {
+        width: 60px !important;
+        height: 60px !important;
+        margin-bottom: 20px !important;
+      }
+      #stories .max-w-2xl p:first-of-type {
+        font-size: 26px !important;
+        margin-bottom: 12px !important;
+      }
+      #stories .max-w-2xl p:last-of-type {
+        font-size: 20px !important;
+        line-height: 1.45 !important;
+      }
+
+      /* 12. FAQ Section */
+      #faq .border-b {
+        padding-top: 26px !important;
+        padding-bottom: 26px !important;
+      }
+      #faq button {
+        font-size: 29px !important;
+      }
+      #faq button span:last-child {
+        font-size: 29px !important;
+      }
+      #faq .faq-inner {
+        font-size: 21.5px !important;
+        padding-top: 16px !important;
+        line-height: 1.45 !important;
+      }
+
+      /* 13. Footer Section */
+      footer {
+        padding-top: 96px !important;
+        padding-bottom: 96px !important;
+      }
+      footer .max-w-7xl {
+        gap: 58px !important;
+      }
+      footer .text-\[28px\] {
+        font-size: 34px !important;
+      }
+      footer svg.w-7.h-7 {
+        width: 34px !important;
+        height: 34px !important;
+      }
+      footer p.text-\[16px\] {
+        font-size: 19px !important;
+        max-width: 440px !important;
+        line-height: 1.55 !important;
+      }
+      footer h4 {
+        font-size: 17px !important;
+        margin-bottom: 20px !important;
+      }
+      footer ul.space-y-3 li {
+        margin-bottom: 14px !important;
+      }
+      footer ul.space-y-3 a {
+        font-size: 19px !important;
+      }
+      footer p.text-\[14px\] {
+        font-size: 17px !important;
+      }
+      footer input {
+        font-size: 17px !important;
+        padding: 10px 18px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      footer button {
+        font-size: 17px !important;
+        padding: 10px 18px !important;
+      }
+      footer .mt-16 {
+        margin-top: 76px !important;
+        padding-top: 38px !important;
+        font-size: 17px !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-white text-[#0A0A0A] antialiased selection:bg-[#C0FD9B] selection:text-[#122300]">
+
+  <!-- Floating Prototype View Switcher (Discreet Bottom-Right Dock) -->
+  <aside class="fixed bottom-5 right-5 z-50 bg-[#0E2322]/95 backdrop-blur-md border border-white/20 px-3 py-2 rounded-full shadow-2xl flex items-center gap-2 text-xs">
+    <div class="flex items-center space-x-1.5 pl-2 pr-1 text-white font-semibold">
+      <span class="w-2 h-2 rounded-full bg-[#C0FD9B] animate-pulse"></span>
+      <span>Preview:</span>
+    </div>
+    <nav class="flex items-center space-x-1 bg-white/10 p-0.5 rounded-full">
+      <button onclick="switchView('landing')" id="nav-landing" class="view-btn px-3 py-1 rounded-full bg-[#C0FD9B] text-[#122300] font-bold transition">
+        Landing Page (1:1)
+      </button>
+      <button onclick="switchView('kiosk')" id="nav-kiosk" class="view-btn px-3 py-1 rounded-full text-white/80 hover:text-white font-medium transition">
+        Entrance Kiosk
+      </button>
+      <button onclick="switchView('scan')" id="nav-scan" class="view-btn px-3 py-1 rounded-full text-white/80 hover:text-white font-medium transition">
+        Employee Scanner
+      </button>
+      <button onclick="switchView('dashboard')" id="nav-dashboard" class="view-btn px-3 py-1 rounded-full text-white/80 hover:text-white font-medium transition">
+        Manager App
+      </button>
+    </nav>
+  </aside>
+
+  <!-- =============================================================== -->
+  <!-- 1. FIGMA LANDING PAGE (EXACT 1:1 REPLICATION WITH REAL ASSETS) -->
+  <!-- =============================================================== -->
+  <main id="view-landing" class="preview-view relative">
+
+    <!-- FLOATING PILL NAVBAR (Exact 1:1 Dev Mode: 1126px width, 67px height, 20px radius, #C0FD9B) -->
+    <header id="main-nav" class="fixed top-5 left-1/2 -translate-x-1/2 z-40 w-[min(1126px,calc(100%-32px))] h-[67px] bg-[#C0FD9B] rounded-[20px] px-4 sm:px-6 flex items-center justify-between shadow-2xl transition-all duration-300">
+      <!-- Logo: Exact 4-Chevron Symbol + ChecIN Inter 500 28px -->
+      <a href="#hero" class="flex items-center space-x-2.5 text-[#0E2322] no-underline">
+        <svg width="29" height="29" viewBox="0 0 29 29" fill="none" class="shrink-0">
+          <path d="M23.8801 23.4753L21.0601 25.8674L16.716 21.2005L8.89202 28.1071L6.46802 25.3397L13.452 19.1836C14.34 18.3863 15.456 17.9759 16.644 17.9759C16.752 17.9759 16.86 17.9759 16.956 17.9759C18.24 18.0462 19.428 18.6208 20.2801 19.5706L23.8801 23.4636V23.4753Z" fill="#0E2322"></path>
+          <path d="M10.38 16.2639C10.38 16.3577 10.368 16.4632 10.368 16.557C10.284 17.8234 9.70802 18.9843 8.72402 19.8168L4.74001 23.3346L2.30401 20.579L7.08002 16.3342L0 8.68891L2.83201 6.332L9.14402 13.133C9.94802 14.0125 10.38 15.0913 10.38 16.2639Z" fill="#0E2322"></path>
+          <path d="M22.296 2.76732L15.324 8.92344C14.424 9.7208 13.32 10.1429 12.12 10.1429C12.024 10.1429 11.916 10.1312 11.808 10.1312C10.524 10.0491 9.34801 9.48628 8.496 8.52475L4.896 4.63174L7.716 2.25138L12.048 6.9183L19.872 0L22.296 2.76732Z" fill="#0E2322"></path>
+          <path d="M28.764 19.4181L25.932 21.7868L19.632 14.974C18.828 14.0946 18.396 13.0158 18.396 11.8432C18.396 11.7494 18.396 11.6438 18.408 11.55C18.48 10.2836 19.068 9.12277 20.04 8.30195L24.036 4.77245L26.472 7.53977L21.696 11.7728L28.764 19.4181Z" fill="#0E2322"></path>
+        </svg>
+        <span class="font-medium text-[28px] tracking-[-0.02em] leading-none text-[#0E2322]">ChecIN</span>
+      </a>
+
+      <!-- Center Nav Links: Benefits, Why Prezence, Capabilities, Pricing, Blog -->
+      <nav class="hidden md:flex items-center space-x-7 text-[15px] font-medium text-[#0E2322]">
+        <a href="#benefits" class="hover:opacity-70 transition">Benefits</a>
+        <a href="#why" class="hover:opacity-70 transition">Why ChecIN</a>
+        <a href="#capabilities" class="hover:opacity-70 transition">Capabilities</a>
+        <a href="#pricing" class="hover:opacity-70 transition">Pricing</a>
+        <a href="#blog" class="hover:opacity-70 transition">Blog</a>
+      </nav>
+
+      <!-- Right Buttons: Sign in (border 1px, 14px radius) + Book a Demo (Dark forest #0E2322, 14px radius) -->
+      <div class="flex items-center space-x-2.5">
+        <button onclick="switchView('dashboard')" class="h-[43px] px-4 sm:px-5 rounded-[14px] border border-[#0E2322] text-[#0E2322] font-geist text-[13.5px] font-medium hover:bg-black/5 active:scale-95 transition">
+          Sign in
+        </button>
+        <button onclick="switchView('kiosk')" class="h-[43px] px-5 sm:px-6 rounded-[14px] bg-[#0E2322] text-white font-geist text-[13.5px] font-medium hover:bg-[#163331] active:scale-95 transition shadow-sm">
+          Book a Demo
+        </button>
+      </div>
+    </header>
+
+    <!-- HERO SECTION (Exact 1:1 Background Image, Typography, Colors & Dashboard Mockup) -->
+    <section id="hero" class="relative bg-[#0E2322] text-white pt-36 sm:pt-44 pb-0 px-4 sm:px-6 overflow-hidden text-center" style="background-image: url('/scratch/figma_assets/hero_bg.jpg'); background-size: cover; background-position: center top;">
+      
+      <div class="max-w-[1040px] mx-auto relative z-10">
+        <!-- Mint Pill Badge (Exact: border 1px solid #263F37, radius 10px, text #C0FD9B Geist 14px) -->
+        <div id="hero-badge" class="inline-flex items-center px-4 py-1.5 rounded-[10px] border border-[#263F37] backdrop-blur-[2px] bg-transparent text-[#C0FD9B] font-geist text-[14px] mb-8">
+          Attendance you can trust
+        </div>
+
+        <!-- Headline (Exact: Inter 500, 80px, tracking -0.04em, line-height 100% with word stagger) -->
+        <h1 id="hero-h1" class="text-4xl sm:text-6xl md:text-[76px] lg:text-[80px] font-medium tracking-[-0.04em] text-white leading-[1.0] text-center mb-6">
+          <span class="hero-word inline-block">Attendance</span>
+          <span class="hero-word inline-block">that</span>
+          <span class="hero-word inline-block">proves</span>
+          <span class="hero-word inline-block">people</span><br class="hidden sm:inline">
+          <span class="hero-word inline-block">were</span>
+          <span class="hero-word inline-block">actually</span>
+          <span class="hero-word inline-block">there.</span>
+        </h1>
+
+        <!-- Subheading (Exact: Inter 18px, color #ADC4BD) -->
+        <p id="hero-sub" class="text-base sm:text-[18px] text-[#ADC4BD] max-w-[680px] mx-auto mb-10 leading-relaxed font-normal">
+          ChecIN puts a QR code on a tablet at your entrance that changes every 15 seconds. Your team scans it with their phone to check in and out. No GPS to spoof, no screenshot to pass around, no timesheets to chase.
+        </p>
+
+        <!-- CTA Buttons (Exact: Primary Amber #FFD153 + Secondary Slate #263F37, 14px radius) -->
+        <div id="hero-ctas" class="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-14">
+          <button onclick="switchView('kiosk')" class="w-full sm:w-auto h-[48px] px-7 rounded-[14px] bg-[#FFD153] text-[#122300] font-geist font-medium text-[15px] hover:brightness-105 active:scale-95 transition shadow-lg">
+            Book a Demo
+          </button>
+          <button onclick="switchView('dashboard')" class="w-full sm:w-auto h-[48px] px-7 rounded-[14px] bg-[#263F37] text-white font-geist font-medium text-[15px] hover:bg-[#315248] active:scale-95 transition">
+            See how it works
+          </button>
+        </div>
+
+        <!-- Real Framer Hero Dashboard Mockup (7EKiDY1Dnw1gb2S7E1Mej2ws.svg) -->
+        <div id="hero-mockup" class="relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden">
+          <img 
+            src="https://framerusercontent.com/images/7EKiDY1Dnw1gb2S7E1Mej2ws.svg" 
+            alt="ChecIN entrance tablet showing a rotating QR code, with an employee's phone scanning it" 
+            class="w-full rounded-t-[20px] object-cover"
+          />
+          <!-- Bottom blend gradient -->
+          <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0E2322] to-transparent pointer-events-none"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BENEFITS SECTION: Less Chasing. More Clarity. (Exact 1:1 Typography Scale) -->
+    <section id="benefits" class="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <div class="inline-block text-sm font-geist text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
+          Benefits
+        </div>
+        <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
+          Less Chasing. More Clarity.
+        </h2>
+        <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
+          Stop reconciling timesheets at the end of the month. See who's in, right now.
+        </p>
+      </div>
+
+      <!-- 3 Full-Bleed Photograph Cards (Exact 1:1 Image Mapping & Overlays) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-7">
+        <!-- Card 1: 15 sec -->
+        <div class="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+          <img 
+            src="https://framerusercontent.com/images/VU1SuO5yfzG9ySp7MMgBg8MFlbY.jpg" 
+            alt="Every code expires in 15 seconds" 
+            class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div>
+              <div class="text-[54px] font-medium text-[#C0FD9B] tracking-tight leading-none mb-2">15 sec</div>
+              <div class="text-[18px] text-white/90 font-normal">code expiration</div>
+            </div>
+            <div>
+              <h3 class="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">A code that expires</h3>
+              <p class="text-[18px] text-[#B3B3B3] leading-[1.4] font-normal">
+                Every code expires 15 seconds after it appears, so an old photo is worthless.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: One-tap check-in -->
+        <div class="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+          <img 
+            src="https://framerusercontent.com/images/ao2qDHyGSusoHRHkHOoT4ADGOVs.jpg" 
+            alt="One-tap check-in" 
+            class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div></div>
+            <div>
+              <h3 class="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">One-tap check-in</h3>
+              <p class="text-[18px] text-[#B3B3B3] leading-[1.4] font-normal">
+                Add ChecIN to your phone's home screen. Scan on the way in, scan on the way out. That's the whole routine.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Live team view -->
+        <div class="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+          <img 
+            src="https://framerusercontent.com/images/98puRycJIIGDcH3mYEiwoeSPqk8.jpg" 
+            alt="Live team view" 
+            class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div></div>
+            <div>
+              <h3 class="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">Live team view</h3>
+              <p class="text-[18px] text-[#B3B3B3] leading-[1.4] font-normal">
+                Managers see who's in and who's out as scans happen, without asking around.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY CHECIN (Dual Tinted Bento Cards: Warm Butter #FCF2CB & Soft Mint #CBEED3) -->
+    <section id="why" class="py-24 bg-[#FAFAFA] border-y border-slate-100 px-4 sm:px-6">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-3xl mx-auto mb-16">
+          <div class="inline-block text-sm font-geist text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
+            Why ChecIN
+          </div>
+          <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
+            Built so the door does the checking.
+          </h2>
+          <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
+            Most attendance tools trust the employee's phone. ChecIN trusts the door.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Bento 1: Warm Butter Card (#FCF2CB) with Real Dashboard UI (rDrThS7T8gy6JcC143xhaX5D5w4.png) -->
+          <div class="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
+            <div class="mb-8 rounded-2xl overflow-hidden shadow-lg border border-amber-200/60 bg-white">
+              <img 
+                src="https://framerusercontent.com/images/rDrThS7T8gy6JcC143xhaX5D5w4.png" 
+                alt="A code that expires UI" 
+                class="w-full object-cover"
+              />
+            </div>
+            <div>
+              <h3 class="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0A0A0A] mb-3 leading-tight">A code that expires</h3>
+              <p class="text-[#6D6D6D] text-base sm:text-[18px] leading-[1.4] font-normal">
+                The QR changes every 15 seconds. A screenshot sent to a colleague is stale almost immediately.
+              </p>
+            </div>
+          </div>
+
+          <!-- Bento 2: Soft Mint Card (#CBEED3) with Real Reports UI (JhkDQnOZHJUfSwC2jfLzLjxrjI.jpg) -->
+          <div class="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
+            <div class="mb-8 rounded-2xl overflow-hidden shadow-lg border border-emerald-200/60 bg-white">
+              <img 
+                src="https://framerusercontent.com/images/JhkDQnOZHJUfSwC2jfLzLjxrjI.jpg" 
+                alt="A tablet with a secret handshake UI" 
+                class="w-full object-cover"
+              />
+            </div>
+            <div>
+              <h3 class="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0A0A0A] mb-3 leading-tight">A tablet with a secret handshake</h3>
+              <p class="text-[#6D6D6D] text-base sm:text-[18px] leading-[1.4] font-normal">
+                Each entrance tablet is paired once with your account. Nothing else can pretend to be that door.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CORE CAPABILITIES: Interactive Vertical Tabs + Embedded Dashboard Screen -->
+    <section id="capabilities" class="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <div class="inline-block text-sm font-geist text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
+          Core Capabilities
+        </div>
+        <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
+          Everything a growing team needs at the door.
+        </h2>
+        <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
+          ChecIN brings real-time attendance, leave requests, announcements, and tamper-resistant records together at your entrance.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- Left Vertical Tabs (Exact: 24px, 1.2 line height, 14px radius, 28px padding) -->
+        <div class="lg:col-span-5 space-y-3">
+          <button onclick="setCapability('attendance')" id="cap-attendance" class="cap-item active w-full text-left p-6 sm:p-7 rounded-[14px] bg-[#C0FD9B] text-[#0E2322] font-normal text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition">
+            <span>Real-Time Attendance</span>
+            <span class="text-xl sm:text-[24px] text-[#0E2322]">→</span>
+          </button>
+          <button onclick="setCapability('leave')" id="cap-leave" class="cap-item w-full text-left p-6 sm:p-7 rounded-[14px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#0E2322] font-normal text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition">
+            <span>Leave &amp; Absence Management</span>
+            <span class="text-xl sm:text-[24px] text-[#0E2322]/60">→</span>
+          </button>
+          <button onclick="setCapability('announcements')" id="cap-announcements" class="cap-item w-full text-left p-6 sm:p-7 rounded-[14px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#0E2322] font-normal text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition">
+            <span>Announcements &amp; Team Updates</span>
+            <span class="text-xl sm:text-[24px] text-[#0E2322]/60">→</span>
+          </button>
+          <button onclick="setCapability('records')" id="cap-records" class="cap-item w-full text-left p-6 sm:p-7 rounded-[14px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#0E2322] font-normal text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition">
+            <span>Tamper-Resistant Records</span>
+            <span class="text-xl sm:text-[24px] text-[#0E2322]/60">→</span>
+          </button>
+        </div>
+
+        <!-- Right Large Cream Card with Real Image -->
+        <div class="lg:col-span-7 bg-[#FFFDF5] border border-amber-200/50 rounded-[32px] p-6 sm:p-8 shadow-md">
+          <div class="rounded-2xl overflow-hidden shadow-2xl border border-slate-200/80">
+            <img 
+              id="capability-image"
+              src="https://framerusercontent.com/images/PdCbUkepQPMwsqLNqnMFOhMlk.jpg" 
+              alt="Workforce Visibility Interface" 
+              class="w-full object-cover"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUILT FOR EVERY TEAM: Laptop Ecosystem Frame -->
+    <section id="teams" class="py-24 bg-[#FAFAFA] border-y border-slate-100 px-4 sm:px-6 text-center">
+      <div class="max-w-4xl mx-auto mb-16">
+        <div class="inline-block text-sm font-geist text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
+          Built For Every Team
+        </div>
+        <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
+          One Platform For Everyone<br class="hidden sm:inline"> Behind Attendance.
+        </h2>
+        <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
+          Whether you run one office or a handful, ChecIN fits the way your team already works.
+        </p>
+      </div>
+
+      <!-- Laptop Mockup with Floating Role Chips -->
+      <div class="max-w-4xl mx-auto relative px-4 py-8">
+        <div class="rounded-3xl border border-slate-200 shadow-2xl overflow-hidden bg-white p-2">
+          <img 
+            src="https://framerusercontent.com/images/PZhh8usK41VfjRZFlBmcldnrNo.jpg" 
+            alt="ChecIN Desktop Mockup" 
+            class="w-full rounded-2xl"
+          />
+        </div>
+
+        <!-- Floating Team Chips (Exact: 16px font, -0.48px tracking, 19.2px line height) -->
+        <div class="flex flex-wrap items-center justify-center gap-3.5 mt-8">
+          <span class="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2.5"></span> Owners &amp; HR
+          </span>
+          <span class="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2.5"></span> Team Managers
+          </span>
+          <span class="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2.5"></span> Employees
+          </span>
+          <span class="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center">
+            <span class="w-2.5 h-2.5 rounded-full bg-purple-500 mr-2.5"></span> Operations
+          </span>
+          <span class="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center">
+            <span class="w-2.5 h-2.5 rounded-full bg-teal-500 mr-2.5"></span> Finance
+          </span>
+          <span class="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 mr-2.5"></span> Leadership
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING SECTION: Monthly / Yearly Toggle & 3 Cards (Exact 1:1 Typography Scale) -->
+    <section id="pricing" class="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
+      <div class="text-center max-w-3xl mx-auto mb-14">
+        <div class="inline-block text-sm font-geist text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
+          Pricing
+        </div>
+        <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
+          Simple Pricing That Scales With You
+        </h2>
+        <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal mb-8">
+          Transparent per-employee pricing: implementation, integrations, and compliance packs included.
+        </p>
+
+        <!-- Monthly / Yearly Switcher (Exact: 18px, -0.15px tracking) -->
+        <div class="inline-flex items-center bg-slate-100 p-1.5 rounded-full border border-slate-200">
+          <button onclick="setBilling('monthly')" id="bill-monthly" class="px-6 py-2 rounded-full bg-white text-[#0E2322] text-base sm:text-[18px] font-medium tracking-[-0.15px] shadow-sm transition">
+            Monthly
+          </button>
+          <button onclick="setBilling('yearly')" id="bill-yearly" class="px-6 py-2 rounded-full text-[#6D6D6D] hover:text-[#0E2322] text-base sm:text-[18px] font-medium tracking-[-0.15px] flex items-center space-x-1.5 transition">
+            <span>Yearly</span>
+            <span class="bg-[#FFD153] text-[#122300] text-[12px] px-2 py-0.5 rounded-full font-bold ml-1">Save 20%</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        <!-- Starter Card -->
+        <div class="bg-white border border-[#E2E8F0] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-sm">
+          <div>
+            <h3 class="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0E2322] mb-2">Starter</h3>
+            <p class="text-base sm:text-[20px] text-[#6D6D6D] leading-[1.3] mb-6 font-normal">For small teams getting attendance under control.</p>
+            <div class="flex items-baseline mb-4">
+              <span class="text-5xl sm:text-[58px] font-medium tracking-tight text-[#0E2322]">$0</span>
+              <span class="text-base sm:text-[20px] text-[#6D6D6D] ml-2 font-normal">/User/Month</span>
+            </div>
+            <p class="text-xs sm:text-[14px] font-normal text-[#6D6D6D] bg-slate-100 px-3 py-1.5 rounded-md mb-8 inline-block">
+              Free Up To 15 Employees
+            </p>
+            <ul class="space-y-4 text-base sm:text-[16px] text-[#6D6D6D] font-normal">
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Time Clock & Timesheets</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Leave Requests & Balances</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> 1 Location · Basic Reports</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Email Support</li>
+            </ul>
+          </div>
+          <button onclick="switchView('kiosk')" class="w-full mt-10 py-3.5 rounded-full bg-[#C0FD9B] hover:opacity-90 text-[#122300] font-medium text-base sm:text-[16px] transition">
+            Get Started
+          </button>
+        </div>
+
+        <!-- Growth Card (Featured Dark Card from Figma) -->
+        <div class="bg-[#0E2322] text-white border-2 border-[#C0FD9B]/40 rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-2xl relative">
+          <div>
+            <h3 class="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#C0FD9B] mb-2">Growth</h3>
+            <p class="text-base sm:text-[20px] text-[#ADC4BD] leading-[1.3] mb-6 font-normal">For scaling companies with managers and shifts.</p>
+            <div class="flex items-baseline mb-4">
+              <span class="text-5xl sm:text-[58px] font-medium tracking-tight text-white" id="growth-price">$8</span>
+              <span class="text-base sm:text-[20px] text-[#ADC4BD] ml-2 font-normal">/User/Month</span>
+            </div>
+            <p class="text-xs sm:text-[14px] font-normal text-[#ADC4BD] bg-white/10 px-3 py-1.5 rounded-md mb-8 inline-block" id="growth-billing-note">
+              Billed Annually · Or $8 Monthly
+            </p>
+            <ul class="space-y-4 text-base sm:text-[16px] text-white/90 font-normal">
+              <li class="flex items-center"><span class="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Everything In Starter</li>
+              <li class="flex items-center"><span class="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Geo & Wi-Fi Verified Clock-In</li>
+              <li class="flex items-center"><span class="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Shift Scheduling & Overtime</li>
+              <li class="flex items-center"><span class="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Multi-Stage Approvals & WFH</li>
+              <li class="flex items-center"><span class="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Unlimited Locations & Exports</li>
+            </ul>
+          </div>
+          <button onclick="switchView('dashboard')" class="w-full mt-10 py-3.5 rounded-full bg-[#FFD153] hover:brightness-105 text-[#122300] font-medium text-base sm:text-[16px] transition shadow-lg">
+            Get Started
+          </button>
+        </div>
+
+        <!-- Enterprise Card -->
+        <div class="bg-white border border-[#E2E8F0] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-sm">
+          <div>
+            <h3 class="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0E2322] mb-2">Enterprise</h3>
+            <p class="text-base sm:text-[20px] text-[#6D6D6D] leading-[1.3] mb-6 font-normal">For 1,000+ employees across regions.</p>
+            <div class="flex items-baseline mb-4">
+              <span class="text-5xl sm:text-[58px] font-medium tracking-tight text-[#0E2322]">Custom</span>
+            </div>
+            <p class="text-xs sm:text-[14px] font-normal text-[#6D6D6D] bg-slate-100 px-3 py-1.5 rounded-md mb-8 inline-block">
+              Volume Pricing & Annual Contract
+            </p>
+            <ul class="space-y-4 text-base sm:text-[16px] text-[#6D6D6D] font-normal">
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Everything In Growth</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> SSO, SCIM & Audit Logs</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Workday & ADP Integrations</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Statutory Compliance Per Region</li>
+              <li class="flex items-center"><span class="text-emerald-700 font-bold mr-3 text-lg">✓</span> Dedicated CSM & SLA</li>
+            </ul>
+          </div>
+          <button class="w-full mt-10 py-3.5 rounded-full bg-[#C0FD9B] hover:opacity-90 text-[#122300] font-medium text-base sm:text-[16px] transition">
+            Get Started
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CUSTOMER STORIES (Exact 1:1 Testimonials Grid) -->
+    <section id="stories" class="py-24 bg-[#FAFAFA] border-t border-slate-100 px-4 sm:px-6">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-3xl mx-auto mb-16">
+          <div class="inline-block text-sm font-geist text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
+            Customer stories
+          </div>
+          <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
+            Customer stories
+          </h2>
+          <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
+            Coming soon. We're onboarding our first teams, and their stories will appear here.
+          </p>
+        </div>
+
+        <div class="max-w-2xl mx-auto bg-white rounded-[28px] p-8 sm:p-12 border border-slate-200/80 shadow-sm text-center">
+          <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-[#E8FCE4] flex items-center justify-center text-[#0E2322]">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+            </svg>
+          </div>
+          <p class="text-base sm:text-[20px] text-[#0E2322] leading-[1.4] font-normal tracking-[-0.02em] mb-2">
+            Coming soon
+          </p>
+          <p class="text-sm sm:text-[16px] text-[#6D6D6D] leading-[1.4] font-normal">
+            We're onboarding our first teams, and their stories will appear here.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ ACCORDION (Exact 1:1 Typography Scale) -->
+    <section id="faq" class="py-24 px-4 sm:px-6 max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322]">
+          Questions, answered.
+        </h2>
+        <p class="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto mt-4 leading-[1.4] font-normal">
+          The things people ask before they put a tablet on the wall.
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <!-- FAQ 1 -->
+        <div class="border-b border-slate-200/80 py-5">
+          <button onclick="toggleFaq(1)" class="w-full flex justify-between items-center text-left py-2 font-normal text-xl sm:text-[24px] leading-snug tracking-[-0.02em] text-[#0E2322] group">
+            <span class="group-hover:text-emerald-800 transition">How does a check-in actually work?</span>
+            <span id="faq-icon-1" class="text-2xl text-[#0E2322] transition-transform duration-300 inline-block font-light">+</span>
+          </button>
+          <div id="faq-ans-1" class="faq-grid-content">
+            <div class="faq-inner text-base sm:text-[18px] text-[#6D6D6D] pt-3 leading-[1.4] font-normal">
+              A tablet at your entrance shows a QR code that refreshes every 15 seconds. Employees scan it with their phone. ChecIN records the check-in, and scans again on the way out to record the check-out.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="border-b border-slate-200/80 py-5">
+          <button onclick="toggleFaq(2)" class="w-full flex justify-between items-center text-left py-2 font-normal text-xl sm:text-[24px] leading-snug tracking-[-0.02em] text-[#0E2322] group">
+            <span class="group-hover:text-emerald-800 transition">Can someone check in for a colleague with a screenshot?</span>
+            <span id="faq-icon-2" class="text-2xl text-[#0E2322] transition-transform duration-300 inline-block font-light">+</span>
+          </button>
+          <div id="faq-ans-2" class="faq-grid-content">
+            <div class="faq-inner text-base sm:text-[18px] text-[#6D6D6D] pt-3 leading-[1.4] font-normal">
+              The code changes every 15 seconds, so a photo or screenshot goes stale almost immediately. The tablet is also the only thing that can produce valid codes for your entrance.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="border-b border-slate-200/80 py-5">
+          <button onclick="toggleFaq(3)" class="w-full flex justify-between items-center text-left py-2 font-normal text-xl sm:text-[24px] leading-snug tracking-[-0.02em] text-[#0E2322] group">
+            <span class="group-hover:text-emerald-800 transition">Do employees need to install an app?</span>
+            <span id="faq-icon-3" class="text-2xl text-[#0E2322] transition-transform duration-300 inline-block font-light">+</span>
+          </button>
+          <div id="faq-ans-3" class="faq-grid-content">
+            <div class="faq-inner text-base sm:text-[18px] text-[#6D6D6D] pt-3 leading-[1.4] font-normal">
+              There's nothing to find in an app store. ChecIN opens in the phone's browser and can be added to the home screen, so it sits there like any other app icon.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="border-b border-slate-200/80 py-5">
+          <button onclick="toggleFaq(4)" class="w-full flex justify-between items-center text-left py-2 font-normal text-xl sm:text-[24px] leading-snug tracking-[-0.02em] text-[#0E2322] group">
+            <span class="group-hover:text-emerald-800 transition">What hardware do we need?</span>
+            <span id="faq-icon-4" class="text-2xl text-[#0E2322] transition-transform duration-300 inline-block font-light">+</span>
+          </button>
+          <div id="faq-ans-4" class="faq-grid-content">
+            <div class="faq-inner text-base sm:text-[18px] text-[#6D6D6D] pt-3 leading-[1.4] font-normal">
+              One basic tablet at each entrance, mounted and plugged in. Setup takes about ten minutes: you enter a one-time code from your dashboard, and the tablet takes it from there. Adding another office later just means pairing another tablet. If a tablet is ever lost, you switch it off from the dashboard and pair a replacement.
+            </div>
+          </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="border-b border-slate-200/80 py-5">
+          <button onclick="toggleFaq(5)" class="w-full flex justify-between items-center text-left py-2 font-normal text-xl sm:text-[24px] leading-snug tracking-[-0.02em] text-[#0E2322] group">
+            <span class="group-hover:text-emerald-800 transition">Is our data kept separate from other companies?</span>
+            <span id="faq-icon-5" class="text-2xl text-[#0E2322] transition-transform duration-300 inline-block font-light">+</span>
+          </button>
+          <div id="faq-ans-5" class="faq-grid-content">
+            <div class="faq-inner text-base sm:text-[18px] text-[#6D6D6D] pt-3 leading-[1.4] font-normal">
+              Yes. Every company's people and records are walled off from every other company's.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DARK FOOTER (Exact from Figma & Prezence) -->
+    <footer class="bg-[#0E2322] text-white py-20 px-4 sm:px-6 border-t border-white/10">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
+        <div>
+          <div class="flex items-center space-x-2 font-normal text-[28px] text-white mb-4 tracking-tight">
+            <svg class="w-7 h-7 text-[#C0FD9B]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L15 8L21 9L16.5 13.5L18 19.5L12 16.5L6 19.5L7.5 13.5L3 9L9 8L12 2Z"/>
+            </svg>
+            <span>Chec<span class="text-[#C0FD9B]">IN</span></span>
+          </div>
+          <p class="text-[16px] text-white/60 max-w-sm leading-relaxed font-normal">
+            Attendance you can trust, one scan at a time.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-10">
+          <div>
+            <h4 class="font-medium text-[#C0FD9B] mb-4 uppercase tracking-[0.86px] text-[14px]">Company</h4>
+            <ul class="space-y-3 text-[16px] text-white/70">
+              <li><a href="#benefits" class="hover:text-white transition">Benefits</a></li>
+              <li><a href="#why" class="hover:text-white transition">Why ChecIN</a></li>
+              <li><a href="#capabilities" class="hover:text-white transition">Capabilities</a></li>
+              <li><a href="#pricing" class="hover:text-white transition">Pricing</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-medium text-[#C0FD9B] mb-4 uppercase tracking-[0.86px] text-[14px]">Legal</h4>
+            <ul class="space-y-3 text-[16px] text-white/70">
+              <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
+              <li><a href="#" class="hover:text-white transition">Terms of Service</a></li>
+              <li><a href="#" class="hover:text-white transition">Security & Audits</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-medium text-[#C0FD9B] mb-4 uppercase tracking-[0.86px] text-[14px]">Newsletter</h4>
+            <p class="text-[14px] text-white/60 mb-3">Get product updates from ChecIN.</p>
+            <div class="flex items-center">
+              <input type="email" placeholder="Your email" class="bg-white/10 border border-white/20 px-3.5 py-2 rounded-l-xl text-[14px] text-white placeholder-white/40 focus:outline-none focus:border-[#C0FD9B]" />
+              <button class="bg-[#C0FD9B] text-[#122300] font-medium text-[14px] px-3.5 py-2 rounded-r-xl hover:opacity-90 transition">→</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between text-[14px] text-white/40">
+        <div>© 2026 ChecIN Technologies Inc. All rights reserved.</div>
+        <div class="mt-2 sm:mt-0">Modern Attendance For Modern Teams</div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- =============================================================== -->
+  <!-- 2. ENTRANCE KIOSK TABLET (/kiosk)                               -->
+  <!-- =============================================================== -->
+  <main id="view-kiosk" class="preview-view hidden min-h-[calc(100vh-50px)] bg-[#0E2322] text-white p-4 sm:p-8 flex flex-col justify-between items-center relative overflow-hidden">
+    <!-- Top Bar -->
+    <div class="w-full max-w-4xl flex items-center justify-between border-b border-white/10 pb-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-3.5 h-3.5 rounded-full bg-[#C0FD9B] animate-ping"></div>
+        <div>
+          <h2 class="text-base font-bold text-white">Main Entrance Terminal #01</h2>
+          <p class="text-xs text-white/60">Device Secret Authenticated • Accra Head Office</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <div id="kiosk-clock" class="text-lg font-mono font-bold text-[#C0FD9B]">08:59:45 AM</div>
+        <div class="text-[11px] text-white/50">Saturday, September 26</div>
+      </div>
+    </div>
+
+    <!-- Center QR Container -->
+    <div class="my-8 text-center max-w-md w-full bg-[#122220] border-2 border-white/10 rounded-3xl p-8 shadow-2xl relative">
+      <!-- 3-Second Welcome Toast Overlay -->
+      <div id="kiosk-welcome-toast" class="hidden absolute inset-0 bg-[#0E2322]/95 backdrop-blur-md rounded-3xl z-20 flex flex-col items-center justify-center p-6 text-center border-2 border-[#C0FD9B]">
+        <div class="w-16 h-16 rounded-full bg-[#C0FD9B] text-[#122300] flex items-center justify-center text-3xl font-bold mb-4 shadow-lg">
+          ✓
+        </div>
+        <h3 class="text-2xl font-bold text-white mb-1" id="toast-user-name">Welcome, Kofi Manu</h3>
+        <p class="text-sm text-[#C0FD9B] font-semibold" id="toast-status-msg">Clocked IN • 08:59:50 AM</p>
+        <p class="text-xs text-white/50 mt-3">Have a productive day at the office!</p>
+      </div>
+
+      <div class="inline-block bg-[#C0FD9B]/10 border border-[#C0FD9B]/30 px-3 py-1 rounded-full text-xs font-geist text-[#C0FD9B] mb-4">
+        Scan with Phone Camera to Check In / Out
+      </div>
+
+      <!-- Real SVG High-Precision QR Code -->
+      <div class="w-64 h-64 mx-auto bg-white rounded-2xl p-4 shadow-inner flex items-center justify-center">
+        <svg class="w-56 h-56 text-[#0E2322]" viewBox="0 0 100 100" fill="currentColor">
+          <rect x="5" y="5" width="25" height="25" rx="3" fill="#0E2322"/>
+          <rect x="9" y="9" width="17" height="17" rx="1" fill="#FFFFFF"/>
+          <rect x="13" y="13" width="9" height="9" fill="#0E2322"/>
+          
+          <rect x="70" y="5" width="25" height="25" rx="3" fill="#0E2322"/>
+          <rect x="74" y="9" width="17" height="17" rx="1" fill="#FFFFFF"/>
+          <rect x="78" y="13" width="9" height="9" fill="#0E2322"/>
+
+          <rect x="5" y="70" width="25" height="25" rx="3" fill="#0E2322"/>
+          <rect x="9" y="74" width="17" height="17" rx="1" fill="#FFFFFF"/>
+          <rect x="13" y="78" width="9" height="9" fill="#0E2322"/>
+
+          <rect x="35" y="10" width="10" height="10" />
+          <rect x="50" y="20" width="8" height="8" />
+          <rect x="40" y="40" width="20" height="20" rx="2" fill="#0E2322"/>
+          <rect x="45" y="45" width="10" height="10" fill="#C0FD9B"/>
+          <rect x="70" y="40" width="12" height="6" />
+          <rect x="15" y="45" width="14" height="8" />
+          <rect x="40" y="70" width="18" height="12" />
+          <rect x="65" y="65" width="25" height="25" />
+          <rect x="75" y="75" width="8" height="8" fill="#FFFFFF"/>
+        </svg>
+      </div>
+
+      <!-- 15-Second Rotating Countdown Progress -->
+      <div class="mt-6 flex items-center justify-between text-xs text-white/70">
+        <span>Rotating HMAC Token: <strong class="font-mono text-[#C0FD9B]" id="kiosk-token-hash">e7a8...9f12</strong></span>
+        <span class="font-bold text-[#FFD153]" id="kiosk-timer-text">Refreshes in 12s</span>
+      </div>
+      <div class="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
+        <div id="kiosk-progress-bar" class="bg-[#C0FD9B] h-1.5 rounded-full transition-all duration-1000" style="width: 80%"></div>
+      </div>
+    </div>
+
+    <!-- Simulator Controller -->
+    <div class="w-full max-w-md bg-black/40 border border-white/10 rounded-2xl p-4 text-center">
+      <p class="text-xs text-white/70 mb-3">Simulation Mode: Trigger an employee scan event to test the 3-second toast</p>
+      <div class="flex gap-2">
+        <button onclick="triggerSimulatedScan('Kofi Manu', 'Clocked IN')" class="flex-1 py-2 px-3 rounded-xl bg-[#C0FD9B] text-[#122300] font-bold text-xs hover:opacity-90 active:scale-95 transition">
+          Simulate Scan IN
+        </button>
+        <button onclick="triggerSimulatedScan('Kofi Manu', 'Clocked OUT')" class="flex-1 py-2 px-3 rounded-xl bg-white/10 text-white font-semibold text-xs hover:bg-white/20 active:scale-95 transition">
+          Simulate Scan OUT
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- =============================================================== -->
+  <!-- 3. EMPLOYEE MOBILE PWA SCANNER (/scan)                          -->
+  <!-- =============================================================== -->
+  <main id="view-scan" class="preview-view hidden min-h-[calc(100vh-50px)] bg-slate-100 p-4 flex flex-col justify-center items-center">
+    <div class="w-full max-w-[390px] bg-black text-white rounded-[40px] p-4 border-[8px] border-slate-800 shadow-2xl overflow-hidden relative">
+      <div class="w-32 h-4 bg-slate-900 rounded-full mx-auto mb-4 flex items-center justify-center">
+        <div class="w-10 h-1 bg-slate-700 rounded-full"></div>
+      </div>
+
+      <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4 px-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-6 h-6 rounded-md bg-[#C0FD9B] text-[#122300] flex items-center justify-center text-xs font-bold">C</div>
+          <span class="text-sm font-bold text-white">ChecIN PWA</span>
+        </div>
+        <div class="text-[11px] text-[#C0FD9B] bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+          Online • Verified
+        </div>
+      </div>
+
+      <div class="bg-white/5 rounded-2xl p-4 mb-4 border border-white/10">
+        <div class="flex items-center space-x-3 mb-2">
+          <div class="w-10 h-10 rounded-full bg-[#C0FD9B] text-[#122300] flex items-center justify-center font-bold text-sm">
+            KM
+          </div>
+          <div>
+            <div class="font-bold text-sm text-white">Kofi Manu</div>
+            <div class="text-[11px] text-white/60">Operations Team • Accra Office</div>
+          </div>
+        </div>
+        <div class="text-xs pt-2 border-t border-white/10 flex justify-between" id="pwa-status-box">
+          <span class="text-white/60">Status today:</span>
+          <span class="font-semibold text-rose-400" id="pwa-current-status">Not Clocked In</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 rounded-2xl h-64 border-2 border-dashed border-[#C0FD9B]/50 relative flex flex-col items-center justify-center p-4 text-center overflow-hidden">
+        <div class="w-48 h-48 border-2 border-[#C0FD9B] rounded-2xl relative flex items-center justify-center animate-pulse">
+          <div class="w-full h-0.5 bg-[#C0FD9B] absolute top-1/2 -translate-y-1/2 shadow-lg shadow-[#C0FD9B]"></div>
+          <span class="text-[11px] text-white/70 bg-black/60 px-2 py-1 rounded">Point at Entrance Tablet</span>
+        </div>
+
+        <div id="pwa-cooldown-alert" class="hidden absolute bottom-3 left-3 right-3 bg-amber-500/90 text-black text-[11px] font-bold py-2 px-3 rounded-xl shadow-lg">
+          ⚠️ Cooldown active: Clocked in 45s ago. Scan again after 2 mins to prevent double-clocking.
+        </div>
+      </div>
+
+      <div class="mt-4 space-y-2">
+        <button onclick="executePwaScan()" class="w-full py-3.5 rounded-xl bg-[#C0FD9B] text-[#122300] font-bold text-sm hover:opacity-90 active:scale-95 transition shadow-lg flex items-center justify-center space-x-2">
+          <span>📷 Scan Kiosk QR</span>
+        </button>
+        <p class="text-[10px] text-center text-white/50">One tap from your home screen. No GPS permission needed.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- =============================================================== -->
+  <!-- 4. MANAGER & ADMIN DASHBOARD (/app)                             -->
+  <!-- =============================================================== -->
+  <main id="view-dashboard" class="preview-view hidden min-h-[calc(100vh-50px)] bg-[#F8FAFC] p-4 sm:p-8">
+    <div class="max-w-7xl mx-auto space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div>
+          <div class="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+            <span>Corporate Admin</span>
+            <span>•</span>
+            <span class="text-emerald-700">Acme Global Ltd (40 Employees)</span>
+          </div>
+          <h1 class="text-2xl font-bold text-[#0E2322]">Workforce Attendance Roster</h1>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition">
+            Export CSV
+          </button>
+          <button onclick="alert('Staff invite token generated for 7-day single use.')" class="px-4 py-2 rounded-xl bg-[#0E2322] text-white hover:bg-[#122300] text-xs font-semibold transition">
+            + Invite Staff Member
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 mb-1">Present Today</div>
+          <div class="text-3xl font-extrabold text-[#0E2322]">36 <span class="text-xs font-normal text-emerald-600">/ 40</span></div>
+          <div class="text-[11px] text-emerald-600 mt-2 font-medium">90% attendance rate</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 mb-1">Late Arrivals</div>
+          <div class="text-3xl font-extrabold text-amber-600">3</div>
+          <div class="text-[11px] text-amber-600 mt-2 font-medium">Within 15m threshold</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 mb-1">Remote (WFH)</div>
+          <div class="text-3xl font-extrabold text-blue-600">2</div>
+          <div class="text-[11px] text-blue-600 mt-2 font-medium">Manager approved</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 mb-1">On Approved Leave</div>
+          <div class="text-3xl font-extrabold text-purple-600">1</div>
+          <div class="text-[11px] text-purple-600 mt-2 font-medium">Annual leave</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 mb-1">Unplanned Absent</div>
+          <div class="text-3xl font-extrabold text-rose-500">1</div>
+          <div class="text-[11px] text-rose-500 mt-2 font-medium">Alert sent to manager</div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 class="text-sm font-bold text-[#0E2322]">Today's Activity Log (Real-Time Scan Events)</h2>
+          <span class="text-xs font-geist text-slate-500">Auto-refreshes on new scan</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead class="bg-slate-50 text-slate-500 uppercase text-[11px] font-semibold border-b border-slate-200">
+              <tr>
+                <th class="px-6 py-3">Employee</th>
+                <th class="px-6 py-3">Role & Manager</th>
+                <th class="px-6 py-3">Entrance Location</th>
+                <th class="px-6 py-3">Event Type</th>
+                <th class="px-6 py-3">Time</th>
+                <th class="px-6 py-3">Verification</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-medium">
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3.5 flex items-center space-x-3">
+                  <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">KM</div>
+                  <div>
+                    <div class="font-bold text-slate-900">Kofi Manu</div>
+                    <div class="text-[11px] text-slate-400">kofi@company.com</div>
+                  </div>
+                </td>
+                <td class="px-6 py-3.5 text-slate-600">Employee (Mgr: Kwame Mensah)</td>
+                <td class="px-6 py-3.5 text-slate-600">Main Lobby Tablet #01</td>
+                <td class="px-6 py-3.5"><span class="bg-[#CBEED3] text-emerald-900 px-2.5 py-1 rounded-full text-xs font-semibold">Clocked IN</span></td>
+                <td class="px-6 py-3.5 font-mono text-slate-800">08:59:50 AM</td>
+                <td class="px-6 py-3.5 text-xs text-emerald-600 font-medium">✓ HMAC Verified</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    // View Switcher
+    function switchView(viewId) {
+      document.querySelectorAll('.preview-view').forEach(v => v.classList.add('hidden'));
+      document.getElementById('view-' + viewId).classList.remove('hidden');
+
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.remove('bg-[#C0FD9B]', 'text-[#122300]', 'font-bold');
+        btn.classList.add('text-white/80', 'font-medium');
+      });
+
+      const activeBtn = document.getElementById('nav-' + viewId);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-[#C0FD9B]', 'text-[#122300]', 'font-bold');
+        activeBtn.classList.remove('text-white/80', 'font-medium');
+      }
+      window.scrollTo(0, 0);
+    }
+
+    // Billing Switcher
+    function setBilling(cycle) {
+      const mBtn = document.getElementById('bill-monthly');
+      const yBtn = document.getElementById('bill-yearly');
+      const gPrice = document.getElementById('growth-price');
+      const note = document.getElementById('growth-billing-note');
+
+      if (cycle === 'yearly') {
+        yBtn.classList.add('bg-white', 'text-[#0A0A0A]', 'shadow-sm');
+        yBtn.classList.remove('text-slate-600');
+        mBtn.classList.remove('bg-white', 'text-[#0A0A0A]', 'shadow-sm');
+        mBtn.classList.add('text-slate-600');
+        gPrice.innerText = '$6.40';
+        note.innerText = 'Billed Annually (Save 20%)';
+      } else {
+        mBtn.classList.add('bg-white', 'text-[#0A0A0A]', 'shadow-sm');
+        mBtn.classList.remove('text-slate-600');
+        yBtn.classList.remove('bg-white', 'text-[#0A0A0A]', 'shadow-sm');
+        yBtn.classList.add('text-slate-600');
+        gPrice.innerText = '$8.00';
+        note.innerText = 'Billed Monthly';
+      }
+    }
+
+    // Capabilities Data & Smooth Image Crossfade
+    const capData = {
+      attendance: {
+        img: "https://framerusercontent.com/images/PdCbUkepQPMwsqLNqnMFOhMlk.jpg",
+        title: "Real-Time Attendance",
+        desc: "See who's in and who's out as scans happen. One scan for both directions: ChecIN records whether it was a check-in or a check-out. Tied to person, door, and time."
+      },
+      leave: {
+        img: "https://framerusercontent.com/images/7EKiDY1Dnw1gb2S7E1Mej2ws.svg",
+        title: "Leave & Absence Management",
+        desc: "Employees request time off from their phone. Managers approve or decline in one place. Approved leave shows up on the team view, so absences aren't a surprise."
+      },
+      announcements: {
+        img: "https://framerusercontent.com/images/PZhh8usK41VfjRZFlBmcldnrNo.jpg",
+        title: "Announcements & Team Updates",
+        desc: "Managers post updates their team sees straight away. Notifications reach people's phones. Send to your whole company or just one team."
+      },
+      records: {
+        img: "https://framerusercontent.com/images/rDrThS7T8gy6JcC143xhaX5D5w4.png",
+        title: "Tamper-Resistant Records",
+        desc: "Every scan is logged with who, where and when. Codes expire in seconds, so records can't be borrowed from a photo. Fully separated company records."
+      }
+    };
+
+    function setCapability(cap) {
+      document.querySelectorAll('.cap-item').forEach(b => {
+        b.classList.remove('active', 'bg-[#C0FD9B]');
+        b.classList.add('bg-[#F5F5F5]');
+        const arrow = b.querySelector('span:last-child');
+        if (arrow) arrow.className = 'text-xl sm:text-[24px] text-[#0E2322]/60';
+      });
+      const el = document.getElementById('cap-' + cap);
+      if (el) {
+        el.classList.add('active', 'bg-[#C0FD9B]');
+        el.classList.remove('bg-[#F5F5F5]');
+        const arrow = el.querySelector('span:last-child');
+        if (arrow) arrow.className = 'text-xl sm:text-[24px] text-[#0E2322]';
+      }
+
+      const data = capData[cap];
+      const imgEl = document.getElementById('capability-image');
+      if (data && imgEl) {
+        if (window.gsap) {
+          gsap.to(imgEl, {
+            opacity: 0.2,
+            scale: 0.98,
+            duration: 0.15,
+            onComplete: () => {
+              imgEl.src = data.img;
+              imgEl.alt = data.title;
+              gsap.to(imgEl, { opacity: 1, scale: 1, duration: 0.35, ease: 'power2.out' });
+            }
+          });
+        } else {
+          imgEl.src = data.img;
+          imgEl.alt = data.title;
+        }
+      }
+    }
+
+    // Smooth FAQ Accordion Toggle
+    function toggleFaq(num) {
+      const ans = document.getElementById('faq-ans-' + num);
+      const icon = document.getElementById('faq-icon-' + num);
+      if (!ans) return;
+      const isOpen = ans.classList.contains('open');
+      if (isOpen) {
+        ans.classList.remove('open');
+        icon.innerText = '+';
+        icon.style.transform = 'rotate(0deg)';
+      } else {
+        ans.classList.add('open');
+        icon.innerText = '−';
+        icon.style.transform = 'rotate(180deg)';
+      }
+    }
+
+    // Floating Navbar Dynamic Scroll Elevation & Backdrop Blur
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('main-nav');
+      if (!nav) return;
+      if (window.scrollY > 40) {
+        nav.classList.add('shadow-[0_12px_40px_rgba(0,0,0,0.35)]', 'backdrop-blur-md', 'bg-[#C0FD9B]/95');
+      } else {
+        nav.classList.remove('shadow-[0_12px_40px_rgba(0,0,0,0.35)]', 'backdrop-blur-md', 'bg-[#C0FD9B]/95');
+      }
+    });
+
+    // GSAP Word-by-Word Blur & Stagger Entrance Animation
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.gsap) {
+        // Hero badge entrance
+        gsap.fromTo('#hero-badge', 
+          { opacity: 0, y: 15 }, 
+          { opacity: 1, y: 0, duration: 0.7, ease: 'power2.out' }
+        );
+
+        // Word-by-word blur-to-focus stagger
+        gsap.fromTo('.hero-word', 
+          { opacity: 0, y: 22, filter: 'blur(8px)' }, 
+          { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.85, stagger: 0.06, ease: 'power3.out' }
+        );
+
+        // Subtitle & CTAs fade
+        gsap.fromTo('#hero-sub', 
+          { opacity: 0, y: 16 }, 
+          { opacity: 1, y: 0, duration: 0.8, delay: 0.35, ease: 'power2.out' }
+        );
+        gsap.fromTo('#hero-ctas', 
+          { opacity: 0, y: 16 }, 
+          { opacity: 1, y: 0, duration: 0.8, delay: 0.45, ease: 'power2.out' }
+        );
+
+        // Mockup upward glide
+        gsap.fromTo('#hero-mockup', 
+          { opacity: 0, y: 40 }, 
+          { opacity: 1, y: 0, duration: 1.1, delay: 0.55, ease: 'power3.out' }
+        );
+      }
+    });
+
+    // Kiosk Clock & Timer
+    let kioskSeconds = 12;
+    setInterval(() => {
+      kioskSeconds--;
+      if (kioskSeconds <= 0) {
+        kioskSeconds = 15;
+        const fakeHash = Math.random().toString(16).substring(2, 6) + '...' + Math.random().toString(16).substring(2, 6);
+        document.getElementById('kiosk-token-hash').innerText = fakeHash;
+      }
+      document.getElementById('kiosk-timer-text').innerText = 'Refreshes in ' + kioskSeconds + 's';
+      document.getElementById('kiosk-progress-bar').style.width = ((kioskSeconds / 15) * 100) + '%';
+
+      const now = new Date();
+      document.getElementById('kiosk-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }, 1000);
+
+    // Kiosk Toast Trigger
+    function triggerSimulatedScan(name, status) {
+      const toast = document.getElementById('kiosk-welcome-toast');
+      document.getElementById('toast-user-name').innerText = 'Welcome, ' + name.split(' ')[0];
+      document.getElementById('toast-status-msg').innerText = status + ' • ' + new Date().toLocaleTimeString();
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+    }
+
+    // PWA Scanner with 2-Minute Cooldown Simulation
+    let lastScanTime = 0;
+    let isClockedIn = false;
+
+    function executePwaScan() {
+      const now = Date.now();
+      const cooldownAlert = document.getElementById('pwa-cooldown-alert');
+      const statusSpan = document.getElementById('pwa-current-status');
+
+      if (now - lastScanTime < 120000 && lastScanTime !== 0) {
+        cooldownAlert.classList.remove('hidden');
+        setTimeout(() => cooldownAlert.classList.add('hidden'), 4000);
+        return;
+      }
+
+      lastScanTime = now;
+      isClockedIn = !isClockedIn;
+
+      if (isClockedIn) {
+        statusSpan.innerText = 'Clocked IN (08:59 AM)';
+        statusSpan.className = 'font-semibold text-emerald-400';
+        triggerSimulatedScan('Kofi Manu', 'Clocked IN');
+      } else {
+        statusSpan.innerText = 'Clocked OUT (' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ')';
+        statusSpan.className = 'font-semibold text-amber-400';
+        triggerSimulatedScan('Kofi Manu', 'Clocked OUT');
+      }
+    }
+  </script>
+</body>
+</html>
