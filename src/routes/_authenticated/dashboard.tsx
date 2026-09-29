@@ -389,16 +389,18 @@ function DashboardPage() {
             <span>Export CSV</span>
           </button>
 
-          <button
-            onClick={() => {
-              handleResetForAnotherInvite();
-              setInviteModalOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>+ Invite Staff Member</span>
-          </button>
+          {(isOrgAdmin || isManager) && (
+            <button
+              onClick={() => {
+                handleResetForAnotherInvite();
+                setInviteModalOpen(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Invite Staff Member</span>
+            </button>
+          )}
         </div>
       </div>
 

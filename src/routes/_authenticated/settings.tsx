@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { firebaseAuth, googleProvider } from "@/integrations/firebase/config";
 import { linkWithPopup } from "firebase/auth";
@@ -60,8 +60,16 @@ const INITIAL_LOCATIONS: KioskLocation[] = [
 ];
 
 function SettingsPage() {
-  const { user, orgId, isOrgAdmin } = useAuth();
+  const { user, orgId, isOrgAdmin, loading } = useAuth();
+  const navigate = useNavigate();
   const canManageKiosks = isOrgAdmin;
+
+  useEffect(() => {
+    if (!loading && user && !isOrgAdmin) {
+      toast.error("Access Denied: Only organization administrators can access Settings.");
+      navigate({ to: "/dashboard" });
+    }
+  }, [loading, user, isOrgAdmin, navigate]);
 
   const [locations, setLocations] = useState<KioskLocation[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
@@ -267,6 +275,26 @@ function SettingsPage() {
     setTimeout(() => setCopiedCode(false), 2000);
     toast.success("Pairing code copied to clipboard");
   };
+
+  if (!isOrgAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md mx-auto my-12">
+        <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-4">
+          <ShieldCheck className="size-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 mb-1">Access Denied</h2>
+        <p className="text-xs text-slate-500 mb-5">
+          Organization Administrator privileges are required to access kiosk pairing and company settings.
+        </p>
+        <Link
+          to="/dashboard"
+          className="px-4 py-2 bg-[#0E2322] text-[#C0FD9B] rounded-xl text-xs font-bold hover:opacity-90 transition"
+        >
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
