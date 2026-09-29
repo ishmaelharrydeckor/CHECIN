@@ -53,8 +53,8 @@ export async function checkRateLimit(
       return { allowed: true };
     });
   } catch (err) {
-    // Fail open: a rate-limiter outage should not lock every student out of
-    // their portal. The error is surfaced so it shows up in monitoring
+    // Fail open: a rate-limiter outage should not lock every user out of
+    // their account. The error is surfaced so it shows up in monitoring
     // rather than failing silently.
     console.error("Rate limit check failed, allowing request:", err);
     return { allowed: true };

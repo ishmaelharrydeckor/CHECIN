@@ -5,7 +5,7 @@ import { firestoreAdmin } from "./admin.server";
  * These helpers split a larger id list into compliant chunks, run the chunks
  * in parallel, and merge the results — so callers can pass an arbitrary
  * number of ids without ever falling back to "fetch the whole collection and
- * filter in JS", which is what made the student portal unusable at scale.
+ * filter in JS", which degrades portal performance at scale.
  */
 const IN_CHUNK_SIZE = 30;
 

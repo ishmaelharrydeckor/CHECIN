@@ -7,10 +7,10 @@ import { resolveCallerIdentity } from "@/lib/caller-identity.server";
  *
  * Previously took `userId`/`altId` straight from the query string (GET) or
  * request body (POST), with no verification — anyone could read another
- * person's notification history (grades, deadlines, admin alerts, whatever
+ * person's notification history (announcements, shifts, admin alerts, whatever
  * gets pushed to that id) or mark an arbitrary notification as read just by
  * knowing or guessing its id. Identity now always comes from a verified
- * student session token or Firebase ID token, never from the request.
+ * employee session token or Firebase ID token, never from the request.
  */
 
 async function resolveQueryIds(identity: { userId: string }): Promise<string[]> {

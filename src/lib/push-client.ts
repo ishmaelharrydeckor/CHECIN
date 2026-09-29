@@ -1,10 +1,10 @@
 // Client-side Web Push Notification Manager
-// Kwame Nkrumah University of Science and Technology (KNUST)
+// ChecIN Corporate Attendance & Workforce Platform
 
 export interface PushUserContext {
   userId: string;
   userRole?: string;
-  studentId?: string;
+  employeeId?: string;
   token?: string; // Session token or Firebase Auth ID Token
 }
 
@@ -172,7 +172,7 @@ export async function subscribeDeviceToPush(userContext: PushUserContext): Promi
     return {
       success: false,
       status: "ios_pwa_required",
-      message: "On iPhone/iPad, please add KNUST ATTENDANCE APP to your Home Screen first to enable push notifications.",
+      message: "On iPhone/iPad, please add ChecIN to your Home Screen first to enable push notifications.",
     };
   }
 

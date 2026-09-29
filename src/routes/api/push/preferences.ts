@@ -8,7 +8,7 @@ import { resolveCallerIdentity } from "@/lib/caller-identity.server";
  * Previously took `userId` straight from the query string / body with no
  * verification — anyone could read or silently rewrite another person's
  * preferences (e.g. turning off someone else's attendance alerts). Identity
- * now always comes from a verified student session token or Firebase ID
+ * now always comes from a verified employee session token or Firebase ID
  * token.
  */
 export const Route = createFileRoute("/api/push/preferences")({

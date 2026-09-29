@@ -142,7 +142,7 @@ export function PushNotificationManager({
     if (!userContext.userId) return;
     setHistoryLoading(true);
     try {
-      const altParam = userContext.studentId ? `&altId=${encodeURIComponent(userContext.studentId)}` : "";
+      const altParam = userContext.employeeId ? `&altId=${encodeURIComponent(userContext.employeeId)}` : "";
       const res = await fetch(
         `/api/push/notifications?userId=${encodeURIComponent(userContext.userId)}${altParam}`,
       );
@@ -155,7 +155,7 @@ export function PushNotificationManager({
     } finally {
       setHistoryLoading(false);
     }
-  }, [userContext.userId, userContext.studentId]);
+  }, [userContext.userId, userContext.employeeId]);
 
   useEffect(() => {
     checkStatus();
@@ -266,11 +266,11 @@ export function PushNotificationManager({
           userId: userContext.userId,
           payload: {
             type: "TEST",
-            title: "KNUST Attendance Push Verified",
-            body: "Real OS/browser push notifications are active and functioning correctly on this device!",
-            url: "/student",
-            icon: "/favicon.png",
-            badge: "/favicon.png",
+            title: "ChecIN Presence Push Verified",
+            body: "Real-time workforce push notifications are active and functioning correctly on this device!",
+            url: "/scan",
+            icon: "/icons/icon-192.png",
+            badge: "/icons/icon-192.png",
           },
         }),
       });
@@ -307,7 +307,7 @@ export function PushNotificationManager({
           <ol className="list-decimal pl-4 space-y-1.5 font-medium">
             <li>In Safari, tap the <strong>Share</strong> button at the bottom of the screen.</li>
             <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
-            <li>Launch the new <strong>KNUST Attendance</strong> app icon from your Home Screen.</li>
+            <li>Launch the new <strong>ChecIN</strong> app icon from your Home Screen.</li>
             <li>Return to this page inside the installed app and tap <strong>Enable Notifications</strong>.</li>
           </ol>
           <div className="pt-2">
@@ -385,8 +385,8 @@ export function PushNotificationManager({
               {status === "denied"
                 ? "Notifications are currently blocked. Click the lock/info icon in your browser URL bar to allow notifications."
                 : isSubscribed
-                ? "You will receive attendance, announcements, and assignment alerts even when the app is closed."
-                : "Grant notification permission so your browser can receive background academic alerts."}
+                ? "You will receive check-in confirmations, team notices, and shift updates even when the app is closed."
+                : "Grant notification permission so your browser can receive background workforce alerts."}
             </p>
           </div>
 
@@ -418,7 +418,7 @@ export function PushNotificationManager({
                 onClick={handleSubscribe}
                 disabled={loading || status === "denied"}
                 size="sm"
-                className="bg-[#00552b] hover:bg-[#00381c] text-white text-xs font-semibold shadow-xs cursor-pointer"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -446,8 +446,8 @@ export function PushNotificationManager({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
               <div className="space-y-0.5">
-                <span className="text-sm font-medium">Attendance Sessions</span>
-                <p className="text-xs text-muted-foreground">When attendance opens or closes</p>
+                <span className="text-sm font-medium">Entrance Check-Ins</span>
+                <p className="text-xs text-muted-foreground">Clock-in and clock-out verifications</p>
               </div>
               <Switch
                 checked={preferences.attendance}
@@ -457,8 +457,8 @@ export function PushNotificationManager({
 
             <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
               <div className="space-y-0.5">
-                <span className="text-sm font-medium">Course Announcements</span>
-                <p className="text-xs text-muted-foreground">Lecturer messages and updates</p>
+                <span className="text-sm font-medium">Company & Team Notices</span>
+                <p className="text-xs text-muted-foreground">Management announcements and updates</p>
               </div>
               <Switch
                 checked={preferences.announcements}
@@ -468,8 +468,8 @@ export function PushNotificationManager({
 
             <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
               <div className="space-y-0.5">
-                <span className="text-sm font-medium">New Assignments</span>
-                <p className="text-xs text-muted-foreground">When coursework is posted</p>
+                <span className="text-sm font-medium">Shift & Schedule Alerts</span>
+                <p className="text-xs text-muted-foreground">Roster updates and schedule changes</p>
               </div>
               <Switch
                 checked={preferences.assignments}
@@ -479,8 +479,8 @@ export function PushNotificationManager({
 
             <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
               <div className="space-y-0.5">
-                <span className="text-sm font-medium">Deadlines & Reminders</span>
-                <p className="text-xs text-muted-foreground">Upcoming due dates and expirations</p>
+                <span className="text-sm font-medium">Approvals & Leave Alerts</span>
+                <p className="text-xs text-muted-foreground">Leave request decisions and reminders</p>
               </div>
               <Switch
                 checked={preferences.deadlines}
@@ -535,9 +535,9 @@ export function PushNotificationManager({
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
             {[
               { id: "all", label: "All Alerts" },
-              { id: "ANNOUNCEMENT", label: "Announcements" },
-              { id: "ASSIGNMENT", label: "Assignments" },
-              { id: "ATTENDANCE", label: "Attendance" },
+              { id: "ANNOUNCEMENT", label: "Notices" },
+              { id: "ASSIGNMENT", label: "Shifts" },
+              { id: "ATTENDANCE", label: "Check-Ins" },
             ].map((f) => (
               <button
                 key={f.id}
@@ -566,7 +566,7 @@ export function PushNotificationManager({
                 <Inbox className="size-8 text-muted-foreground/40 mx-auto" />
                 <p className="font-semibold text-foreground text-sm">No notification records yet</p>
                 <p className="max-w-xs mx-auto text-muted-foreground">
-                  When your course lecturers post announcements, assign coursework, or open attendance sessions, they will be logged here and sent directly to your phone.
+                  When management posts announcements, updates your shift schedule, or verifies entrance check-ins, they will be logged here and sent directly to your device.
                 </p>
               </div>
             ) : (
@@ -897,10 +897,10 @@ export function InAppNotificationCenter({ userId }: { userId: string }) {
 }
 
 /**
- * Compact Student Portal Phone Push Notification Banner
- * Prominently prompts students to enable mobile push alerts for announcements & assignments.
+ * Compact Workforce Mobile Push Notification Banner
+ * Prominently prompts employees and managers to enable mobile push alerts for announcements & shifts.
  */
-export function StudentPushBanner({
+export function WorkforcePushBanner({
   userContext,
   onOpenNotificationsTab,
 }: {
@@ -939,8 +939,8 @@ export function StudentPushBanner({
             payload: {
               type: "GENERAL",
               title: "🔔 Alerts Connected!",
-              body: "You will now receive lecturer announcements and assignments on this phone.",
-              url: "/student",
+              body: "You will now receive company announcements and shift notifications on this device.",
+              url: "/scan",
             },
           }),
         }).catch(() => {});
@@ -967,7 +967,7 @@ export function StudentPushBanner({
         <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
           <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span className="font-medium">
-            Phone notifications are active — you will receive lecturer updates directly to this device.
+            Phone notifications are active — you will receive company updates directly to this device.
           </span>
         </div>
         {onOpenNotificationsTab && (
@@ -994,14 +994,14 @@ export function StudentPushBanner({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-foreground">
-                Get Lecturer Announcements & Assignments on your Phone
+                Get Company Notices & Shift Alerts on your Phone
               </h3>
               <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] px-1.5 py-0 font-semibold">
                 Recommended
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-              Turn on push notifications so your device receives class notices, coursework postings, and attendance session alerts in real-time, even when the app is closed.
+              Turn on push notifications so your device receives team announcements, shift schedules, and check-in verifications in real-time, even when the app is closed.
             </p>
           </div>
         </div>
@@ -1038,3 +1038,7 @@ export function StudentPushBanner({
     </div>
   );
 }
+
+/** Legacy alias for backwards compatibility */
+export const StudentPushBanner = WorkforcePushBanner;
+
