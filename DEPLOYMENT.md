@@ -49,7 +49,11 @@ git push -u origin main
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | `938492880362` | Public |
 | `VITE_FIREBASE_APP_ID` | `1:938492880362:web:d9065bc93f7e8107a73e93` | Public |
 | `FIREBASE_PROJECT_ID` | `checin-d172e` | Secret |
-| `FIREBASE_SERVICE_ACCOUNT` | *(Paste the base64 string from your `.env`)* | Secret |
+| `FIREBASE_SERVICE_ACCOUNT` | *(Paste the base64 string from your local `.env`)* | Secret |
+| `VAPID_PUBLIC_KEY` | *(Paste from your local `.env`)* | Public |
+| `VAPID_PRIVATE_KEY` | *(Paste from your local `.env`)* | Secret |
+| `VAPID_SUBJECT` | `mailto:admin@checin.app` | Public |
+| `VITE_VAPID_PUBLIC_KEY` | *(Paste from your local `.env`)* | Public |
 
 5. Click **Deploy**. Vercel will build the frontend assets and serverless API endpoints.
 
