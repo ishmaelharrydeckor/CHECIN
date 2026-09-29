@@ -15,8 +15,8 @@ export const Route = createFileRoute("/api/kiosk/pair-code")({
             return Response.json({ error: "Unauthorized: Missing organization membership" }, { status: 401 });
           }
 
-          if (caller.role !== "org_admin") {
-            return Response.json({ error: "Forbidden: Org Admin privileges required to pair kiosks" }, { status: 403 });
+          if (caller.role !== "org_admin" && caller.role !== "manager") {
+            return Response.json({ error: "Forbidden: Org Admin or Manager privileges required to pair kiosks" }, { status: 403 });
           }
 
           const body = await request.json();

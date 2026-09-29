@@ -60,16 +60,17 @@ const INITIAL_LOCATIONS: KioskLocation[] = [
 ];
 
 function SettingsPage() {
-  const { user, orgId, isOrgAdmin, loading } = useAuth();
+  const { user, orgId, isOrgAdmin, isManager, loading } = useAuth();
   const navigate = useNavigate();
-  const canManageKiosks = isOrgAdmin;
+  const canAccessSettings = isOrgAdmin || isManager;
+  const canManageKiosks = isOrgAdmin || isManager;
 
   useEffect(() => {
-    if (!loading && user && !isOrgAdmin) {
-      toast.error("Access Denied: Only organization administrators can access Settings.");
+    if (!loading && user && !canAccessSettings) {
+      toast.error("Access Denied: Administrator or Manager privileges are required.");
       navigate({ to: "/dashboard" });
     }
-  }, [loading, user, isOrgAdmin, navigate]);
+  }, [loading, user, canAccessSettings, navigate]);
 
   const [locations, setLocations] = useState<KioskLocation[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
@@ -276,7 +277,16 @@ function SettingsPage() {
     toast.success("Pairing code copied to clipboard");
   };
 
-  if (!isOrgAdmin) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center">
+        <RefreshCw className="size-6 animate-spin text-[#0E2322] mb-3" />
+        <p className="text-xs font-semibold text-slate-500">Loading settings...</p>
+      </div>
+    );
+  }
+
+  if (!canAccessSettings) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md mx-auto my-12">
         <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-4">
@@ -284,7 +294,7 @@ function SettingsPage() {
         </div>
         <h2 className="text-lg font-bold text-slate-900 mb-1">Access Denied</h2>
         <p className="text-xs text-slate-500 mb-5">
-          Organization Administrator privileges are required to access kiosk pairing and company settings.
+          Organization Administrator or Manager privileges are required to access Settings.
         </p>
         <Link
           to="/dashboard"
@@ -440,47 +450,62 @@ function SettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {locations.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-slate-50/50">
-                    <td className="py-3 px-4 font-medium text-[#0E2322]">{loc.name}</td>
-                    <td className="py-3 px-4">
-                      {loc.isPaired ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#E8FCE4] text-[#122300]">
-                          <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                          Paired &amp; Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
-                          Awaiting Tablet Pairing
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-muted-foreground">
-                      {loc.pairedAt ? new Date(loc.pairedAt).toLocaleDateString() : "Not paired yet"}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      {loc.isPaired ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRevokeKiosk(loc.id)}
-                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                        >
-                          Revoke Secret
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleGeneratePairingCode(loc)}
-                          className="text-xs border-slate-300"
-                        >
-                          <KeyRound className="size-3 mr-1" /> Pair Tablet
-                        </Button>
-                      )}
+                {loadingLocations ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                      <RefreshCw className="size-4 animate-spin inline mr-2 text-[#0E2322]" />
+                      Loading entrance locations...
                     </td>
                   </tr>
-                ))}
+                ) : locations.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                      No entrance locations configured yet. Add a location above to pair a tablet kiosk.
+                    </td>
+                  </tr>
+                ) : (
+                  locations.map((loc) => (
+                    <tr key={loc.id} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-4 font-medium text-[#0E2322]">{loc.name}</td>
+                      <td className="py-3 px-4">
+                        {loc.isPaired ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#E8FCE4] text-[#122300]">
+                            <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            Paired &amp; Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
+                            Awaiting Tablet Pairing
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-muted-foreground">
+                        {loc.pairedAt ? new Date(loc.pairedAt).toLocaleDateString() : "Not paired yet"}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {loc.isPaired ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRevokeKiosk(loc.id)}
+                            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          >
+                            Revoke Secret
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleGeneratePairingCode(loc)}
+                            className="text-xs border-slate-300"
+                          >
+                            <KeyRound className="size-3 mr-1" /> Pair Tablet
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/history", label: "History", icon: Clock },
     { to: "/reports", label: "Reports", icon: FileBarChart },
     { to: "/announcements", label: "Notices", icon: Megaphone },
-    ...(isOrgAdmin ? [{ to: "/settings", label: "Settings", icon: Settings }] : []),
+    ...(isOrgAdmin || isManager ? [{ to: "/settings", label: "Settings", icon: Settings }] : []),
   ];
 
   return (

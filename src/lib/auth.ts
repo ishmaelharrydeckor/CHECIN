@@ -50,10 +50,14 @@ export function useAuth() {
     return fbUser ? toAppUser(fbUser) : null;
   });
 
-  const [role, setRole] = useState<CorporateRole | null>(null);
-  const [orgId, setOrgId] = useState<string | undefined>(undefined);
-  const [managerId, setManagerId] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState(!firebaseAuth.currentUser);
+  const [role, setRole] = useState<CorporateRole | null>(() => getRole());
+  const [orgId, setOrgId] = useState<string | undefined>(() => getOrgId());
+  const [managerId, setManagerId] = useState<string | undefined>(() => getManagerId());
+  const [loading, setLoading] = useState(() => {
+    const fbUser = firebaseAuth.currentUser;
+    if (!fbUser) return true;
+    return getRole() === null;
+  });
 
   useEffect(() => {
     let mounted = true;
