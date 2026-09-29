@@ -121,7 +121,19 @@ export const Route = createFileRoute("/api/check-in/scan")({
           // 5. Create immutable audit record in clock_events
           const eventRef = firestoreAdmin.collection("clock_events").doc();
           const timestampIso = new Date().toISOString();
-          const employeeName = activeCaller.name || activeCaller.email?.split("@")[0] || "Employee";
+          let employeeName = activeCaller.name || activeCaller.email?.split("@")[0] || "Employee";
+          let employeeDepartment = "General";
+
+          try {
+            const userDoc = await firestoreAdmin.collection("users").doc(activeCaller.uid).get();
+            if (userDoc.exists) {
+              const udata = userDoc.data();
+              if (udata?.displayName) employeeName = udata.displayName;
+              if (udata?.department) employeeDepartment = udata.department;
+            }
+          } catch (e) {
+            console.warn("Could not fetch user profile for scan event:", e);
+          }
 
           const eventData = {
             eventId: eventRef.id,
@@ -130,6 +142,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
             employeeId: activeCaller.uid,
             employeeName,
             employeeEmail: activeCaller.email || "",
+            department: employeeDepartment,
             type: nextType,
             timestamp: timestampIso,
             locationId,
