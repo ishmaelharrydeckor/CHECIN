@@ -50,76 +50,17 @@ interface ActivityItem {
   time: string;
 }
 
-const INITIAL_ACTIVITIES: ActivityItem[] = [
-  {
-    id: "act-1",
-    name: "Kofi Manu",
-    email: "kofi.manu@company.com",
-    initials: "KM",
-    department: "Product Design",
-    location: "Main Lobby Terminal #01",
-    type: "in",
-    time: "08:59:50 AM",
-  },
-  {
-    id: "act-2",
-    name: "Ama Mensah",
-    email: "ama.mensah@company.com",
-    initials: "AM",
-    department: "Engineering",
-    location: "Main Lobby Terminal #01",
-    type: "in",
-    time: "08:54:12 AM",
-  },
-  {
-    id: "act-3",
-    name: "Kwesi Appiah",
-    email: "kwesi.appiah@company.com",
-    initials: "KA",
-    department: "Operations",
-    location: "Main Lobby Terminal #01",
-    type: "in",
-    time: "08:45:00 AM",
-  },
-  {
-    id: "act-4",
-    name: "Sarah Jenkins",
-    email: "sarah.j@company.com",
-    initials: "SJ",
-    department: "Finance",
-    location: "Main Lobby Terminal #01",
-    type: "in",
-    time: "08:30:15 AM",
-  },
-  {
-    id: "act-5",
-    name: "David Osei",
-    email: "david.o@company.com",
-    initials: "DO",
-    department: "Sales",
-    location: "Main Lobby Terminal #01",
-    type: "out",
-    time: "08:15:30 AM",
-  },
-];
-
-// 5-Day Weekly Trend Data (Mon-Fri)
-const WEEKLY_TREND = [
-  { day: "Mon", present: 38, late: 2, wfh: 0 },
-  { day: "Tue", present: 37, late: 3, wfh: 0 },
-  { day: "Wed", present: 39, late: 1, wfh: 0 },
-  { day: "Thu", present: 36, late: 4, wfh: 0 },
-  { day: "Fri (Today)", present: 36, late: 3, wfh: 1 },
-];
-
-// Department Distribution Data
-const DEPT_DATA = [
-  { name: "Engineering", value: 16, color: "#0E2322" },
-  { name: "Product Design", value: 8, color: "#C0FD9B" },
-  { name: "Operations", value: 8, color: "#FFD153" },
-  { name: "Finance", value: 4, color: "#CBEED3" },
-  { name: "Sales", value: 4, color: "#94A3B8" },
-];
+interface AttendanceRecord {
+  id: string;
+  employeeId?: string;
+  employeeName?: string;
+  name?: string;
+  email?: string;
+  department?: string;
+  type: "in" | "out";
+  timestamp: string;
+  locationName?: string;
+}
 
 function DashboardPage() {
   const { user, orgId, isOrgAdmin, isManager, refreshClaims } = useAuth();
@@ -128,6 +69,7 @@ function DashboardPage() {
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
   const [activeStaff, setActiveStaff] = useState<any[]>([]);
   const [liveActivities, setLiveActivities] = useState<ActivityItem[]>([]);
+  const [historyRecords, setHistoryRecords] = useState<AttendanceRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "in" | "out">("all");
   const [deptFilter, setDeptFilter] = useState("all");
@@ -158,7 +100,7 @@ function DashboardPage() {
     }
   };
 
-  // Fetch real organization details and registered staff members
+  // Fetch real organization details, registered staff members, and attendance history
   const fetchOrgAndStaff = async () => {
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
@@ -182,6 +124,15 @@ function DashboardPage() {
           const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
           setPendingInvitesCount(pending);
           setActiveStaff(staffData.members || []);
+        }
+      }
+
+      // 3. Fetch attendance history for verified trends and shift calculations
+      const historyRes = await fetch("/api/attendance/history", { headers });
+      if (historyRes.ok) {
+        const histData = await historyRes.json();
+        if (histData.ok && Array.isArray(histData.records)) {
+          setHistoryRecords(histData.records);
         }
       }
     } catch (e) {
@@ -215,8 +166,258 @@ function DashboardPage() {
     return () => clearInterval(interval);
   }, [user, orgId]);
 
-  // Live activities directly from real Firestore events
-  const allActivities = liveActivities;
+  // Unified, deduplicated telemetry from live feed and historical database records
+  const allActivities: ActivityItem[] = useMemo(() => {
+    const map = new Map<string, ActivityItem>();
+
+    // 1. Process historical records
+    for (const r of historyRecords) {
+      const name = r.employeeName || r.name || "Employee";
+      const initials =
+        name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "EM";
+      map.set(r.id, {
+        id: r.id,
+        name,
+        email: r.email || "",
+        initials,
+        department: r.department || "General Operations",
+        location: r.locationName || (r as any).location || "Main Entrance Terminal",
+        type: r.type,
+        time: new Date(r.timestamp).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      });
+    }
+
+    // 2. Overlay live activities (already normalized)
+    for (const a of liveActivities) {
+      map.set(a.id, a);
+    }
+
+    return Array.from(map.values());
+  }, [historyRecords, liveActivities]);
+
+  // Combined raw telemetry events for weekly trend & shift calculations
+  const allTelemetryEvents = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const r of historyRecords) {
+      map.set(r.id, r);
+    }
+    for (const a of liveActivities) {
+      if (!map.has(a.id)) {
+        map.set(a.id, a);
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }, [historyRecords, liveActivities]);
+
+  // 5-Day Weekly Trend Data (Mon-Fri) calculated purely from real events
+  const weeklyTrend = useMemo(() => {
+    const now = new Date();
+    const currentDayOfWeek = now.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
+    const distanceToMonday = (currentDayOfWeek + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - distanceToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+    return days.map((dayName, idx) => {
+      const dayDate = new Date(monday);
+      dayDate.setDate(monday.getDate() + idx);
+      const dayStart = new Date(dayDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const isToday = now.toDateString() === dayDate.toDateString();
+      const isFuture = dayDate.getTime() > now.getTime() && !isToday;
+      const label = isToday ? `${dayName} (Today)` : dayName;
+
+      if (isFuture) {
+        return { day: label, present: 0, late: 0, wfh: 0 };
+      }
+
+      // Filter "in" events that fell on this day
+      const dayInEvents = allTelemetryEvents.filter((e) => {
+        if (e.type !== "in") return false;
+        const t = new Date(e.timestamp).getTime();
+        return t >= dayStart.getTime() && t <= dayEnd.getTime();
+      });
+
+      // Group by unique employee
+      const uniqueEmployees = new Map<string, Date>();
+      for (const ev of dayInEvents) {
+        const key = ev.employeeId || ev.email || ev.name;
+        const evTime = new Date(ev.timestamp);
+        if (!uniqueEmployees.has(key) || evTime < uniqueEmployees.get(key)!) {
+          uniqueEmployees.set(key, evTime);
+        }
+      }
+
+      let present = uniqueEmployees.size;
+      let late = 0;
+
+      // On-time cutoff: 9:15 AM
+      for (const firstInTime of uniqueEmployees.values()) {
+        const hours = firstInTime.getHours();
+        const minutes = firstInTime.getMinutes();
+        if (hours > 9 || (hours === 9 && minutes > 15)) {
+          late++;
+        }
+      }
+
+      return { day: label, present, late, wfh: 0 };
+    });
+  }, [allTelemetryEvents]);
+
+  const yAxisMax = useMemo(() => {
+    const maxVal = Math.max(1, ...weeklyTrend.map((d) => Math.max(d.present, d.late)));
+    return Math.max(3, maxVal, totalHeadcount);
+  }, [weeklyTrend, totalHeadcount]);
+
+  // Department Distribution Data dynamically grouped from real active staff & events
+  const deptData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    if (activeStaff && activeStaff.length > 0) {
+      for (const member of activeStaff) {
+        const dept =
+          member.department ||
+          (member.role === "org_admin" ? "Leadership" : member.role === "manager" ? "Management" : "Operations");
+        counts[dept] = (counts[dept] || 0) + 1;
+      }
+    } else {
+      counts["Operations"] = Math.max(1, totalHeadcount);
+    }
+
+    const PALETTE = ["#0E2322", "#C0FD9B", "#FFD153", "#38BDF8", "#A78BFA", "#F472B6", "#FB923C"];
+
+    return Object.entries(counts).map(([name, value], idx) => ({
+      name,
+      value,
+      color: PALETTE[idx % PALETTE.length],
+    }));
+  }, [activeStaff, totalHeadcount]);
+
+  // On-time metrics calculated from today's real check-in events
+  const onTimeMetrics = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayInEvents = allTelemetryEvents.filter((e) => {
+      if (e.type !== "in") return false;
+      return new Date(e.timestamp).getTime() >= todayStart.getTime();
+    });
+
+    if (todayInEvents.length === 0) {
+      return {
+        rateDisplay: "—",
+        subtext: "Awaiting today's first punch",
+        textColor: "text-[#166534]",
+      };
+    }
+
+    // Earliest IN punch per person today
+    const firstInByPerson = new Map<string, Date>();
+    for (const ev of todayInEvents) {
+      const key = ev.employeeId || ev.email || ev.name;
+      const t = new Date(ev.timestamp);
+      if (!firstInByPerson.has(key) || t < firstInByPerson.get(key)!) {
+        firstInByPerson.set(key, t);
+      }
+    }
+
+    const totalEmployeesPunched = firstInByPerson.size;
+    let onTimeCount = 0;
+    for (const firstTime of firstInByPerson.values()) {
+      const hours = firstTime.getHours();
+      const minutes = firstTime.getMinutes();
+      // On-time policy: on or before 9:15 AM
+      if (hours < 9 || (hours === 9 && minutes <= 15)) {
+        onTimeCount++;
+      }
+    }
+
+    const percentage = Math.round((onTimeCount / totalEmployeesPunched) * 100);
+    return {
+      rateDisplay: `${percentage}%`,
+      subtext: `${onTimeCount} of ${totalEmployeesPunched} arrived on schedule (≤ 9:15 AM)`,
+      textColor: percentage >= 80 ? "text-[#166534]" : "text-amber-800",
+    };
+  }, [allTelemetryEvents]);
+
+  // Average shift length calculated from real today's paired IN and OUT events
+  const avgShiftMetrics = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const eventsByPerson = new Map<string, Array<{ type: "in" | "out"; time: number }>>();
+    for (const ev of allTelemetryEvents) {
+      const t = new Date(ev.timestamp).getTime();
+      if (t < todayStart.getTime()) continue;
+      const key = ev.employeeId || ev.email || ev.name;
+      if (!eventsByPerson.has(key)) {
+        eventsByPerson.set(key, []);
+      }
+      eventsByPerson.get(key)!.push({ type: ev.type, time: t });
+    }
+
+    const shiftDurationsHours: number[] = [];
+    let inProgressCount = 0;
+
+    for (const punches of eventsByPerson.values()) {
+      punches.sort((a, b) => a.time - b.time);
+
+      let currentInTime: number | null = null;
+      for (const p of punches) {
+        if (p.type === "in") {
+          currentInTime = p.time;
+        } else if (p.type === "out" && currentInTime !== null) {
+          const durationHours = (p.time - currentInTime) / (1000 * 60 * 60);
+          if (durationHours > 0) {
+            shiftDurationsHours.push(durationHours);
+          }
+          currentInTime = null;
+        }
+      }
+      if (currentInTime !== null) {
+        inProgressCount++;
+      }
+    }
+
+    if (shiftDurationsHours.length === 0) {
+      if (inProgressCount > 0) {
+        return {
+          display: "In Progress",
+          subtext: `${inProgressCount} active shift${inProgressCount === 1 ? "" : "s"} on site (calculates upon OUT punch)`,
+        };
+      }
+      return {
+        display: "—",
+        subtext: "Calculates upon check-out (IN → OUT)",
+      };
+    }
+
+    const sumHours = shiftDurationsHours.reduce((acc, h) => acc + h, 0);
+    const avg = sumHours / shiftDurationsHours.length;
+
+    return {
+      display: `${avg.toFixed(1)} hrs`,
+      subtext: `Based on ${shiftDurationsHours.length} completed shift${shiftDurationsHours.length === 1 ? "" : "s"} today`,
+    };
+  }, [allTelemetryEvents]);
 
   // Dynamic present count based on real events
   const presentCount = useMemo(() => {
@@ -455,12 +656,10 @@ function DashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-extrabold text-[#0E2322]">
-              {allActivities.length > 0 ? "100%" : "—"}
+              {onTimeMetrics.rateDisplay}
             </div>
-            <div className="text-xs text-[#166534] mt-2 font-medium">
-              {allActivities.length > 0
-                ? "All punches recorded on schedule"
-                : "Awaiting today's first punch"}
+            <div className={`text-xs ${onTimeMetrics.textColor} mt-2 font-medium`}>
+              {onTimeMetrics.subtext}
             </div>
           </div>
         </div>
@@ -475,12 +674,10 @@ function DashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-extrabold text-[#0E2322]">
-              {allActivities.length > 0 ? "8.0 hrs" : "—"}
+              {avgShiftMetrics.display}
             </div>
             <div className="text-xs text-slate-500 mt-2 font-medium">
-              {allActivities.length > 0
-                ? "Compliant with 8.0h labor policy"
-                : "Calculated upon check-out"}
+              {avgShiftMetrics.subtext}
             </div>
           </div>
         </div>
@@ -508,7 +705,7 @@ function DashboardPage() {
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={WEEKLY_TREND} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="presentGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#0E2322" stopOpacity={0.2} />
@@ -520,7 +717,7 @@ function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, 45]} />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, yAxisMax]} allowDecimals={false} />
                   <RechartsTooltip />
                   <Area type="monotone" dataKey="present" stroke="#0E2322" strokeWidth={2.5} fillOpacity={1} fill="url(#presentGrad)" />
                   <Area type="monotone" dataKey="late" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#lateGrad)" />
@@ -539,13 +736,13 @@ function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={DEPT_DATA}
+                      data={deptData}
                       innerRadius={50}
                       outerRadius={75}
                       paddingAngle={3}
                       dataKey="value"
                     >
-                      {DEPT_DATA.map((entry, index) => (
+                      {deptData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -559,7 +756,7 @@ function DashboardPage() {
             </div>
 
             <div className="space-y-1.5 pt-2 border-t border-slate-100">
-              {DEPT_DATA.map((d) => (
+              {deptData.map((d) => (
                 <div key={d.name} className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 text-slate-600">
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>

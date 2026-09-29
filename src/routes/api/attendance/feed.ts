@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/attendance/feed")({
                 .join("")
                 .slice(0, 2)
                 .toUpperCase(),
-              department: d.department || "General",
+              department: d.department || "General Operations",
               location: d.locationName || "Main Lobby",
               type: d.type === "out" ? "out" : "in",
               time: new Date(d.timestamp).toLocaleTimeString([], {

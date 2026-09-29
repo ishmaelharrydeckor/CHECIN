@@ -175,6 +175,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               email: data.email || "",
               photoURL: data.photoURL || null,
               role: data.role || "member",
+              department: data.department || (data.role === "org_admin" ? "Leadership" : data.role === "manager" ? "Management" : "Operations"),
             };
           });
 

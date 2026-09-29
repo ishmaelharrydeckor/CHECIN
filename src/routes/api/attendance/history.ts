@@ -64,6 +64,7 @@ export const Route = createFileRoute("/api/attendance/history")({
               employeeId: d.employeeId || "",
               employeeName: d.employeeName || "Employee",
               email: d.employeeEmail || "",
+              department: d.department || "General Operations",
               managerId: d.managerId || null,
               managerName: d.managerName || (d.managerId ? "Manager" : "Direct Supervisor"),
               locationId: d.locationId || "",
