@@ -23,6 +23,7 @@ function KioskPage() {
   const [countdown, setCountdown] = useState(15);
   const [tokenHash, setTokenHash] = useState("Loading...");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [lastSeenScanTimestamp, setLastSeenScanTimestamp] = useState<number>(() => Date.now());
 
   const [toastData, setToastData] = useState<{
@@ -82,6 +83,23 @@ function KioskPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Helper to render QR code across CJS/ESM module bundlers
+  const renderQrCodeDataUrl = async (payload: string): Promise<string> => {
+    const qrLib: any = (QRCode as any)?.default || QRCode;
+    const toDataURL = qrLib?.toDataURL || (QRCode as any)?.toDataURL;
+    if (typeof toDataURL !== "function") {
+      throw new Error("QRCode.toDataURL function is not available");
+    }
+    return await toDataURL(payload, {
+      width: 340,
+      margin: 1,
+      color: {
+        dark: "#0E2322",
+        light: "#FFFFFF",
+      },
+    });
+  };
+
   // Poll /api/kiosk/token when paired
   const fetchTokenRef = useRef<() => void>(() => {});
   fetchTokenRef.current = async () => {
@@ -98,55 +116,57 @@ function KioskPage() {
       });
 
       if (res.status === 401) {
-        // Device revoked by admin
-        handleUnpair();
+        const errData = await res.json().catch(() => null);
+        setTokenError(errData?.error || "Terminal credentials rejected or revoked by administrator.");
         return;
       }
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        setTokenError(errData?.error || `Failed to fetch live token (HTTP ${res.status})`);
+        return;
+      }
 
       const data = await res.json();
-      if (data.ok && data.token) {
-        setTokenHash(data.token.slice(0, 8) + "..." + data.token.slice(-6));
-        if (data.secondsRemaining) {
-          setCountdown(data.secondsRemaining);
-        }
-        if (data.locationName) {
-          setLocationName(data.locationName);
-        }
+      if (!data.ok || !data.token) {
+        setTokenError(data.error || "Invalid response received from token endpoint");
+        return;
+      }
 
-        // Generate real QR code image
-        const qrPayload = JSON.stringify({
-          locationId,
-          token: data.token,
-          timeBucket: data.timeBucket,
-        });
+      setTokenError(null);
+      setTokenHash(data.token.slice(0, 8) + "..." + data.token.slice(-6));
+      if (data.secondsRemaining) {
+        setCountdown(data.secondsRemaining);
+      }
+      if (data.locationName) {
+        setLocationName(data.locationName);
+      }
 
-        const url = await QRCode.toDataURL(qrPayload, {
-          width: 340,
-          margin: 1,
-          color: {
-            dark: "#0E2322",
-            light: "#FFFFFF",
-          },
-        });
-        setQrDataUrl(url);
+      // Generate real QR code image
+      const qrPayload = JSON.stringify({
+        locationId,
+        token: data.token,
+        timeBucket: data.timeBucket,
+      });
 
-        // Check for recent scan confirmation
-        if (data.recentScan) {
-          const scanTs = Number(data.recentScan.timestamp) || Date.now();
-          if (scanTs > lastSeenScanTimestamp) {
-            setLastSeenScanTimestamp(scanTs);
-            triggerToast(
-              data.recentScan.employeeName,
-              data.recentScan.type === "in" ? "Clocked IN" : "Clocked OUT",
-              data.recentScan.time,
-            );
-          }
+      const url = await renderQrCodeDataUrl(qrPayload);
+      setQrDataUrl(url);
+
+      // Check for recent scan confirmation
+      if (data.recentScan) {
+        const scanTs = Number(data.recentScan.timestamp) || Date.now();
+        if (scanTs > lastSeenScanTimestamp) {
+          setLastSeenScanTimestamp(scanTs);
+          triggerToast(
+            data.recentScan.employeeName,
+            data.recentScan.type === "in" ? "Clocked IN" : "Clocked OUT",
+            data.recentScan.time,
+          );
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching kiosk token:", err);
+      setTokenError(err?.message || "Failed to generate QR code");
     }
   };
 
@@ -341,6 +361,28 @@ function KioskPage() {
               alt="ChecIN Rotating Hardware Token QR"
               className="w-full h-full object-contain rounded-lg"
             />
+          ) : tokenError ? (
+            <div className="text-rose-600 text-xs flex flex-col items-center justify-center text-center p-3">
+              <span className="text-3xl mb-2">⚠️</span>
+              <span className="font-bold text-sm mb-1 text-rose-700">Token Minting Paused</span>
+              <span className="text-gray-600 mb-3 px-2">{tokenError}</span>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => fetchTokenRef.current()}
+                  className="px-3.5 py-1.5 bg-[#0E2322] text-[#C0FD9B] rounded-lg text-xs font-bold hover:opacity-90 active:scale-95 transition"
+                >
+                  Retry Connection
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnpair}
+                  className="px-3 py-1.5 bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-200 transition"
+                >
+                  Re-pair
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="text-black/60 text-xs flex flex-col items-center justify-center animate-pulse">
               <span className="text-2xl mb-1">⏳</span>
@@ -375,17 +417,10 @@ function KioskPage() {
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => triggerToast("Kofi Manu", "Clocked IN")}
-            className="text-[11px] px-2 py-1 bg-white/10 hover:bg-white/20 rounded-md text-white/80 transition"
-            title="Simulate a test scan reaction"
-          >
-            Test Toast
-          </button>
-          <button
             onClick={handleUnpair}
-            className="text-[11px] px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-md transition"
+            className="text-[11px] px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-md transition"
           >
-            Unpair
+            Unpair Terminal
           </button>
         </div>
       </div>

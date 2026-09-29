@@ -1,26 +1,25 @@
 import { firestoreAdmin } from "../src/integrations/firebase/admin.server";
 
 const collections = [
-  "students",
-  "courses",
-  "departments",
-  "attendance_sessions",
-  "attendance_records",
-  "course_registrations",
-  "academic_years",
-  "academic_terms",
-  "student_accounts",
-  "student_portal_links",
+  "organizations",
+  "users",
+  "locations",
+  "kiosks",
+  "kiosk_pairings",
+  "clock_events",
+  "leave_requests",
   "announcements",
-  "assignments",
-  "assignment_submissions",
+  "staff_invites",
   "user_devices",
-  "classes",
-  "records",
+  "push_subscriptions",
+  "in_app_notifications",
+  "notification_preferences",
+  "rate_limits",
+  "recent_scans",
 ];
 
 async function clearCollections() {
-  console.log("Starting database cleanup for all collections...");
+  console.log("Starting database cleanup for all ChecIN collections...");
   for (const colName of collections) {
     try {
       const snap = await firestoreAdmin.collection(colName).get();

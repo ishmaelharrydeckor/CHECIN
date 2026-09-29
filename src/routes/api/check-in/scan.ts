@@ -60,45 +60,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
             );
           }
 
-          // 3. Prevent Rapid Double-Punch (60-second cooldown per employee)
-          // Use single-field query to avoid missing composite index crashes
-          const recentEventsSnap = await firestoreAdmin
-            .collection("clock_events")
-            .where("employeeId", "==", caller.uid)
-            .limit(10)
-            .get();
-
-          const now = Date.now();
-          let lastEvent = null;
-
-          if (!recentEventsSnap.empty) {
-            const sortedDocs = recentEventsSnap.docs
-              .map((d) => d.data())
-              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-            lastEvent = sortedDocs[0] || null;
-            if (lastEvent) {
-              const lastTime = new Date(lastEvent.timestamp).getTime();
-              if (now - lastTime < 60 * 1000) {
-                const secondsLeft = Math.ceil((60 * 1000 - (now - lastTime)) / 1000);
-                return Response.json(
-                  {
-                    error: `Cooldown active: You checked ${lastEvent.type.toUpperCase()} recently. Please wait ${secondsLeft}s to prevent accidental double-clocking.`,
-                  },
-                  { status: 429 },
-                );
-              }
-            }
-          }
-
-          // 4. Determine Direction (IN vs OUT) based on last event today
-          // If no event today or last event was 'out' -> next is 'in'
-          // If last event was 'in' -> next is 'out'
-          const nextType: "in" | "out" = lastEvent && lastEvent.type === "in" ? "out" : "in";
-
-          // 5. Create immutable audit record in clock_events
-          const eventRef = firestoreAdmin.collection("clock_events").doc();
-          const timestampIso = new Date().toISOString();
+          // 3. User profile fetch for display metadata
           let employeeName = caller.name || caller.email?.split("@")[0] || "Employee";
           let employeeDepartment = "General";
 
@@ -113,48 +75,95 @@ export const Route = createFileRoute("/api/check-in/scan")({
             console.warn("Could not fetch user profile for scan event:", e);
           }
 
-          const eventData = {
-            eventId: eventRef.id,
-            orgId: caller.orgId,
-            managerId: (caller as any).managerId || null,
-            employeeId: caller.uid,
-            employeeName,
-            employeeEmail: caller.email || "",
-            department: employeeDepartment,
-            type: nextType,
-            timestamp: timestampIso,
-            locationId,
-            locationName: kiosk.locationName || "Main Entrance",
-            deviceFingerprint: deviceFingerprint || "browser-client",
-            verifiedBy: "kiosk_hmac_sha256",
-          };
+          // 4. Atomic Cooldown Verification, Direction Toggle, & Write Transaction
+          const clockEventsQuery = firestoreAdmin
+            .collection("clock_events")
+            .where("employeeId", "==", caller.uid)
+            .limit(10);
 
-          await eventRef.set(eventData);
+          const eventRef = firestoreAdmin.collection("clock_events").doc();
+          const timestampIso = new Date().toISOString();
+          const now = Date.now();
 
-          // 6. Broadcast instantaneous scan confirmation to the kiosk terminal
-          const timeDisplay = new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          });
+          const scanResult = await firestoreAdmin.runTransaction(async (t) => {
+            const recentEventsSnap = await t.get(clockEventsQuery);
 
-          await firestoreAdmin.collection("recent_scans").doc(locationId).set({
-            employeeName,
-            type: nextType,
-            time: timeDisplay,
-            timestamp: now,
+            let lastEvent: any = null;
+            if (!recentEventsSnap.empty) {
+              const sortedDocs = recentEventsSnap.docs
+                .map((d) => d.data())
+                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+              lastEvent = sortedDocs[0] || null;
+              if (lastEvent) {
+                const lastTime = new Date(lastEvent.timestamp).getTime();
+                if (now - lastTime < 60 * 1000) {
+                  const secondsLeft = Math.ceil((60 * 1000 - (now - lastTime)) / 1000);
+                  throw new Error(`COOLDOWN:${secondsLeft}:${lastEvent.type.toUpperCase()}`);
+                }
+              }
+            }
+
+            // Determine Direction (IN vs OUT) based on last event
+            const nextType: "in" | "out" = lastEvent && lastEvent.type === "in" ? "out" : "in";
+
+            const eventData = {
+              eventId: eventRef.id,
+              orgId: caller.orgId,
+              managerId: (caller as any).managerId || null,
+              employeeId: caller.uid,
+              employeeName,
+              employeeEmail: caller.email || "",
+              department: employeeDepartment,
+              type: nextType,
+              timestamp: timestampIso,
+              locationId,
+              locationName: kiosk.locationName || "Main Entrance",
+              deviceFingerprint: deviceFingerprint || "browser-client",
+              verifiedBy: "kiosk_hmac_sha256",
+            };
+
+            t.set(eventRef, eventData);
+
+            // Broadcast instantaneous scan confirmation to the kiosk terminal
+            const timeDisplay = new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
+
+            const recentScanRef = firestoreAdmin.collection("recent_scans").doc(locationId);
+            t.set(recentScanRef, {
+              employeeName,
+              type: nextType,
+              time: timeDisplay,
+              timestamp: now,
+            });
+
+            return {
+              eventId: eventRef.id,
+              type: nextType,
+              timestamp: timestampIso,
+              timeDisplay,
+              employeeName,
+              locationName: eventData.locationName,
+            };
           });
 
           return Response.json({
             ok: true,
-            eventId: eventRef.id,
-            type: nextType,
-            timestamp: timestampIso,
-            timeDisplay,
-            employeeName,
-            locationName: eventData.locationName,
+            ...scanResult,
           });
         } catch (err: any) {
+          if (err?.message?.startsWith("COOLDOWN:")) {
+            const [, secondsLeft, lastType] = err.message.split(":");
+            return Response.json(
+              {
+                error: `Cooldown active: You checked ${lastType} recently. Please wait ${secondsLeft}s to prevent accidental double-clocking.`,
+              },
+              { status: 429 },
+            );
+          }
           console.error("POST /api/check-in/scan error:", err);
           return Response.json({ error: "Failed to record check-in scan" }, { status: 500 });
         }

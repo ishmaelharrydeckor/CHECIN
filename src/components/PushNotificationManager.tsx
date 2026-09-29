@@ -1038,7 +1038,3 @@ export function WorkforcePushBanner({
     </div>
   );
 }
-
-/** Legacy alias for backwards compatibility */
-export const StudentPushBanner = WorkforcePushBanner;
-

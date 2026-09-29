@@ -50,15 +50,16 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
-    // ---- 2. Users (Display Profile Only — NEVER stores a role field) ----
+    // ---- 2. Users (Display Profile Only — NEVER stores a role field or modifies tenancy) ----
     match /users/{userId} {
       // User can read their own profile, or coworkers within same org can read display info
       allow read: if isSignedIn() && (request.auth.uid == userId || inOrg(resource.data));
-      // User can update their own display fields only
+      // User can update their own display fields only (displayName, photoURL, department)
+      // Must NEVER modify or create role, customClaims, or alter orgId from client
       allow create, update: if isSignedIn() && request.auth.uid == userId
-        // Enforce security rule: profile doc must never carry a role or orgId escalation field
         && !("role" in request.resource.data)
-        && !("customClaims" in request.resource.data);
+        && !("customClaims" in request.resource.data)
+        && (!("orgId" in request.resource.data) || (resource != null && request.resource.data.orgId == resource.data.orgId));
       allow delete: if false;
     }
 
@@ -158,6 +159,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /notification_preferences/{prefId} {
+      allow read, write: if false;
+    }
+
+    // Recent Scans: Ephemeral scan notifications read exclusively by Admin SDK in /api/kiosk/token
+    match /recent_scans/{locationId} {
       allow read, write: if false;
     }
 

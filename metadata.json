@@ -1,6 +1,6 @@
 {
-  "name": "KNUST ATTENDANCE APP",
-  "description": "Official KNUST attendance tracking and QR-code check-in system for courses, lectures, and students.",
-  "requestFramePermissions": ["camera", "geolocation"],
+  "name": "ChecIN — Unified Workforce Attendance",
+  "description": "Corporate attendance and workforce check-in platform with dynamic physical kiosk verification.",
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
