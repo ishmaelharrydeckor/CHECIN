@@ -117,13 +117,22 @@ function KioskPage() {
 
       if (res.status === 401) {
         const errData = await res.json().catch(() => null);
-        setTokenError(errData?.error || "Terminal credentials rejected or revoked by administrator.");
+        const errMsg = errData?.error || "Invalid kiosk credentials";
+        setTokenError(
+          errMsg.includes("secret") || errMsg.includes("revoked") || errMsg.includes("paired")
+            ? "Terminal credentials expired or invalid. This kiosk may have been re-paired or revoked in Manager Settings. Please click 'Re-pair' below to enter a fresh pairing code."
+            : errMsg,
+        );
         return;
       }
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        setTokenError(errData?.error || `Failed to fetch live token (HTTP ${res.status})`);
+        setTokenError(
+          errData?.detail
+            ? `Server error: ${errData.detail}`
+            : errData?.error || `Failed to fetch live token (HTTP ${res.status})`,
+        );
         return;
       }
 
@@ -225,6 +234,10 @@ function KioskPage() {
     localStorage.removeItem("checin_kiosk_location_name");
     setDeviceSecret(null);
     setLocationId(null);
+    setTokenError(null);
+    setPairingError(null);
+    setQrDataUrl(null);
+    setPairingCodeInput("");
   };
 
   const triggerToast = (name: string, status: string, customTime?: string) => {
@@ -275,8 +288,13 @@ function KioskPage() {
             </div>
 
             {pairingError && (
-              <div className="bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs py-2 px-3 rounded-lg text-center">
-                {pairingError}
+              <div className="bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs py-2.5 px-3 rounded-lg text-center leading-normal">
+                <span className="font-semibold">{pairingError}</span>
+                {pairingError.toLowerCase().includes("used") && (
+                  <div className="mt-1.5 text-white/80 text-[11px]">
+                    Pairing codes are single-use for security. Open <strong>Settings &gt; Entrance Tablet Kiosks</strong> on your Manager computer and click <strong>"Pair Tablet"</strong> to generate a fresh code.
+                  </div>
+                )}
               </div>
             )}
 
@@ -365,11 +383,14 @@ function KioskPage() {
             <div className="text-rose-600 text-xs flex flex-col items-center justify-center text-center p-3">
               <span className="text-3xl mb-2">⚠️</span>
               <span className="font-bold text-sm mb-1 text-rose-700">Token Minting Paused</span>
-              <span className="text-gray-600 mb-3 px-2">{tokenError}</span>
+              <span className="text-gray-600 mb-3 px-2 leading-relaxed">{tokenError}</span>
               <div className="flex space-x-2">
                 <button
                   type="button"
-                  onClick={() => fetchTokenRef.current()}
+                  onClick={() => {
+                    setTokenError(null);
+                    fetchTokenRef.current();
+                  }}
                   className="px-3.5 py-1.5 bg-[#0E2322] text-[#C0FD9B] rounded-lg text-xs font-bold hover:opacity-90 active:scale-95 transition"
                 >
                   Retry Connection

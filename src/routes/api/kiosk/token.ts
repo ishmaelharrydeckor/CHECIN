@@ -43,17 +43,22 @@ export const Route = createFileRoute("/api/kiosk/token")({
 
           // Check if there is an active scan notification for this kiosk (within last 12 seconds)
           let recentScan = null;
-          const scanSnap = await firestoreAdmin.collection("recent_scans").doc(locationId).get();
-          if (scanSnap.exists) {
-            const scanData = scanSnap.data()!;
-            if (now - scanData.timestamp < 12000) {
-              recentScan = {
-                employeeName: scanData.employeeName,
-                type: scanData.type, // "in" | "out"
-                time: scanData.time,
-                timestamp: scanData.timestamp,
-              };
+          try {
+            const scanSnap = await firestoreAdmin.collection("recent_scans").doc(locationId).get();
+            if (scanSnap.exists) {
+              const scanData = scanSnap.data()!;
+              const scanTs = Number(scanData.timestamp) || 0;
+              if (now - scanTs < 12000) {
+                recentScan = {
+                  employeeName: scanData.employeeName,
+                  type: scanData.type, // "in" | "out"
+                  time: scanData.time,
+                  timestamp: scanTs,
+                };
+              }
             }
+          } catch (scanErr) {
+            console.warn("Could not check recent_scans for kiosk:", scanErr);
           }
 
           return Response.json({
@@ -66,7 +71,10 @@ export const Route = createFileRoute("/api/kiosk/token")({
           });
         } catch (err: any) {
           console.error("POST /api/kiosk/token error:", err);
-          return Response.json({ error: "Failed to mint kiosk token" }, { status: 500 });
+          return Response.json(
+            { error: "Failed to mint kiosk token", detail: err?.message || "Internal server error" },
+            { status: 500 },
+          );
         }
       },
     },

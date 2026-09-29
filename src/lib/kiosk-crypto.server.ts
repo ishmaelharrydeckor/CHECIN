@@ -1,7 +1,25 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 function getKioskSecret(): string {
-  const secret = process.env.KIOSK_TOKEN_SECRET || process.env.SESSION_SECRET;
+  let secret = process.env.KIOSK_TOKEN_SECRET || process.env.SESSION_SECRET;
+  if (!secret && typeof process !== "undefined" && process.cwd) {
+    try {
+      const envPath = path.resolve(process.cwd(), ".env");
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf8");
+        for (const line of content.split("\n")) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("KIOSK_TOKEN_SECRET=")) {
+            secret = trimmed.replace("KIOSK_TOKEN_SECRET=", "").trim().replace(/^["']|["']$/g, "");
+            process.env.KIOSK_TOKEN_SECRET = secret;
+            break;
+          }
+        }
+      }
+    } catch {}
+  }
   if (!secret) {
     throw new Error(
       "FATAL: Missing KIOSK_TOKEN_SECRET in environment variables. Refusing to operate kiosk cryptographic routines without a configured secret.",
@@ -21,12 +39,16 @@ export function hashDeviceSecret(rawSecret: string): string {
  * Constant-time comparison to prevent timing attacks.
  */
 export function timingSafeHashMatch(rawSecret: string, storedHash: string): boolean {
-  if (!rawSecret || !storedHash) return false;
-  const computedHash = hashDeviceSecret(rawSecret);
-  const bufA = Buffer.from(computedHash, "hex");
-  const bufB = Buffer.from(storedHash, "hex");
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
+  try {
+    if (!rawSecret || !storedHash) return false;
+    const computedHash = hashDeviceSecret(rawSecret);
+    const bufA = Buffer.from(computedHash, "hex");
+    const bufB = Buffer.from(storedHash, "hex");
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
 }
 
 /**
