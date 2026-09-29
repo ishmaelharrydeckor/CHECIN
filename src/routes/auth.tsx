@@ -88,9 +88,16 @@ function AuthPage() {
     }
   };
 
+  const [providerWarning, setProviderWarning] = useState<{
+    title: string;
+    message: string;
+    url?: string;
+  } | null>(null);
+
   // Google OAuth Sign In
   const handleSignInGoogle = async () => {
     setLoading(true);
+    setProviderWarning(null);
     try {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       await syncUserToFirestore(result.user);
@@ -119,12 +126,26 @@ function AuthPage() {
       console.error("Sign-in error:", err);
       const errorObj = err as { code?: string; message?: string };
       if (errorObj?.code === "auth/operation-not-allowed") {
-        toast.error(
-          "Google Sign-In is not enabled in your Firebase Console yet. Please use Email Sign-In below or click 1-Click Demo Login.",
-          { duration: 6000 },
-        );
+        const msg =
+          "Google Sign-In is not enabled in Firebase Console for project 'checin-d172e'. Please enable it under Authentication > Sign-in method.";
+        toast.error(msg, { duration: 8000 });
+        setProviderWarning({
+          title: "Google Sign-In Disabled in Firebase Console",
+          message:
+            "Google Authentication is currently disabled for this Firebase project. To enable it, visit Firebase Console -> Authentication -> Sign-in method -> Google -> Enable.",
+          url: "https://console.firebase.google.com/project/checin-d172e/authentication/providers",
+        });
+      } else if (errorObj?.code === "auth/unauthorized-domain") {
+        const msg = "Current domain is not authorized for OAuth in Firebase Console.";
+        toast.error(msg, { duration: 8000 });
+        setProviderWarning({
+          title: "Domain Not Authorized in Firebase",
+          message:
+            "This domain is not in your Firebase Authorized Domains list. Add it in Firebase Console -> Authentication -> Settings -> Authorized domains.",
+          url: "https://console.firebase.google.com/project/checin-d172e/authentication/settings",
+        });
       } else if (errorObj?.code === "auth/popup-closed-by-user") {
-        toast.info("Sign-in popup was closed.");
+        toast.info("Google Sign-In popup was closed.");
       } else if (errorObj?.code === "auth/popup-blocked") {
         toast.error("Sign-in popup was blocked by your browser. Please allow popups or use email.");
       } else {
@@ -341,6 +362,34 @@ function AuthPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {providerWarning && (
+                <div className="mb-5 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1.5">
+                  <div className="font-semibold text-amber-900 flex items-center justify-between">
+                    <span>⚠️ {providerWarning.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => setProviderWarning(null)}
+                      className="text-amber-700 hover:text-amber-950 font-bold text-sm leading-none"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="leading-relaxed">{providerWarning.message}</p>
+                  {providerWarning.url && (
+                    <div className="pt-1">
+                      <a
+                        href={providerWarning.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-amber-900 underline hover:text-amber-950"
+                      >
+                        Open Firebase Console to enable Google Provider →
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <Tabs
                 value={tab}
                 onValueChange={(v) => setTab(v as "signin" | "register")}
