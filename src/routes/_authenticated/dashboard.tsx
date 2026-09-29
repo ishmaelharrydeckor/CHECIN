@@ -140,11 +140,7 @@ function DashboardPage() {
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Demo mode is permanently disabled for authenticated sessions
-  const isDemo = false;
 
   // Real-time Attendance Feed Synchronization
   const fetchLiveAttendance = async () => {
@@ -205,7 +201,7 @@ function DashboardPage() {
 
   // Safe, quota-protective lifecycle: fetch on mount + throttled 60s background check ONLY when tab is visible
   useEffect(() => {
-    if (!user && !isDemo) return;
+    if (!user) return;
 
     fetchLiveAttendance();
     fetchOrgAndStaff();
@@ -217,39 +213,13 @@ function DashboardPage() {
     }, 60000); // 60s throttle protects the 50k daily Firestore quota
 
     return () => clearInterval(interval);
-  }, [user, orgId, isDemo]);
+  }, [user, orgId]);
 
-  // For real accounts, ONLY show live activities (clean slate if zero events).
-  // For demo accounts, blend live activities with INITIAL_ACTIVITIES.
-  const allActivities = useMemo(() => {
-    if (isDemo) {
-      if (liveActivities.length === 0) return INITIAL_ACTIVITIES;
-      const liveEmails = new Set(liveActivities.map((a) => a.email.toLowerCase()));
-      const liveNames = new Set(liveActivities.map((a) => a.name.toLowerCase()));
-      const nonDuplicateDemos = INITIAL_ACTIVITIES.filter(
-        (a) => !liveEmails.has(a.email.toLowerCase()) && !liveNames.has(a.name.toLowerCase()),
-      );
-      return [...liveActivities, ...nonDuplicateDemos];
-    }
-    return liveActivities;
-  }, [liveActivities, isDemo]);
+  // Live activities directly from real Firestore events
+  const allActivities = liveActivities;
 
   // Dynamic present count based on real events
   const presentCount = useMemo(() => {
-    if (isDemo) {
-      const latestByPerson = new Map<string, "in" | "out">();
-      for (const act of allActivities) {
-        if (!latestByPerson.has(act.name)) {
-          latestByPerson.set(act.name, act.type);
-        }
-      }
-      let inCount = 0;
-      for (const t of latestByPerson.values()) {
-        if (t === "in") inCount++;
-      }
-      return Math.min(40, Math.max(32, 31 + inCount));
-    }
-
     const latestByPerson = new Map<string, "in" | "out">();
     for (const act of allActivities) {
       const key = act.email || act.name;
@@ -262,7 +232,7 @@ function DashboardPage() {
       if (t === "in") inCount++;
     }
     return inCount;
-  }, [allActivities, isDemo]);
+  }, [allActivities]);
 
   const filteredActivities = useMemo(() => {
     return allActivities.filter((item) => {
@@ -298,29 +268,6 @@ function DashboardPage() {
     link.click();
     URL.revokeObjectURL(url);
     toast.success("Downloaded attendance CSV report");
-  };
-
-  const handleSeedDemo = async () => {
-    setSeeding(true);
-    try {
-      const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch("/api/admin/seed-demo", {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (data.ok) {
-        toast.success(data.message || "Seeded demo workforce attendance for today!");
-        await fetchLiveAttendance();
-        await fetchOrgAndStaff();
-      } else {
-        toast.error(data.error || "Failed to seed demo data");
-      }
-    } catch {
-      toast.error("Error seeding demo data");
-    } finally {
-      setSeeding(false);
-    }
   };
 
   const handleGenerateInvite = async (e: React.FormEvent) => {
@@ -393,7 +340,7 @@ function DashboardPage() {
     setInviteError(null);
   };
 
-  const displayHeadcount = isDemo ? 40 : totalHeadcount;
+  const displayHeadcount = totalHeadcount;
 
   return (
     <div className="space-y-6 font-sans max-w-7xl mx-auto">
@@ -407,11 +354,9 @@ function DashboardPage() {
             </span>
             <span>•</span>
             <span className="text-[#0E2322] font-semibold">
-              {isDemo
-                ? "Acme Global Ltd (40 Demo Staff)"
-                : isManager
-                  ? `${orgName} — Your Team (${totalHeadcount} Member${totalHeadcount === 1 ? "" : "s"})`
-                  : `${orgName} (${totalHeadcount} Registered Staff)`}
+              {isManager
+                ? `${orgName} — Your Team (${totalHeadcount} Member${totalHeadcount === 1 ? "" : "s"})`
+                : `${orgName} (${totalHeadcount} Registered Staff)`}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0E2322]">
@@ -435,17 +380,6 @@ function DashboardPage() {
             <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
             <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
-
-          {isDemo && (
-            <button
-              onClick={handleSeedDemo}
-              disabled={seeding}
-              className="px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold transition text-emerald-800 flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
-              title="Populate demo colleagues and attendance for presentation"
-            >
-              <span>{seeding ? "Seeding..." : "🌱 Seed Demo Team"}</span>
-            </button>
-          )}
 
           <button
             onClick={handleExportCsv}
@@ -483,11 +417,9 @@ function DashboardPage() {
             <div className="flex items-center space-x-1 text-xs text-emerald-600 mt-2 font-medium">
               <TrendingUp className="w-3.5 h-3.5" />
               <span>
-                {isDemo
-                  ? "+3 new employees this month"
-                  : pendingInvitesCount > 0
-                    ? `${pendingInvitesCount} pending invitation(s)`
-                    : `${totalHeadcount} active team member(s)`}
+                {pendingInvitesCount > 0
+                  ? `${pendingInvitesCount} pending invitation(s)`
+                  : `${totalHeadcount} active team member(s)`}
               </span>
             </div>
           </div>
@@ -521,14 +453,12 @@ function DashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-extrabold text-[#0E2322]">
-              {isDemo ? "94.8%" : allActivities.length > 0 ? "100%" : "—"}
+              {allActivities.length > 0 ? "100%" : "—"}
             </div>
             <div className="text-xs text-[#166534] mt-2 font-medium">
-              {isDemo
-                ? "3 late arrivals (<15m grace threshold)"
-                : allActivities.length > 0
-                  ? "All punches recorded on schedule"
-                  : "Awaiting today's first punch"}
+              {allActivities.length > 0
+                ? "All punches recorded on schedule"
+                : "Awaiting today's first punch"}
             </div>
           </div>
         </div>
@@ -543,21 +473,19 @@ function DashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-extrabold text-[#0E2322]">
-              {isDemo ? "8.1 hrs" : allActivities.length > 0 ? "8.0 hrs" : "—"}
+              {allActivities.length > 0 ? "8.0 hrs" : "—"}
             </div>
             <div className="text-xs text-slate-500 mt-2 font-medium">
-              {isDemo
+              {allActivities.length > 0
                 ? "Compliant with 8.0h labor policy"
-                : allActivities.length > 0
-                  ? "Compliant with 8.0h labor policy"
-                  : "Calculated upon check-out"}
+                : "Calculated upon check-out"}
             </div>
           </div>
         </div>
       </div>
 
       {/* 3. Interactive Charts or Onboarding Telemetry Card */}
-      {isDemo || allActivities.length > 0 ? (
+      {allActivities.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Chart: Weekly Attendance Trends (Area Chart) */}
           <div className="lg:col-span-8 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -755,13 +683,11 @@ function DashboardPage() {
                           : "No Check-Ins Recorded Today"}
                       </div>
                       <p className="text-xs text-slate-400 mt-1 text-center">
-                        {isDemo
-                          ? "No matching attendance records found."
-                          : searchQuery || statusFilter !== "all"
-                            ? "Try adjusting your search query or filter."
-                            : `No attendance events recorded today for ${orgName}. When staff scan the rotating QR code on your entrance kiosk, their punch events will appear here in real time.`}
+                        {searchQuery || statusFilter !== "all"
+                          ? "Try adjusting your search query or filter."
+                          : `No attendance events recorded today for ${orgName}. When staff scan the rotating QR code on your entrance kiosk, their punch events will appear here in real time.`}
                       </p>
-                      {!isDemo && !searchQuery && (
+                      {!searchQuery && (
                         <button
                           onClick={() => {
                             handleResetForAnotherInvite();

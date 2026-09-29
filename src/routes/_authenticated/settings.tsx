@@ -61,7 +61,6 @@ const INITIAL_LOCATIONS: KioskLocation[] = [
 
 function SettingsPage() {
   const { user, orgId, isOrgAdmin } = useAuth();
-  const isDemo = false;
   const canManageKiosks = isOrgAdmin;
 
   const [locations, setLocations] = useState<KioskLocation[]>([]);
@@ -333,7 +332,7 @@ function SettingsPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-bold text-[#0E2322]">{orgDetails.name}</span>
-                  {(isOrgAdmin || isDemo) && (
+                  {isOrgAdmin && (
                     <Button
                       variant="ghost"
                       size="sm"

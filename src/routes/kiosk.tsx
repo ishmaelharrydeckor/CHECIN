@@ -267,39 +267,6 @@ function KioskPage() {
             >
               {pairingLoading ? "Authenticating Terminal..." : "Pair Terminal Screen"}
             </button>
-
-            <button
-              type="button"
-              onClick={async () => {
-                setPairingLoading(true);
-                setPairingError(null);
-                try {
-                  const res = await fetch("/api/kiosk/pair", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ code: "CHK-DEMO" }),
-                  });
-                  const data = await res.json();
-                  if (data.ok) {
-                    localStorage.setItem("checin_kiosk_secret", data.deviceSecret);
-                    localStorage.setItem("checin_kiosk_location_id", data.locationId);
-                    localStorage.setItem("checin_kiosk_location_name", data.locationName || "Main Entrance Lobby");
-                    setDeviceSecret(data.deviceSecret);
-                    setLocationId(data.locationId);
-                    setLocationName(data.locationName || "Main Entrance Lobby");
-                  } else {
-                    setPairingError(data.error || "Demo pairing failed");
-                  }
-                } catch {
-                  setPairingError("Network error");
-                } finally {
-                  setPairingLoading(false);
-                }
-              }}
-              className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#C0FD9B] font-semibold text-xs transition border border-[#C0FD9B]/30 flex items-center justify-center space-x-1"
-            >
-              <span>⚡ One-Click Quick Pair (Demo Mode)</span>
-            </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/10 text-center text-xs text-white/50">
