@@ -18,6 +18,8 @@ import {
   Filter,
   ArrowUpRight,
   TrendingUp,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -119,7 +121,11 @@ const DEPT_DATA = [
 ];
 
 function DashboardPage() {
-  const { user, isOrgAdmin, isManager } = useAuth();
+  const { user, orgId, isOrgAdmin, isManager, refreshClaims } = useAuth();
+  const [orgName, setOrgName] = useState<string>("My Organization");
+  const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
+  const [activeStaff, setActiveStaff] = useState<any[]>([]);
   const [liveActivities, setLiveActivities] = useState<ActivityItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "in" | "out">("all");
@@ -129,19 +135,28 @@ function DashboardPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"manager" | "employee">("employee");
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+
+  const isDemo = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const url = new URL(window.location.href);
+    return url.searchParams.get("demo") === "true" || orgId === "org-checin-demo" || (!user && !orgId);
+  }, [user, orgId]);
 
   // Real-time Attendance Feed Synchronization
   const fetchLiveAttendance = async () => {
     try {
-      const isDemo = typeof window !== "undefined" && new URL(window.location.href).searchParams.get("demo") === "true";
+      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || orgId === "org-checin-demo");
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/attendance/feed${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch(`/api/attendance/feed${isDemoMode ? "?demo=true" : ""}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (data.ok && data.events && data.events.length > 0) {
+      if (data.ok && Array.isArray(data.events)) {
         setLiveActivities(data.events);
       }
     } catch (e) {
@@ -149,35 +164,89 @@ function DashboardPage() {
     }
   };
 
+  // Fetch real organization details and registered staff members
+  const fetchOrgAndStaff = async () => {
+    try {
+      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || orgId === "org-checin-demo");
+      const token = await firebaseAuth.currentUser?.getIdToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+      // 1. Fetch organization details
+      const orgRes = await fetch(`/api/organization${isDemoMode ? "?demo=true" : ""}`, { headers });
+      if (orgRes.ok) {
+        const orgData = await orgRes.json();
+        if (orgData.ok && orgData.organization) {
+          setOrgName(orgData.organization.name);
+        }
+      }
+
+      // 2. Fetch staff invites and members
+      const staffRes = await fetch(`/api/admin/staff-invites${isDemoMode ? "?demo=true" : ""}`, { headers });
+      if (staffRes.ok) {
+        const staffData = await staffRes.json();
+        if (staffData.ok) {
+          setTotalHeadcount(staffData.totalHeadcount ?? 1);
+          const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
+          setPendingInvitesCount(pending);
+          setActiveStaff(staffData.members || []);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch org/staff info:", e);
+    }
+  };
+
   useEffect(() => {
     fetchLiveAttendance();
+    fetchOrgAndStaff();
     const interval = setInterval(fetchLiveAttendance, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user, orgId, isDemo]);
 
+  // For real accounts, ONLY show live activities (clean slate if zero events).
+  // For demo accounts, blend live activities with INITIAL_ACTIVITIES.
   const allActivities = useMemo(() => {
-    if (liveActivities.length === 0) return INITIAL_ACTIVITIES;
-    const liveEmails = new Set(liveActivities.map((a) => a.email.toLowerCase()));
-    const liveNames = new Set(liveActivities.map((a) => a.name.toLowerCase()));
-    const nonDuplicateDemos = INITIAL_ACTIVITIES.filter(
-      (a) => !liveEmails.has(a.email.toLowerCase()) && !liveNames.has(a.name.toLowerCase()),
-    );
-    return [...liveActivities, ...nonDuplicateDemos];
-  }, [liveActivities]);
+    if (isDemo) {
+      if (liveActivities.length === 0) return INITIAL_ACTIVITIES;
+      const liveEmails = new Set(liveActivities.map((a) => a.email.toLowerCase()));
+      const liveNames = new Set(liveActivities.map((a) => a.name.toLowerCase()));
+      const nonDuplicateDemos = INITIAL_ACTIVITIES.filter(
+        (a) => !liveEmails.has(a.email.toLowerCase()) && !liveNames.has(a.name.toLowerCase()),
+      );
+      return [...liveActivities, ...nonDuplicateDemos];
+    }
+    return liveActivities;
+  }, [liveActivities, isDemo]);
 
+  // Dynamic present count based on real events
   const presentCount = useMemo(() => {
+    if (isDemo) {
+      const latestByPerson = new Map<string, "in" | "out">();
+      for (const act of allActivities) {
+        if (!latestByPerson.has(act.name)) {
+          latestByPerson.set(act.name, act.type);
+        }
+      }
+      let inCount = 0;
+      for (const t of latestByPerson.values()) {
+        if (t === "in") inCount++;
+      }
+      return Math.min(40, Math.max(32, 31 + inCount));
+    }
+
     const latestByPerson = new Map<string, "in" | "out">();
     for (const act of allActivities) {
-      if (!latestByPerson.has(act.name)) {
-        latestByPerson.set(act.name, act.type);
+      const key = act.email || act.name;
+      if (!latestByPerson.has(key)) {
+        latestByPerson.set(key, act.type);
       }
     }
     let inCount = 0;
     for (const t of latestByPerson.values()) {
       if (t === "in") inCount++;
     }
-    return Math.min(40, Math.max(32, 31 + inCount));
-  }, [allActivities]);
+    return inCount;
+  }, [allActivities, isDemo]);
 
   const filteredActivities = useMemo(() => {
     return allActivities.filter((item) => {
@@ -194,6 +263,10 @@ function DashboardPage() {
   }, [allActivities, searchQuery, statusFilter, deptFilter]);
 
   const handleExportCsv = () => {
+    if (filteredActivities.length === 0) {
+      toast.info("No attendance records to export yet.");
+      return;
+    }
     const headers = "Employee,Email,Department,Location,Event,Time,Verification\n";
     const rows = filteredActivities
       .map(
@@ -214,9 +287,9 @@ function DashboardPage() {
   const handleSeedDemo = async () => {
     setSeeding(true);
     try {
-      const isDemo = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || !user);
+      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || !user);
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/admin/seed-demo${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch(`/api/admin/seed-demo${isDemoMode ? "?demo=true" : ""}`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -224,6 +297,7 @@ function DashboardPage() {
       if (data.ok) {
         toast.success(data.message || "Seeded demo workforce attendance for today!");
         await fetchLiveAttendance();
+        await fetchOrgAndStaff();
       } else {
         toast.error(data.error || "Failed to seed demo data");
       }
@@ -236,15 +310,18 @@ function DashboardPage() {
 
   const handleGenerateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) return;
+    if (!inviteEmail.trim()) return;
 
+    setGeneratingInvite(true);
+    setInviteError(null);
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch("/api/admin/staff-invites", {
+      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || orgId === "org-checin-demo");
+      const res = await fetch(`/api/admin/staff-invites${isDemoMode ? "?demo=true" : ""}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           email: inviteEmail.trim(),
@@ -254,21 +331,55 @@ function DashboardPage() {
 
       const data = await res.json();
       if (data.ok && data.inviteUrl) {
-        navigator.clipboard.writeText(data.inviteUrl);
-        setInviteCopied(true);
+        setGeneratedInviteUrl(data.inviteUrl);
+        try {
+          await navigator.clipboard.writeText(data.inviteUrl);
+          setInviteCopied(true);
+        } catch {
+          // Clipboard API may need user interaction; button handles fallback
+        }
         toast.success("Single-use invite link created and copied to clipboard!");
-        setTimeout(() => {
-          setInviteCopied(false);
-          setInviteModalOpen(false);
-          setInviteEmail("");
-        }, 1500);
+        await fetchOrgAndStaff();
       } else {
+        setInviteError(data.error || "Failed to generate invite");
         toast.error(data.error || "Failed to generate invite");
       }
-    } catch {
+    } catch (err: any) {
+      setInviteError(err?.message || "Error creating staff invite");
       toast.error("Error creating staff invite");
+    } finally {
+      setGeneratingInvite(false);
     }
   };
+
+  const handleCopyGeneratedUrl = async () => {
+    if (!generatedInviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(generatedInviteUrl);
+      setInviteCopied(true);
+      toast.success("Invite link copied to clipboard!");
+      setTimeout(() => setInviteCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy automatically. Please select and copy the link text.");
+    }
+  };
+
+  const handleCloseInviteModal = () => {
+    setInviteModalOpen(false);
+    setGeneratedInviteUrl(null);
+    setInviteEmail("");
+    setInviteCopied(false);
+    setInviteError(null);
+  };
+
+  const handleResetForAnotherInvite = () => {
+    setGeneratedInviteUrl(null);
+    setInviteEmail("");
+    setInviteCopied(false);
+    setInviteError(null);
+  };
+
+  const displayHeadcount = isDemo ? 40 : totalHeadcount;
 
   return (
     <div className="space-y-6 font-sans max-w-7xl mx-auto">
@@ -281,7 +392,9 @@ function DashboardPage() {
               {isOrgAdmin ? "Corporate Admin" : isManager ? "Team Manager" : "Workforce Member"}
             </span>
             <span>•</span>
-            <span className="text-[#0E2322] font-medium">Acme Global Ltd (40 Registered Staff)</span>
+            <span className="text-[#0E2322] font-semibold">
+              {isDemo ? "Acme Global Ltd (40 Demo Staff)" : `${orgName} (${totalHeadcount} Registered Staff)`}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0E2322]">
             Organization Overview
@@ -311,8 +424,11 @@ function DashboardPage() {
           </button>
 
           <button
-            onClick={() => setInviteModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5"
+            onClick={() => {
+              handleResetForAnotherInvite();
+              setInviteModalOpen(true);
+            }}
+            className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>+ Invite Staff Member</span>
@@ -331,10 +447,16 @@ function DashboardPage() {
             </span>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">40</div>
+            <div className="text-3xl font-extrabold text-[#0E2322]">{displayHeadcount}</div>
             <div className="flex items-center space-x-1 text-xs text-emerald-600 mt-2 font-medium">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>+3 new employees this month</span>
+              <span>
+                {isDemo
+                  ? "+3 new employees this month"
+                  : pendingInvitesCount > 0
+                    ? `${pendingInvitesCount} pending invitation(s)`
+                    : `${totalHeadcount} active team member(s)`}
+              </span>
             </div>
           </div>
         </div>
@@ -349,10 +471,10 @@ function DashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-extrabold text-[#0E2322]">
-              {presentCount} <span className="text-sm font-normal text-slate-700">/ 40</span>
+              {presentCount} <span className="text-sm font-normal text-slate-700">/ {displayHeadcount}</span>
             </div>
             <div className="text-xs text-[#854D0E] mt-2 font-semibold">
-              {((presentCount / 40) * 100).toFixed(1)}% workforce present on site
+              {displayHeadcount > 0 ? ((presentCount / displayHeadcount) * 100).toFixed(0) : 0}% workforce present on site
             </div>
           </div>
         </div>
@@ -366,9 +488,15 @@ function DashboardPage() {
             </span>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">94.8%</div>
+            <div className="text-3xl font-extrabold text-[#0E2322]">
+              {isDemo ? "94.8%" : allActivities.length > 0 ? "100%" : "—"}
+            </div>
             <div className="text-xs text-[#166534] mt-2 font-medium">
-              3 late arrivals (&lt;15m grace threshold)
+              {isDemo
+                ? "3 late arrivals (<15m grace threshold)"
+                : allActivities.length > 0
+                  ? "All punches recorded on schedule"
+                  : "Awaiting today's first punch"}
             </div>
           </div>
         </div>
@@ -382,98 +510,136 @@ function DashboardPage() {
             </span>
           </div>
           <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">8.1 hrs</div>
+            <div className="text-3xl font-extrabold text-[#0E2322]">
+              {isDemo ? "8.1 hrs" : allActivities.length > 0 ? "8.0 hrs" : "—"}
+            </div>
             <div className="text-xs text-slate-500 mt-2 font-medium">
-              Compliant with 8.0h labor policy
+              {isDemo
+                ? "Compliant with 8.0h labor policy"
+                : allActivities.length > 0
+                  ? "Compliant with 8.0h labor policy"
+                  : "Calculated upon check-out"}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. Interactive Charts Section (Figma Organization Overview) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Chart: Weekly Attendance Trends (Area Chart) */}
-        <div className="lg:col-span-8 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-            <div>
-              <h2 className="text-base font-bold text-[#0E2322]">Weekly Attendance Trends</h2>
-              <p className="text-xs text-slate-500">Mon – Fri on-site attendance vs. late arrivals</p>
-            </div>
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="flex items-center gap-1.5 text-slate-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#0E2322]"></span> Present
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FFD153]"></span> Late
-              </span>
-            </div>
-          </div>
-
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={WEEKLY_TREND} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="presentGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0E2322" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#0E2322" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="lateGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FFD153" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#FFD153" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, 45]} />
-                <RechartsTooltip />
-                <Area type="monotone" dataKey="present" stroke="#0E2322" strokeWidth={2.5} fillOpacity={1} fill="url(#presentGrad)" />
-                <Area type="monotone" dataKey="late" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#lateGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Right Chart: Department Attendance Donut */}
-        <div className="lg:col-span-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div>
-            <h2 className="text-base font-bold text-[#0E2322]">Department Distribution</h2>
-            <p className="text-xs text-slate-500 mb-4">Workforce allocation by team</p>
-
-            <div className="h-44 w-full relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={DEPT_DATA}
-                    innerRadius={50}
-                    outerRadius={75}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {DEPT_DATA.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-xl font-extrabold text-[#0E2322]">40</span>
-                <span className="text-[10px] text-slate-500 uppercase font-semibold">Staff</span>
+      {/* 3. Interactive Charts or Onboarding Telemetry Card */}
+      {isDemo || allActivities.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Chart: Weekly Attendance Trends (Area Chart) */}
+          <div className="lg:col-span-8 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+              <div>
+                <h2 className="text-base font-bold text-[#0E2322]">Weekly Attendance Trends</h2>
+                <p className="text-xs text-slate-500">Mon – Fri on-site attendance vs. late arrivals</p>
               </div>
-            </div>
-          </div>
-
-          <div className="space-y-1.5 pt-2 border-t border-slate-100">
-            {DEPT_DATA.map((d) => (
-              <div key={d.name} className="flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-2 text-xs">
                 <span className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>
-                  <span>{d.name}</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0E2322]"></span> Present
                 </span>
-                <span className="font-semibold text-slate-800">{d.value}</span>
+                <span className="flex items-center gap-1.5 text-slate-600">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FFD153]"></span> Late
+                </span>
               </div>
-            ))}
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={WEEKLY_TREND} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="presentGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0E2322" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#0E2322" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="lateGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FFD153" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#FFD153" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, 45]} />
+                  <RechartsTooltip />
+                  <Area type="monotone" dataKey="present" stroke="#0E2322" strokeWidth={2.5} fillOpacity={1} fill="url(#presentGrad)" />
+                  <Area type="monotone" dataKey="late" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#lateGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Right Chart: Department Attendance Donut */}
+          <div className="lg:col-span-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div>
+              <h2 className="text-base font-bold text-[#0E2322]">Department Distribution</h2>
+              <p className="text-xs text-slate-500 mb-4">Workforce allocation by team</p>
+
+              <div className="h-44 w-full relative flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={DEPT_DATA}
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {DEPT_DATA.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-extrabold text-[#0E2322]">{displayHeadcount}</span>
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Staff</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+              {DEPT_DATA.map((d) => (
+                <div key={d.name} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>
+                    <span>{d.name}</span>
+                  </span>
+                  <span className="font-semibold text-slate-800">{d.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-[#E8FCE4] text-[#0E2322] flex items-center justify-center mb-3">
+            <Building2 className="w-6 h-6 text-[#122300]" />
+          </div>
+          <h3 className="text-base font-bold text-[#0E2322]">Awaiting Live Entrance Telemetry</h3>
+          <p className="text-xs text-slate-500 max-w-md mt-1 mb-4">
+            Your organization <strong className="text-slate-800 font-semibold">{orgName}</strong> is active. Once your team members check in via the entrance kiosk tablet, 5-day attendance trends and department distribution will render here automatically.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                handleResetForAnotherInvite();
+                setInviteModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Invite Team Member</span>
+            </button>
+            <Link
+              to="/kiosk"
+              target="_blank"
+              className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition shadow-xs flex items-center space-x-1.5"
+            >
+              <span>📺 Open Entrance Kiosk</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* 4. Real-Time Scan Activity Table & Search Filter */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -546,8 +712,36 @@ function DashboardPage() {
             <tbody className="divide-y divide-slate-100 font-medium">
               {filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-xs text-slate-400">
-                    No matching attendance records found.
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                        <Clock className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <div className="font-bold text-slate-800 text-sm">
+                        {searchQuery || statusFilter !== "all" || deptFilter !== "all"
+                          ? "No Matching Attendance Records"
+                          : "No Check-Ins Recorded Today"}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 text-center">
+                        {isDemo
+                          ? "No matching attendance records found."
+                          : searchQuery || statusFilter !== "all"
+                            ? "Try adjusting your search query or filter."
+                            : `No attendance events recorded today for ${orgName}. When staff scan the rotating QR code on your entrance kiosk, their punch events will appear here in real time.`}
+                      </p>
+                      {!isDemo && !searchQuery && (
+                        <button
+                          onClick={() => {
+                            handleResetForAnotherInvite();
+                            setInviteModalOpen(true);
+                          }}
+                          className="mt-3.5 px-3.5 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs cursor-pointer flex items-center space-x-1.5"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>+ Invite First Staff Member</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -599,60 +793,137 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* 5. Single-Use Staff Invite Modal */}
+      {/* 5. Upgraded Single-Use Staff Invite Modal */}
       {inviteModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95">
-            <h3 className="text-xl font-bold text-[#0E2322] mb-1">Invite Staff Member</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Generates an email-bound, single-use 7-day invite token per AGENTS.md.
-            </p>
+            {!generatedInviteUrl ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xl font-bold text-[#0E2322]">Invite Staff Member</h3>
+                  <span className="px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-[#E8FCE4] text-[#122300]">
+                    14-Day Expiry
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4">
+                  Generates an email-bound, single-use invitation token per AGENTS.md security spec.
+                </p>
 
-            <form onSubmit={handleGenerateInvite} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="colleague@company.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
-                />
-              </div>
+                {inviteError && (
+                  <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                    {inviteError}
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Assigned Role
-                </label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
-                >
-                  <option value="employee">Employee (Scoped to their team)</option>
-                  <option value="manager">Manager (Can manage their own team)</option>
-                </select>
-              </div>
+                <form onSubmit={handleGenerateInvite} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Staff Email Address
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="colleague@company.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
+                    />
+                  </div>
 
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setInviteModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition"
-                >
-                  {inviteCopied ? "✓ Link Copied!" : "Create Single-Use Invite"}
-                </button>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Assigned Role
+                    </label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
+                    >
+                      <option value="employee">Employee (Scan entrance kiosk to clock in/out)</option>
+                      <option value="manager">Manager (Can manage their team & view roster)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleCloseInviteModal}
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={generatingInvite || !inviteEmail.trim()}
+                      className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition cursor-pointer disabled:opacity-50"
+                    >
+                      {generatingInvite ? "Generating Link..." : "Create Single-Use Invite"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-emerald-700 bg-emerald-50 p-3 rounded-2xl border border-emerald-200">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+                  <div className="text-xs font-semibold">
+                    Single-use invite link created for <strong className="text-emerald-950 font-bold">{inviteEmail}</strong>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Invitation URL (Single-Use, Bound to Email)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={generatedInviteUrl}
+                      className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none select-all text-slate-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyGeneratedUrl}
+                      className="px-3 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition flex items-center space-x-1 cursor-pointer shrink-0"
+                    >
+                      {inviteCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 leading-relaxed">
+                  <strong className="text-slate-900 font-semibold">How it works:</strong> Share this URL with your colleague. When they click it, they will sign in with Google or their email address to activate their {inviteRole} account and bind to <strong className="text-slate-900 font-semibold">{orgName}</strong>.
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleResetForAnotherInvite}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    + Invite Another Member
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseInviteModal}
+                    className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-white text-xs font-bold hover:bg-[#163331] transition cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}

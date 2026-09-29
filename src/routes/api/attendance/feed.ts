@@ -15,6 +15,15 @@ export const Route = createFileRoute("/api/attendance/feed")({
 
           if (caller && caller.orgId) {
             orgId = caller.orgId;
+          } else if (caller && caller.uid) {
+            try {
+              const userDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
+              if (userDoc.exists && userDoc.data()?.orgId) {
+                orgId = userDoc.data()!.orgId;
+              }
+            } catch (e) {
+              console.warn("Could not check user doc for orgId in feed:", e);
+            }
           }
 
           // Fetch latest clock events ordered by timestamp (single-field index, no composite index needed)
@@ -27,6 +36,9 @@ export const Route = createFileRoute("/api/attendance/feed")({
           let docs = snap.docs;
           if (orgId && !isDemo && orgId !== "org-checin-demo" && orgId !== "demo-org") {
             docs = docs.filter((doc) => doc.data().orgId === orgId);
+          } else if (!isDemo && (!orgId || orgId !== "org-checin-demo")) {
+            // Strictly prevent demo data leaking to non-demo or new accounts
+            docs = docs.filter((doc) => orgId && doc.data().orgId === orgId);
           }
           docs = docs.slice(0, 30);
 
