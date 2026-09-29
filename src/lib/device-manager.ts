@@ -123,9 +123,17 @@ export async function registerOrVerifyDevice(userId: string): Promise<{
       return { allowed: true, limitReached: false, currentDeviceId, activeDevices };
     }
 
-    // New device: check if account is already at max capacity (4)
+    // If account has reached max registered active devices, archive the oldest session
     if (activeDevices.length >= MAX_DEVICES_PER_ACCOUNT) {
-      return { allowed: false, limitReached: true, currentDeviceId, activeDevices };
+      const sorted = [...activeDevices].sort(
+        (a, b) => new Date(a.last_active || 0).getTime() - new Date(b.last_active || 0).getTime(),
+      );
+      const oldest = sorted[0];
+      if (oldest) {
+        await updateDoc(doc(firestoreDb, "user_devices", oldest.id), {
+          status: "revoked",
+        }).catch(() => {});
+      }
     }
 
     // Capacity available: register this device

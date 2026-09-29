@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { firebaseAuth } from "@/integrations/firebase/config";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +18,14 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  History as HistoryIcon,
   ShieldCheck,
   ArrowDownLeft,
   ArrowUpRight,
-  Filter,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { exportToExcel, exportToCSV, exportToPDF } from "@/lib/exporters";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({
@@ -41,134 +43,127 @@ export const Route = createFileRoute("/_authenticated/history")({
 
 interface ClockRecord {
   id: string;
+  employeeId?: string;
   employeeName: string;
   email: string;
-  managerName: string;
+  managerName?: string;
   locationName: string;
   type: "in" | "out";
   timestamp: string;
   verifiedMethod: string;
 }
 
-const SAMPLE_RECORDS: ClockRecord[] = [
-  {
-    id: "evt-01",
-    employeeName: "Kofi Boateng",
-    email: "kofi@company.com",
-    managerName: "Kwame Mensah",
-    locationName: "Main Entrance Tablet #01",
-    type: "in",
-    timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    verifiedMethod: "15s Dynamic QR · HMAC Verified",
-  },
-  {
-    id: "evt-02",
-    employeeName: "Ama Serwaa",
-    email: "ama@company.com",
-    managerName: "Kwame Mensah",
-    locationName: "Side Entrance Tablet #02",
-    type: "in",
-    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    verifiedMethod: "15s Dynamic QR · HMAC Verified",
-  },
-  {
-    id: "evt-03",
-    employeeName: "David Osei",
-    email: "david@company.com",
-    managerName: "Abena Poku",
-    locationName: "Main Entrance Tablet #01",
-    type: "in",
-    timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    verifiedMethod: "15s Dynamic QR · HMAC Verified",
-  },
-  {
-    id: "evt-04",
-    employeeName: "Abena Poku",
-    email: "abena@company.com",
-    managerName: "Self (Manager)",
-    locationName: "Main Entrance Tablet #01",
-    type: "in",
-    timestamp: new Date(Date.now() - 1000 * 60 * 130).toISOString(),
-    verifiedMethod: "15s Dynamic QR · HMAC Verified",
-  },
-  {
-    id: "evt-05",
-    employeeName: "Kwame Mensah",
-    email: "kwame@company.com",
-    managerName: "Self (Manager)",
-    locationName: "Main Entrance Tablet #01",
-    type: "in",
-    timestamp: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
-    verifiedMethod: "15s Dynamic QR · HMAC Verified",
-  },
-  {
-    id: "evt-06",
-    employeeName: "Kofi Boateng",
-    email: "kofi@company.com",
-    managerName: "Kwame Mensah",
-    locationName: "Main Entrance Tablet #01",
-    type: "out",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    verifiedMethod: "15s Dynamic QR · HMAC Verified",
-  },
-];
-
 function HistoryPage() {
   const { user, isOrgAdmin, isManager, isEmployee } = useAuth();
+  const [records, setRecords] = useState<ClockRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "in" | "out">("all");
   const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "all">("today");
 
+  const fetchRecords = async (isManual = false) => {
+    if (isManual) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const headers: Record<string, string> = {};
+      const currentUser = firebaseAuth.currentUser;
+      if (currentUser) {
+        const idToken = await currentUser.getIdToken();
+        headers.Authorization = `Bearer ${idToken}`;
+      }
+
+      const res = await fetch("/api/attendance/history", { headers });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.records)) {
+        setRecords(data.records);
+      } else {
+        setRecords([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+      toast.error("Could not load attendance history.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecords();
+  }, [user?.id]);
+
   const filteredRecords = useMemo(() => {
-    return SAMPLE_RECORDS.filter((rec) => {
-      // Role scoping (AGENTS.md)
-      if (isEmployee && rec.email !== user?.email) {
+    const now = Date.now();
+    return records.filter((rec) => {
+      // Time range filter
+      if (timeRange !== "all") {
+        const eventTime = new Date(rec.timestamp).getTime();
+        const diffHours = (now - eventTime) / (1000 * 60 * 60);
+        if (timeRange === "today" && diffHours > 24) return false;
+        if (timeRange === "week" && diffHours > 24 * 7) return false;
+        if (timeRange === "month" && diffHours > 24 * 31) return false;
+      }
+
+      // Event type filter
+      if (typeFilter !== "all" && rec.type !== typeFilter) {
         return false;
       }
-      if (isManager && !isOrgAdmin && rec.managerName !== "Kwame Mensah" && rec.email !== user?.email) {
-        // Scoped to manager's team
+
+      // Search term filter
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const matches =
+          rec.employeeName.toLowerCase().includes(term) ||
+          rec.email.toLowerCase().includes(term) ||
+          rec.locationName.toLowerCase().includes(term);
+        if (!matches) return false;
       }
 
-      const matchesSearch =
-        rec.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rec.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rec.locationName.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesType = typeFilter === "all" || rec.type === typeFilter;
-
-      return matchesSearch && matchesType;
+      return true;
     });
-  }, [searchTerm, typeFilter, isEmployee, isManager, isOrgAdmin, user?.email]);
+  }, [records, searchTerm, typeFilter, timeRange]);
 
   const handleExportCSV = () => {
+    if (filteredRecords.length === 0) {
+      toast.info("No records to export.");
+      return;
+    }
     const rows = filteredRecords.map((r) => ({
       ID: r.id,
       Employee: r.employeeName,
       Email: r.email,
-      Manager: r.managerName,
       Location: r.locationName,
-      Type: r.type.toUpperCase(),
+      Type: r.type === "in" ? "CLOCK IN" : "CLOCK OUT",
       Timestamp: new Date(r.timestamp).toLocaleString(),
       Verification: r.verifiedMethod,
     }));
-    exportToCSV(rows, `ChecIN-History-${Date.now()}`);
+    exportToCSV(rows, `ChecIN-Attendance-Log-${Date.now()}`);
   };
 
   const handleExportExcel = () => {
+    if (filteredRecords.length === 0) {
+      toast.info("No records to export.");
+      return;
+    }
     const rows = filteredRecords.map((r) => ({
       ID: r.id,
       Employee: r.employeeName,
       Email: r.email,
-      Manager: r.managerName,
       Location: r.locationName,
-      Type: r.type.toUpperCase(),
+      Type: r.type === "in" ? "CLOCK IN" : "CLOCK OUT",
       Timestamp: new Date(r.timestamp).toLocaleString(),
       Verification: r.verifiedMethod,
     }));
-    exportToExcel(rows, `ChecIN-History-${Date.now()}`);
+    exportToExcel(rows, `ChecIN-Attendance-Log-${Date.now()}`);
   };
 
   const handleExportPDF = () => {
+    if (filteredRecords.length === 0) {
+      toast.info("No records to export.");
+      return;
+    }
     const headers = ["Employee", "Location", "Event", "Timestamp", "Verification"];
     const rows = filteredRecords.map((r) => [
       `${r.employeeName} (${r.email})`,
@@ -177,7 +172,7 @@ function HistoryPage() {
       new Date(r.timestamp).toLocaleString(),
       "HMAC Verified",
     ]);
-    exportToPDF("Clock Event Audit Log", headers, rows, `ChecIN-Audit-${Date.now()}`);
+    exportToPDF("Attendance Event Audit Log", headers, rows, `ChecIN-Audit-${Date.now()}`);
   };
 
   return (
@@ -187,14 +182,25 @@ function HistoryPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0E2322]">Attendance History</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Cryptographically verified entrance scans and daily workforce presence logs.
+            Cryptographically verified physical presence scan logs.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchRecords(true)}
+            disabled={refreshing || loading}
+            className="border-slate-200 text-xs font-medium"
+          >
+            <RefreshCw className={`size-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
+            disabled={filteredRecords.length === 0}
             className="border-slate-200 text-xs font-medium"
           >
             <Download className="size-3.5 mr-1.5" /> CSV
@@ -203,6 +209,7 @@ function HistoryPage() {
             variant="outline"
             size="sm"
             onClick={handleExportExcel}
+            disabled={filteredRecords.length === 0}
             className="border-slate-200 text-xs font-medium"
           >
             <FileSpreadsheet className="size-3.5 mr-1.5" /> Excel
@@ -210,6 +217,7 @@ function HistoryPage() {
           <Button
             size="sm"
             onClick={handleExportPDF}
+            disabled={filteredRecords.length === 0}
             className="bg-[#0E2322] hover:bg-[#163331] text-white text-xs font-medium"
           >
             <FileText className="size-3.5 mr-1.5" /> PDF
@@ -224,7 +232,7 @@ function HistoryPage() {
             <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search by employee, email, or entrance..."
+                placeholder="Search employee, email, or entrance..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 text-sm"
@@ -259,9 +267,9 @@ function HistoryPage() {
                     <SelectValue placeholder="Today" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="today">Past 24 Hours</SelectItem>
+                    <SelectItem value="week">Past 7 Days</SelectItem>
+                    <SelectItem value="month">Past 30 Days</SelectItem>
                     <SelectItem value="all">All Time</SelectItem>
                   </SelectContent>
                 </Select>
@@ -280,7 +288,7 @@ function HistoryPage() {
                 Verification Records ({filteredRecords.length})
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                All records signed with 15-second entrance tablet HMAC device handshake
+                All records verified with physical kiosk token presence handshake
               </CardDescription>
             </div>
             <Badge className="bg-[#E8FCE4] text-[#122300] border-none font-medium text-xs">
@@ -301,7 +309,16 @@ function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRecords.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-muted-foreground text-sm">
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader2 className="size-5 animate-spin text-slate-500" />
+                        <span>Loading verification records...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredRecords.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-muted-foreground text-sm">
                       No clock records found matching your filters.

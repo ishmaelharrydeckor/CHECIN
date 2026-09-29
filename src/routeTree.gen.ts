@@ -27,7 +27,9 @@ import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$t
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
 import { Route as ApiAdminSeedDemoRouteImport } from './routes/api/admin/seed-demo'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
+import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
 import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
+import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
 import { Route as ApiAuthDemoLoginRouteImport } from './routes/api/auth/demo-login'
 import { Route as ApiAuthLoginDirectRouteImport } from './routes/api/auth/login-direct'
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
@@ -135,9 +137,19 @@ const ApiAdminStaffInvitesRoute = ApiAdminStaffInvitesRouteImport.update({
   path: '/api/admin/staff-invites',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAnnouncementsIndexRoute = ApiAnnouncementsIndexRouteImport.update({
+  id: '/api/announcements/',
+  path: '/api/announcements/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAttendanceFeedRoute = ApiAttendanceFeedRouteImport.update({
   id: '/api/attendance/feed',
   path: '/api/attendance/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
+  id: '/api/attendance/history',
+  path: '/api/attendance/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthDemoLoginRoute = ApiAuthDemoLoginRouteImport.update({
@@ -235,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
+  '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
   '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
@@ -248,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/api/push/send': typeof ApiPushSendRoute
   '/api/push/subscribe': typeof ApiPushSubscribeRoute
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
+  '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
 }
@@ -270,6 +284,7 @@ export interface FileRoutesByTo {
   '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
+  '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
   '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
@@ -283,6 +298,7 @@ export interface FileRoutesByTo {
   '/api/push/send': typeof ApiPushSendRoute
   '/api/push/subscribe': typeof ApiPushSubscribeRoute
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
+  '/api/announcements': typeof ApiAnnouncementsIndexRoute
   '/api/locations': typeof ApiLocationsIndexRoute
   '/api/organization': typeof ApiOrganizationIndexRoute
 }
@@ -307,6 +323,7 @@ export interface FileRoutesById {
   '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
+  '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
   '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
@@ -320,6 +337,7 @@ export interface FileRoutesById {
   '/api/push/send': typeof ApiPushSendRoute
   '/api/push/subscribe': typeof ApiPushSubscribeRoute
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
+  '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
 }
@@ -344,6 +362,7 @@ export interface FileRouteTypes {
     | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
+    | '/api/attendance/history'
     | '/api/auth/demo-login'
     | '/api/auth/login-direct'
     | '/api/auth/register-org'
@@ -357,6 +376,7 @@ export interface FileRouteTypes {
     | '/api/push/send'
     | '/api/push/subscribe'
     | '/api/push/vapid-key'
+    | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
   fileRoutesByTo: FileRoutesByTo
@@ -379,6 +399,7 @@ export interface FileRouteTypes {
     | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
+    | '/api/attendance/history'
     | '/api/auth/demo-login'
     | '/api/auth/login-direct'
     | '/api/auth/register-org'
@@ -392,6 +413,7 @@ export interface FileRouteTypes {
     | '/api/push/send'
     | '/api/push/subscribe'
     | '/api/push/vapid-key'
+    | '/api/announcements'
     | '/api/locations'
     | '/api/organization'
   id:
@@ -415,6 +437,7 @@ export interface FileRouteTypes {
     | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
+    | '/api/attendance/history'
     | '/api/auth/demo-login'
     | '/api/auth/login-direct'
     | '/api/auth/register-org'
@@ -428,6 +451,7 @@ export interface FileRouteTypes {
     | '/api/push/send'
     | '/api/push/subscribe'
     | '/api/push/vapid-key'
+    | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
   fileRoutesById: FileRoutesById
@@ -445,6 +469,7 @@ export interface RootRouteChildren {
   ApiAdminSeedDemoRoute: typeof ApiAdminSeedDemoRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
   ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
+  ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
   ApiAuthDemoLoginRoute: typeof ApiAuthDemoLoginRoute
   ApiAuthLoginDirectRoute: typeof ApiAuthLoginDirectRoute
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
@@ -458,6 +483,7 @@ export interface RootRouteChildren {
   ApiPushSendRoute: typeof ApiPushSendRoute
   ApiPushSubscribeRoute: typeof ApiPushSubscribeRoute
   ApiPushVapidKeyRoute: typeof ApiPushVapidKeyRoute
+  ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
   ApiLocationsIndexRoute: typeof ApiLocationsIndexRoute
   ApiOrganizationIndexRoute: typeof ApiOrganizationIndexRoute
 }
@@ -590,11 +616,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminStaffInvitesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/announcements/': {
+      id: '/api/announcements/'
+      path: '/api/announcements'
+      fullPath: '/api/announcements/'
+      preLoaderRoute: typeof ApiAnnouncementsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/attendance/feed': {
       id: '/api/attendance/feed'
       path: '/api/attendance/feed'
       fullPath: '/api/attendance/feed'
       preLoaderRoute: typeof ApiAttendanceFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/history': {
+      id: '/api/attendance/history'
+      path: '/api/attendance/history'
+      fullPath: '/api/attendance/history'
+      preLoaderRoute: typeof ApiAttendanceHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/demo-login': {
@@ -741,6 +781,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminSeedDemoRoute: ApiAdminSeedDemoRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
   ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
+  ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
   ApiAuthDemoLoginRoute: ApiAuthDemoLoginRoute,
   ApiAuthLoginDirectRoute: ApiAuthLoginDirectRoute,
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
@@ -754,6 +795,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPushSendRoute: ApiPushSendRoute,
   ApiPushSubscribeRoute: ApiPushSubscribeRoute,
   ApiPushVapidKeyRoute: ApiPushVapidKeyRoute,
+  ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
   ApiLocationsIndexRoute: ApiLocationsIndexRoute,
   ApiOrganizationIndexRoute: ApiOrganizationIndexRoute,
 }

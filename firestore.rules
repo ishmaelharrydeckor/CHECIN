@@ -116,7 +116,9 @@ service cloud.firestore {
         isOrgAdmin() ||
         (isManager() && resource.data.managerId == request.auth.uid)
       );
-    // ---- 7. User Devices (Active sessions & multi-device limit) ----
+    }
+
+    // ---- 7. User Devices (Active sessions & audit) ----
     match /user_devices/{deviceDocId} {
       allow read: if isSignedIn() && (resource == null || resource.data.user_id == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
@@ -157,13 +159,6 @@ service cloud.firestore {
     }
     match /notification_preferences/{prefId} {
       allow read, write: if false;
-    }
-
-    // User Devices: Session tracking per user
-    match /user_devices/{deviceDocId} {
-      allow read, write: if isSignedIn() && (
-        resource == null || resource.data.user_id == request.auth.uid
-      );
     }
 
     // Default Deny: Catch-all for any collection not explicitly matched above

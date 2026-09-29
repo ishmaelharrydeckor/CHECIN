@@ -78,9 +78,9 @@ export const Route = createFileRoute("/api/locations/")({
             return Response.json({ error: "Unauthorized" }, { status: 401 });
           }
 
-          // Only org_admin or manager can add locations
-          if (caller && caller.role !== "org_admin" && caller.role !== "manager" && !isDemo) {
-            return Response.json({ error: "Forbidden: Org Admin privileges required" }, { status: 403 });
+          // Only org_admin can add locations
+          if (caller && caller.role !== "org_admin" && !isDemo) {
+            return Response.json({ error: "Forbidden: Org Admin privileges required to create physical locations" }, { status: 403 });
           }
 
           const body = await request.json();

@@ -13,7 +13,32 @@ export const Route = createFileRoute("/api/organization/")({
           const isDemo = url.searchParams.get("demo") === "true";
 
           const caller = await verifyCallerToken(request.headers.get("authorization"));
-          const orgId = caller?.orgId || (isDemo ? "org-checin-demo" : null);
+          let orgId = caller?.orgId as string | undefined;
+
+          // Robust fallback if custom claims are settling
+          if (!orgId && caller?.uid) {
+            try {
+              const userDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
+              if (userDoc.exists && userDoc.data()?.orgId) {
+                orgId = userDoc.data()!.orgId;
+              } else {
+                const orgsSnap = await firestoreAdmin
+                  .collection("organizations")
+                  .where("createdById", "==", caller.uid)
+                  .limit(1)
+                  .get();
+                if (!orgsSnap.empty) {
+                  orgId = orgsSnap.docs[0].id;
+                }
+              }
+            } catch (e) {
+              console.warn("Could not resolve orgId fallback:", e);
+            }
+          }
+
+          if (!orgId && isDemo) {
+            orgId = "org-checin-demo";
+          }
 
           if (!orgId) {
             return Response.json({ error: "No organization associated with this account" }, { status: 400 });

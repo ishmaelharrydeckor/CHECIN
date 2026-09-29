@@ -60,11 +60,12 @@ const INITIAL_LOCATIONS: KioskLocation[] = [
 ];
 
 function SettingsPage() {
-  const { user, isOrgAdmin } = useAuth();
-  const isDemo = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || !user);
-  const canManageKiosks = isOrgAdmin || isDemo || !user;
+  const { user, orgId, isOrgAdmin } = useAuth();
+  const isDemo = Boolean(orgId === "org-checin-demo" || (typeof window !== "undefined" && new URL(window.location.href).searchParams.get("demo") === "true" && !user));
+  const canManageKiosks = isOrgAdmin || isDemo;
 
-  const [locations, setLocations] = useState<KioskLocation[]>(INITIAL_LOCATIONS);
+  const [locations, setLocations] = useState<KioskLocation[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
   const [newLocName, setNewLocName] = useState("");
   const [pairingModalOpen, setPairingModalOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -78,13 +79,13 @@ function SettingsPage() {
     plan: string;
     timezone: string;
   }>({
-    name: "Acme Innovations Ltd",
-    id: "org-checin-demo",
+    name: "Loading Organization...",
+    id: orgId || "Loading...",
     plan: "Growth (14-Day Trial)",
-    timezone: "Africa/Accra",
+    timezone: "UTC",
   });
   const [editingOrg, setEditingOrg] = useState(false);
-  const [orgNameInput, setOrgNameInput] = useState("Acme Innovations Ltd");
+  const [orgNameInput, setOrgNameInput] = useState("");
   const [savingOrg, setSavingOrg] = useState(false);
 
   // Device Sessions
@@ -121,6 +122,8 @@ function SettingsPage() {
       }
     } catch (err) {
       console.error("Error fetching locations:", err);
+    } finally {
+      setLoadingLocations(false);
     }
   };
 
@@ -141,9 +144,10 @@ function SettingsPage() {
   };
 
   useEffect(() => {
+    if (!user && !isDemo) return;
     fetchLocations();
     fetchOrg();
-  }, [user, isDemo]);
+  }, [user, orgId, isDemo]);
 
   const handleUpdateOrgName = async (e: React.FormEvent) => {
     e.preventDefault();

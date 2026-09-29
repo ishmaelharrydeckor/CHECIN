@@ -190,11 +190,16 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             })
             .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
-          // Fetch registered users in this org
-          const usersSnap = await firestoreAdmin
+          // Fetch registered users in this org (scoped to team if caller is manager)
+          let usersQuery = firestoreAdmin
             .collection("users")
-            .where("orgId", "==", ctx.orgId)
-            .get();
+            .where("orgId", "==", ctx.orgId);
+
+          if (ctx.role === "manager") {
+            usersQuery = usersQuery.where("managerId", "==", ctx.uid);
+          }
+
+          const usersSnap = await usersQuery.get();
 
           const members = usersSnap.docs.map((d) => {
             const data = d.data();
@@ -413,6 +418,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               department,
               photoURL: null,
               orgId: invite.orgId,
+              managerId: managerId,
               updatedAt: now,
             },
             { merge: true },

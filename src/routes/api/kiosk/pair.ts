@@ -30,40 +30,11 @@ export const Route = createFileRoute("/api/kiosk/pair")({
             code = `CHK-${code}`;
           }
 
-          // Demo Mode Support (Permits instant 1-tap presentation pairing)
-          if (code === "CHK-DEMO" || code === "CHK-000000") {
-            const demoLocId = "loc-main-lobby";
-            const demoLocName = "Main Entrance Lobby Terminal #01";
-            
-            // Look up any existing org
-            const orgsSnap = await firestoreAdmin.collection("organizations").limit(1).get();
-            const orgId = !orgsSnap.empty ? orgsSnap.docs[0].id : "org-checin-demo";
-
-            const deviceSecret = crypto.randomBytes(32).toString("hex");
-            const secretHash = hashDeviceSecret(deviceSecret);
-
-            await firestoreAdmin.collection("kiosks").doc(demoLocId).set({
-              orgId,
-              locationId: demoLocId,
-              locationName: demoLocName,
-              kiosk_secret_hash: secretHash,
-              kiosk_paired_at: new Date().toISOString(),
-            });
-
-            return Response.json({
-              ok: true,
-              locationId: demoLocId,
-              locationName: demoLocName,
-              orgId,
-              deviceSecret,
-            });
-          }
-
           const pairingRef = firestoreAdmin.collection("kiosk_pairings").doc(code);
           const pairingSnap = await pairingRef.get();
 
           if (!pairingSnap.exists) {
-            return Response.json({ error: "Invalid pairing code. Please generate a fresh code in Settings or enter CHK-DEMO." }, { status: 400 });
+            return Response.json({ error: "Invalid pairing code. Please generate a fresh pairing code in Settings." }, { status: 400 });
           }
 
           const pairing = pairingSnap.data()!;

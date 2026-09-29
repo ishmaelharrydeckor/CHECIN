@@ -3,6 +3,7 @@
 import webpush from "web-push";
 import { createHash } from "crypto";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
+import type { CorporateRole } from "@/lib/auth-claims";
 
 export const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
@@ -23,8 +24,6 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 export type NotificationType =
   | "ATTENDANCE"
   | "ANNOUNCEMENT"
-  | "ASSIGNMENT"
-  | "DEADLINE"
   | "SYSTEM"
   | "TEST";
 
@@ -45,9 +44,9 @@ export interface NotificationPayload {
 export interface StoredPushSubscription {
   id: string;
   userId: string;
-  userRole: "student" | "lecturer" | "admin";
-  studentId?: string | null;
-  indexNumber?: string | null;
+  userRole: CorporateRole;
+  orgId?: string | null;
+  managerId?: string | null;
   endpoint: string;
   keys: {
     p256dh: string;
@@ -76,7 +75,7 @@ const subscriptionsCol = () => firestoreAdmin.collection("push_subscriptions");
 /** Save or update a device's push subscription in Firestore */
 export async function savePushSubscription(
   userId: string,
-  userRole: "student" | "lecturer" | "admin",
+  userRole: CorporateRole,
   subscription: {
     endpoint: string;
     keys: { p256dh: string; auth: string };
@@ -86,8 +85,8 @@ export async function savePushSubscription(
     browser?: string;
     userAgent?: string;
     isStandalone?: boolean;
-    studentId?: string;
-    indexNumber?: string;
+    orgId?: string;
+    managerId?: string | null;
   } = {},
 ): Promise<StoredPushSubscription> {
   if (
@@ -110,12 +109,8 @@ export async function savePushSubscription(
     id: docId,
     userId: cleanUserId,
     userRole,
-    studentId: deviceInfo.studentId || existing?.studentId || null,
-    indexNumber:
-      deviceInfo.indexNumber ||
-      (userRole === "student" ? cleanUserId : null) ||
-      existing?.indexNumber ||
-      null,
+    orgId: deviceInfo.orgId || existing?.orgId || null,
+    managerId: deviceInfo.managerId || existing?.managerId || null,
     endpoint: subscription.endpoint,
     keys: {
       p256dh: subscription.keys.p256dh,
@@ -150,7 +145,7 @@ export async function removePushSubscription(endpoint: string, userId?: string):
     if (!snap.exists) return true;
     const existing = snap.data() as StoredPushSubscription;
 
-    // Verify ownership if userId is provided.
+    // Verify ownership if userId is provided
     if (userId && existing.userId !== String(userId).trim()) {
       return false;
     }
@@ -169,6 +164,10 @@ async function sendToSubscriptionRecord(
   sub: StoredPushSubscription,
   payload: NotificationPayload,
 ): Promise<{ success: boolean; expired?: boolean; error?: string }> {
+  if (!webPushInitialized) {
+    return { success: false, error: "VAPID keys not configured" };
+  }
+
   const pushPayload = JSON.stringify({
     title: payload.title,
     body: payload.body,
@@ -252,8 +251,6 @@ export async function isNotificationAllowed(
     if (pref.pushEnabled === false) return false;
     if (type === "ATTENDANCE" && pref.attendance === false) return false;
     if (type === "ANNOUNCEMENT" && pref.announcements === false) return false;
-    if (type === "ASSIGNMENT" && pref.assignments === false) return false;
-    if (type === "DEADLINE" && pref.deadlines === false) return false;
     if (type === "SYSTEM" && pref.system === false) return false;
 
     return true;
@@ -302,22 +299,12 @@ export async function sendNotificationToUser(
     return { targetDevices: 0, successful: 0, failed: 0 };
   }
 
-  async function byField(field: string) {
-    const snap = await subscriptionsCol()
-      .where(field, "==", cleanId)
-      .where("isActive", "==", true)
-      .get();
-    return snap.docs.map((d) => d.data() as StoredPushSubscription);
-  }
+  const snap = await subscriptionsCol()
+    .where("userId", "==", cleanId)
+    .where("isActive", "==", true)
+    .get();
 
-  let subscriptions = await byField("userId");
-  if (subscriptions.length === 0) {
-    subscriptions = await byField("indexNumber");
-  }
-  if (subscriptions.length === 0) {
-    subscriptions = await byField("studentId");
-  }
-
+  const subscriptions = snap.docs.map((d) => d.data() as StoredPushSubscription);
   if (subscriptions.length === 0) {
     return { targetDevices: 0, successful: 0, failed: 0 };
   }
@@ -365,72 +352,50 @@ export async function sendNotificationToUsers(
   return { totalUsers: uniqueIds.length, totalDelivered };
 }
 
-/** Send notification to all students registered in a course */
-export async function sendNotificationToCourseStudents(
-  courseId: string,
+/** Send notification to an entire team reporting to a manager */
+export async function sendNotificationToTeam(
+  managerId: string,
+  orgId: string,
   payload: NotificationPayload,
-): Promise<{ studentsCount: number; delivered: number }> {
+): Promise<{ totalUsers: number; totalDelivered: number }> {
   try {
-    const cleanCourseId = String(courseId).trim();
-
-    const regSnap = await firestoreAdmin
-      .collection("course_registrations")
-      .where("course_id", "==", cleanCourseId)
+    const usersSnap = await firestoreAdmin
+      .collection("users")
+      .where("orgId", "==", orgId)
+      .where("managerId", "==", managerId)
       .get();
-    const studentIds = regSnap.docs.map((d) => (d.data() as any).student_id).filter(Boolean);
 
-    const studentUserIds = new Set<string>();
-    const studentRefs = studentIds.map((sid) => firestoreAdmin.collection("students").doc(sid));
-    const studentDocs = studentRefs.length ? await firestoreAdmin.getAll(...studentRefs) : [];
-    for (const doc of studentDocs) {
-      if (!doc.exists) continue;
-      studentUserIds.add(doc.id);
-      const data = doc.data() as any;
-      if (data?.index_number) studentUserIds.add(String(data.index_number).trim());
-    }
-
-    // Cohort fallback: same lecturer + department, for courses that rely on
-    // level/department targeting rather than explicit registrations.
-    const courseDoc = await firestoreAdmin.collection("courses").doc(cleanCourseId).get();
-    const course = courseDoc.exists ? (courseDoc.data() as any) : null;
-    if (course?.owner_id && course?.department_id) {
-      const cohortSnap = await firestoreAdmin
-        .collection("students")
-        .where("owner_id", "==", course.owner_id)
-        .where("department_id", "==", course.department_id)
-        .get();
-      for (const doc of cohortSnap.docs) {
-        studentUserIds.add(doc.id);
-        const data = doc.data() as any;
-        if (data?.index_number) studentUserIds.add(String(data.index_number).trim());
-      }
-    }
-
-    const recipientList = Array.from(studentUserIds);
-    console.log(
-      `[WebPush] Resolved ${recipientList.length} candidate student identifier(s) for course ${cleanCourseId}`,
-    );
-
-    if (recipientList.length === 0) {
-      console.log(
-        `[WebPush] No direct course registrations found for course ${cleanCourseId}. Falling back to active student devices.`,
-      );
-      const broadcastRes = await sendNotificationToAllActive(payload, "student");
-      return { studentsCount: broadcastRes.totalDevices, delivered: broadcastRes.totalDelivered };
-    }
-
-    const res = await sendNotificationToUsers(recipientList, payload);
-    return { studentsCount: recipientList.length, delivered: res.totalDelivered };
+    const userIds = usersSnap.docs.map((doc) => doc.id);
+    return await sendNotificationToUsers(userIds, payload);
   } catch (err) {
-    console.error("[WebPush] Failed to send notification to course:", err);
-    return { studentsCount: 0, delivered: 0 };
+    console.error("[WebPush] Error sending to team:", err);
+    return { totalUsers: 0, totalDelivered: 0 };
   }
 }
 
-/** Broadcast notification to all active devices/users (or filtered by role) */
+/** Send notification to an entire organization */
+export async function sendNotificationToOrg(
+  orgId: string,
+  payload: NotificationPayload,
+): Promise<{ totalUsers: number; totalDelivered: number }> {
+  try {
+    const usersSnap = await firestoreAdmin
+      .collection("users")
+      .where("orgId", "==", orgId)
+      .get();
+
+    const userIds = usersSnap.docs.map((doc) => doc.id);
+    return await sendNotificationToUsers(userIds, payload);
+  } catch (err) {
+    console.error("[WebPush] Error sending to organization:", err);
+    return { totalUsers: 0, totalDelivered: 0 };
+  }
+}
+
+/** Broadcast notification to active devices filtered by role */
 export async function sendNotificationToAllActive(
   payload: NotificationPayload,
-  targetRole?: "student" | "lecturer" | "admin",
+  targetRole?: CorporateRole,
 ): Promise<{ totalDevices: number; totalDelivered: number }> {
   try {
     let query: FirebaseFirestore.Query = subscriptionsCol().where("isActive", "==", true);
@@ -458,10 +423,6 @@ export async function sendNotificationToAllActive(
       );
       delivered += results.filter((r) => r.success).length;
     }
-
-    console.log(
-      `[WebPush] Broadcast complete: "${payload.title}" (${delivered}/${subscriptions.length} devices delivered)`,
-    );
 
     return { totalDevices: subscriptions.length, totalDelivered: delivered };
   } catch (err) {

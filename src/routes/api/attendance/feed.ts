@@ -26,20 +26,39 @@ export const Route = createFileRoute("/api/attendance/feed")({
             }
           }
 
-          // Fetch latest clock events ordered by timestamp (single-field index, no composite index needed)
-          const snap = await firestoreAdmin
+          if (isDemo && !orgId) {
+            orgId = "org-checin-demo";
+          }
+
+          if (!orgId) {
+            return Response.json({ ok: true, events: [] });
+          }
+
+          let query: FirebaseFirestore.Query = firestoreAdmin
             .collection("clock_events")
-            .orderBy("timestamp", "desc")
-            .limit(50)
-            .get();
+            .where("orgId", "==", orgId);
+
+          // Manager role scoping (AGENTS.md): scoped strictly to their own direct reports
+          if (caller?.role === "manager") {
+            query = query.where("managerId", "==", caller.uid);
+          }
+
+          let snap;
+          try {
+            snap = await query.orderBy("timestamp", "desc").limit(30).get();
+          } catch (queryErr: any) {
+            // Graceful fallback if composite index is pending in console
+            console.warn("[Feed] Composite index fallback:", queryErr?.message);
+            snap = await query.limit(50).get();
+          }
 
           let docs = snap.docs;
-          if (orgId && !isDemo && orgId !== "org-checin-demo" && orgId !== "demo-org") {
-            docs = docs.filter((doc) => doc.data().orgId === orgId);
-          } else if (!isDemo && (!orgId || orgId !== "org-checin-demo")) {
-            // Strictly prevent demo data leaking to non-demo or new accounts
-            docs = docs.filter((doc) => orgId && doc.data().orgId === orgId);
-          }
+          // In case of fallback without orderBy
+          docs.sort((a, b) => {
+            const timeA = new Date(a.data().timestamp || 0).getTime();
+            const timeB = new Date(b.data().timestamp || 0).getTime();
+            return timeB - timeA;
+          });
           docs = docs.slice(0, 30);
 
           const events = docs.map((doc) => {

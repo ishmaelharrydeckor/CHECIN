@@ -9,6 +9,8 @@ import {
   Clock,
   ExternalLink,
   User,
+  Menu,
+  X,
 } from "lucide-react";
 import { firebaseAuth, fbSignOut } from "@/integrations/firebase/config";
 import { useAuth } from "@/lib/auth";
@@ -17,9 +19,7 @@ import {
   registerOrVerifyDevice,
   getDeviceId,
   listenToDeviceStatus,
-  type UserDevice,
 } from "@/lib/device-manager";
-import { DeviceLimitDialog } from "@/components/DeviceLimitDialog";
 import { InAppNotificationCenter } from "@/components/PushNotificationManager";
 import { toast } from "sonner";
 import { clearUserAppCache } from "@/lib/query-client";
@@ -29,8 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const [deviceLimitOpen, setDeviceLimitOpen] = useState(false);
-  const [activeDevices, setActiveDevices] = useState<UserDevice[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -43,17 +42,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   };
 
-  // Device session limit check
+  // Device session registration for /account audit (without intrusive lockout popups)
   useEffect(() => {
     if (!user?.id) return;
     const deviceId = getDeviceId();
 
-    registerOrVerifyDevice(user.id).then((res) => {
-      if (res.limitReached) {
-        setActiveDevices(res.activeDevices);
-        setDeviceLimitOpen(true);
-      }
-    });
+    registerOrVerifyDevice(user.id).catch(() => {});
 
     const unsub = listenToDeviceStatus(user.id, deviceId, () => {
       toast.error("This device session has been revoked from another device.");
@@ -74,18 +68,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col w-full bg-[#F8FAFC] font-sans">
-      {user?.id && (
-        <DeviceLimitDialog
-          open={deviceLimitOpen}
-          userId={user.id}
-          devices={activeDevices}
-          onResolved={() => setDeviceLimitOpen(false)}
-        />
-      )}
-
       {/* Main Top Header */}
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 sm:px-8 py-3 border-b border-slate-200 bg-white/95 backdrop-blur shadow-xs">
-        <div className="flex items-center space-x-6 min-w-0">
+        <div className="flex items-center space-x-4 min-w-0">
+          {/* Mobile Menu Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 transition focus:outline-none"
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+
           {/* ChecIN Brand Mark */}
           <Link to="/dashboard" className="flex items-center space-x-2.5 group">
             <div className="w-8 h-8 rounded-xl bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-sm shadow-md group-hover:scale-105 transition-transform">
@@ -96,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </Link>
 
-          {/* Navigation Links */}
+          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-1">
             {navLinks.map((item) => {
               const isActive = pathname.startsWith(item.to);
@@ -167,6 +162,51 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </header>
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-b border-slate-200 bg-white px-4 py-3 space-y-1.5 shadow-sm">
+          {navLinks.map((item) => {
+            const isActive = pathname.startsWith(item.to);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to as any}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`w-full px-3 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2.5 transition ${
+                  isActive
+                    ? "bg-[#0E2322] text-[#C0FD9B]"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <Link
+              to="/kiosk"
+              target="_blank"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center space-x-1 py-1 text-slate-700 font-medium"
+            >
+              <span>📺 Open Kiosk</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </Link>
+            <Link
+              to="/scan"
+              target="_blank"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center space-x-1 py-1 text-slate-700 font-medium"
+            >
+              <span>📱 Open Scanner</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Main Page Canvas */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8">

@@ -1,9 +1,14 @@
 import crypto from "node:crypto";
 
-const KIOSK_HMAC_SECRET =
-  process.env.KIOSK_TOKEN_SECRET ||
-  process.env.SESSION_SECRET ||
-  "checin-enterprise-kiosk-presence-secret-2026";
+function getKioskSecret(): string {
+  const secret = process.env.KIOSK_TOKEN_SECRET || process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "FATAL: Missing KIOSK_TOKEN_SECRET in environment variables. Refusing to operate kiosk cryptographic routines without a configured secret.",
+    );
+  }
+  return secret;
+}
 
 /**
  * Computes a SHA-256 hash of a raw device secret.
@@ -29,8 +34,9 @@ export function timingSafeHashMatch(rawSecret: string, storedHash: string): bool
  * Token format: `${timeBucket}.${hmacHex}`
  */
 export function generateKioskToken(locationId: string, timeBucket: number): string {
+  const secret = getKioskSecret();
   const hmac = crypto
-    .createHmac("sha256", KIOSK_HMAC_SECRET)
+    .createHmac("sha256", secret)
     .update(`${locationId}:${timeBucket}`)
     .digest("hex");
   return `${timeBucket}.${hmac}`;
@@ -66,13 +72,9 @@ export function verifyKioskToken(
     };
   }
 
-  // Instant Demo Scan tolerance (classroom demo fallback)
-  if (receivedHmac === "demo_hmac_valid" && Math.abs(bucketDelta) <= 1) {
-    return { valid: true, bucket };
-  }
-
+  const secret = getKioskSecret();
   const expectedHmac = crypto
-    .createHmac("sha256", KIOSK_HMAC_SECRET)
+    .createHmac("sha256", secret)
     .update(`${locationId}:${bucket}`)
     .digest("hex");
 

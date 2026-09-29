@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Copy,
   Check,
+  RefreshCw,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -140,19 +141,23 @@ function DashboardPage() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Strictly define demo mode: only when orgId is explicitly the demo tenant or ?demo=true with no user
   const isDemo = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    const url = new URL(window.location.href);
-    return url.searchParams.get("demo") === "true" || orgId === "org-checin-demo" || (!user && !orgId);
+    if (orgId === "org-checin-demo") return true;
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      return url.searchParams.get("demo") === "true" && !user;
+    }
+    return false;
   }, [user, orgId]);
 
   // Real-time Attendance Feed Synchronization
   const fetchLiveAttendance = async () => {
     try {
-      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || orgId === "org-checin-demo");
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/attendance/feed${isDemoMode ? "?demo=true" : ""}`, {
+      const res = await fetch(`/api/attendance/feed${isDemo ? "?demo=true" : ""}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
@@ -167,12 +172,11 @@ function DashboardPage() {
   // Fetch real organization details and registered staff members
   const fetchOrgAndStaff = async () => {
     try {
-      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || orgId === "org-checin-demo");
       const token = await firebaseAuth.currentUser?.getIdToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       // 1. Fetch organization details
-      const orgRes = await fetch(`/api/organization${isDemoMode ? "?demo=true" : ""}`, { headers });
+      const orgRes = await fetch(`/api/organization${isDemo ? "?demo=true" : ""}`, { headers });
       if (orgRes.ok) {
         const orgData = await orgRes.json();
         if (orgData.ok && orgData.organization) {
@@ -181,7 +185,7 @@ function DashboardPage() {
       }
 
       // 2. Fetch staff invites and members
-      const staffRes = await fetch(`/api/admin/staff-invites${isDemoMode ? "?demo=true" : ""}`, { headers });
+      const staffRes = await fetch(`/api/admin/staff-invites${isDemo ? "?demo=true" : ""}`, { headers });
       if (staffRes.ok) {
         const staffData = await staffRes.json();
         if (staffData.ok) {
@@ -196,10 +200,29 @@ function DashboardPage() {
     }
   };
 
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchLiveAttendance(), fetchOrgAndStaff()]);
+      toast.success("Workforce feed refreshed");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Safe, quota-protective lifecycle: fetch on mount + throttled 60s background check ONLY when tab is visible
   useEffect(() => {
+    if (!user && !isDemo) return;
+
     fetchLiveAttendance();
     fetchOrgAndStaff();
-    const interval = setInterval(fetchLiveAttendance, 3000);
+
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchLiveAttendance();
+      }
+    }, 60000); // 60s throttle protects the 50k daily Firestore quota
+
     return () => clearInterval(interval);
   }, [user, orgId, isDemo]);
 
@@ -393,31 +416,49 @@ function DashboardPage() {
             </span>
             <span>•</span>
             <span className="text-[#0E2322] font-semibold">
-              {isDemo ? "Acme Global Ltd (40 Demo Staff)" : `${orgName} (${totalHeadcount} Registered Staff)`}
+              {isDemo
+                ? "Acme Global Ltd (40 Demo Staff)"
+                : isManager
+                  ? `${orgName} — Your Team (${totalHeadcount} Member${totalHeadcount === 1 ? "" : "s"})`
+                  : `${orgName} (${totalHeadcount} Registered Staff)`}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0E2322]">
-            Organization Overview
+            {isManager ? "Team Presence Roster" : "Organization Overview"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time workforce presence intelligence, entrance activity, and compliance telemetry.
+            {isManager
+              ? "Live attendance and entrance activity for your direct reports."
+              : "Real-time workforce presence intelligence, entrance activity, and compliance telemetry."}
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={handleSeedDemo}
-            disabled={seeding}
-            className="px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold transition text-emerald-800 flex items-center space-x-1.5 disabled:opacity-50"
-            title="Populate demo colleagues and attendance for presentation"
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+            title="Refresh attendance records from database"
           >
-            <span>{seeding ? "Seeding..." : "🌱 Seed Demo Team"}</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
+            <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
+
+          {isDemo && (
+            <button
+              onClick={handleSeedDemo}
+              disabled={seeding}
+              className="px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold transition text-emerald-800 flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+              title="Populate demo colleagues and attendance for presentation"
+            >
+              <span>{seeding ? "Seeding..." : "🌱 Seed Demo Team"}</span>
+            </button>
+          )}
 
           <button
             onClick={handleExportCsv}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs"
+            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>Export CSV</span>
@@ -840,7 +881,9 @@ function DashboardPage() {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
                     >
                       <option value="employee">Employee (Scan entrance kiosk to clock in/out)</option>
-                      <option value="manager">Manager (Can manage their team & view roster)</option>
+                      {isOrgAdmin && (
+                        <option value="manager">Manager (Can manage their team & view roster)</option>
+                      )}
                     </select>
                   </div>
 

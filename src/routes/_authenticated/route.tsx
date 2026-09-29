@@ -19,10 +19,6 @@ export const Route = createFileRoute("/_authenticated")({
       return { user: firebaseAuth.currentUser };
     }
 
-    if (new URL(window.location.href).searchParams.get("demo") === "true") {
-      return { user: { uid: "demo-admin", email: "admin@checin.app" } };
-    }
-
     throw redirect({ to: "/auth" });
   },
   component: () => (

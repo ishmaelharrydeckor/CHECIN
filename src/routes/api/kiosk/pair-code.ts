@@ -19,8 +19,8 @@ export const Route = createFileRoute("/api/kiosk/pair-code")({
             } else {
               return Response.json({ error: "Unauthorized" }, { status: 401 });
             }
-          } else if (caller.role !== "org_admin" && caller.role !== "manager" && !isDemo) {
-            return Response.json({ error: "Forbidden: Org Admin privileges required" }, { status: 403 });
+          } else if (caller.role !== "org_admin" && !isDemo) {
+            return Response.json({ error: "Forbidden: Org Admin privileges required to pair kiosks" }, { status: 403 });
           }
 
           const body = await request.json();

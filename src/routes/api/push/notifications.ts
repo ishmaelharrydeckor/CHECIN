@@ -13,22 +13,8 @@ import { resolveCallerIdentity } from "@/lib/caller-identity.server";
  * student session token or Firebase ID token, never from the request.
  */
 
-const BROADCAST_MARKERS = ["all", "students", "broadcast_student"];
-
-/** For a student, notifications may be filed under either their index
- * number or their Firestore student doc id (a course-targeted send resolves
- * both — see push-service.server.ts). Resolve the doc id server-side rather
- * than trusting a client-supplied altId. */
-async function resolveQueryIds(identity: { userId: string; role: string }): Promise<string[]> {
-  const ids = new Set<string>([identity.userId, ...BROADCAST_MARKERS]);
-  if (identity.role === "student") {
-    const snap = await firestoreAdmin
-      .collection("students")
-      .where("index_number", "==", identity.userId)
-      .get();
-    for (const doc of snap.docs) ids.add(doc.id);
-  }
-  return Array.from(ids);
+async function resolveQueryIds(identity: { userId: string }): Promise<string[]> {
+  return [identity.userId];
 }
 
 export const Route = createFileRoute("/api/push/notifications")({

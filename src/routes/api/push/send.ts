@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   sendNotificationToUser,
   sendNotificationToUsers,
-  sendNotificationToAllActive,
+  sendNotificationToOrg,
   NotificationPayload,
 } from "@/lib/push-service.server";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
@@ -50,11 +50,11 @@ export const Route = createFileRoute("/api/push/send")({
                 { status: 403 },
               );
             }
-            const res = await sendNotificationToAllActive(payload);
+            const res = await sendNotificationToOrg(orgId, payload);
             return Response.json({
               success: true,
               mode: "broadcast",
-              totalDevices: res.totalDevices,
+              totalUsers: res.totalUsers,
               totalDelivered: res.totalDelivered,
             });
           }

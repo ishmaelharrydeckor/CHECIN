@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { signInWithPopup, signInWithCustomToken } from "firebase/auth";
+import { signInWithPopup, signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 import {
   firebaseAuth,
   onAuthStateChanged,
@@ -135,38 +135,45 @@ function AuthPage() {
     }
   };
 
-  // Direct Email & Password Login
+  // Direct Email & Password Login (Cryptographically verified by Firebase Auth)
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.trim() || !loginEmail.includes("@")) {
       toast.error("Please enter a valid email address");
       return;
     }
+    if (!loginPassword) {
+      toast.error("Please enter your account password");
+      return;
+    }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login-direct", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginEmail.trim(),
-          password: loginPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.customToken) {
-        throw new Error(data?.error || "Could not sign in with this email");
-      }
-
-      await signInWithCustomToken(firebaseAuth, data.customToken);
+      const cred = await signInWithEmailAndPassword(firebaseAuth, loginEmail.trim(), loginPassword);
       await refreshUserClaims();
-      toast.success(`Welcome back, ${data.displayName || "User"}!`);
-      navigate({ to: "/dashboard" });
+      const tokenResult = await cred.user.getIdTokenResult(true);
+      const role = tokenResult.claims.role as string | undefined;
+
+      toast.success(`Welcome back, ${cred.user.displayName || cred.user.email || "User"}!`);
+      if (role === "employee") {
+        navigate({ to: "/scan" });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
     } catch (err: unknown) {
       console.error("Email login error:", err);
-      const errorObj = err as { message?: string };
-      toast.error(errorObj?.message || "Login failed");
+      const errorObj = err as { code?: string; message?: string };
+      if (
+        errorObj?.code === "auth/invalid-credential" ||
+        errorObj?.code === "auth/wrong-password" ||
+        errorObj?.code === "auth/user-not-found"
+      ) {
+        toast.error("Invalid email or password. Please verify your credentials.");
+      } else if (errorObj?.code === "auth/too-many-requests") {
+        toast.error("Too many failed attempts. Please try again later.");
+      } else {
+        toast.error(errorObj?.message || "Login failed. Please check your credentials.");
+      }
     } finally {
       setLoading(false);
     }

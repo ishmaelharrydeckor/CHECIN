@@ -1,7 +1,7 @@
-// QRoll Official Web Push & PWA Service Worker
-// Kwame Nkrumah University of Science and Technology (KNUST)
+// ChecIN Official Web Push & PWA Service Worker
+// Corporate Workforce Attendance & Check-In SaaS
 
-const CACHE_NAME = "qroll-pwa-v2";
+const CACHE_NAME = "checin-pwa-v1";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -12,7 +12,6 @@ const STATIC_ASSETS = [
   "/pwa-192x192.png",
   "/pwa-512x512.png",
   "/pwa-maskable-512x512.png",
-  "/knust-logo.svg",
 ];
 
 // Install: Cache essential shell assets & skip waiting
@@ -52,16 +51,16 @@ self.addEventListener("push", (event) => {
     try {
       payload = event.data.json();
     } catch {
-      payload = { title: "KNUST Attendance", body: event.data.text() };
+      payload = { title: "ChecIN Attendance", body: event.data.text() };
     }
   }
 
-  const title = payload.title || "KNUST-ATTENDANCE-APP";
-  const body = payload.body || "New academic update from QRoll";
+  const title = payload.title || "ChecIN Attendance";
+  const body = payload.body || "New workforce check-in update";
   const icon = payload.icon || "/favicon.png";
   const badge = payload.badge || "/favicon.png";
   const url = payload.url || "/";
-  const tag = payload.tag || (payload.entityId ? `${payload.type || "qroll"}_${payload.entityId}` : `qroll_${Date.now()}`);
+  const tag = payload.tag || (payload.entityId ? `${payload.type || "checin"}_${payload.entityId}` : `checin_${Date.now()}`);
 
   const options = {
     body,
@@ -79,7 +78,7 @@ self.addEventListener("push", (event) => {
     requireInteraction: payload.type === "ATTENDANCE", // keep attendance on screen till actioned
     vibrate: [200, 100, 200],
     actions: payload.actions || [
-      { action: "open", title: "View Update" },
+      { action: "open", title: "View Details" },
     ],
   };
 
@@ -97,7 +96,7 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
-      // Look for already open QRoll window
+      // Look for already open ChecIN window
       for (const client of windowClients) {
         if (client.url.startsWith(origin) && "focus" in client) {
           if ("navigate" in client) {
