@@ -143,21 +143,14 @@ function DashboardPage() {
   const [seeding, setSeeding] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Strictly define demo mode: only when orgId is explicitly the demo tenant or ?demo=true with no user
-  const isDemo = useMemo(() => {
-    if (orgId === "org-checin-demo") return true;
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      return url.searchParams.get("demo") === "true" && !user;
-    }
-    return false;
-  }, [user, orgId]);
+  // Demo mode is permanently disabled for authenticated sessions
+  const isDemo = false;
 
   // Real-time Attendance Feed Synchronization
   const fetchLiveAttendance = async () => {
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/attendance/feed${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/attendance/feed", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
@@ -176,7 +169,7 @@ function DashboardPage() {
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       // 1. Fetch organization details
-      const orgRes = await fetch(`/api/organization${isDemo ? "?demo=true" : ""}`, { headers });
+      const orgRes = await fetch("/api/organization", { headers });
       if (orgRes.ok) {
         const orgData = await orgRes.json();
         if (orgData.ok && orgData.organization) {
@@ -185,7 +178,7 @@ function DashboardPage() {
       }
 
       // 2. Fetch staff invites and members
-      const staffRes = await fetch(`/api/admin/staff-invites${isDemo ? "?demo=true" : ""}`, { headers });
+      const staffRes = await fetch("/api/admin/staff-invites", { headers });
       if (staffRes.ok) {
         const staffData = await staffRes.json();
         if (staffData.ok) {
@@ -310,9 +303,8 @@ function DashboardPage() {
   const handleSeedDemo = async () => {
     setSeeding(true);
     try {
-      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || !user);
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/admin/seed-demo${isDemoMode ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/admin/seed-demo", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -339,8 +331,7 @@ function DashboardPage() {
     setInviteError(null);
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const isDemoMode = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || orgId === "org-checin-demo");
-      const res = await fetch(`/api/admin/staff-invites${isDemoMode ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/admin/staff-invites", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

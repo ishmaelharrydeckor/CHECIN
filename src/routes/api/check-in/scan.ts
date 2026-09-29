@@ -7,39 +7,21 @@ export const Route = createFileRoute("/api/check-in/scan")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const authHeader = request.headers.get("authorization");
-          let caller = await verifyCallerToken(authHeader);
+          const caller = await verifyCallerToken(authHeader);
 
           if (!caller || !caller.uid) {
-            if (isDemo) {
-              caller = {
-                uid: "demo-employee-alex",
-                name: "Alex Mensah",
-                email: "alex.m@company.com",
-                orgId: "org-checin-demo",
-                role: "employee",
-              } as any;
-            } else {
-              return Response.json(
-                { error: "Unauthorized: Please sign in with your employee account to scan" },
-                { status: 401 },
-              );
-            }
+            return Response.json(
+              { error: "Unauthorized: Please sign in with your employee account to scan" },
+              { status: 401 },
+            );
           }
 
-          const activeCaller = caller!;
-
-          if (!activeCaller.orgId) {
-            if (isDemo) {
-              (activeCaller as any).orgId = "org-checin-demo";
-            } else {
-              return Response.json(
-                { error: "Access Denied: Your account is not associated with an organization" },
-                { status: 403 },
-              );
-            }
+          if (!caller.orgId) {
+            return Response.json(
+              { error: "Access Denied: Your account is not associated with an active organization" },
+              { status: 403 },
+            );
           }
 
           const body = await request.json();
@@ -61,12 +43,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
           }
 
           const kiosk = kioskDoc.data()!;
-          const isDemoMatch =
-            kiosk.orgId === "org-checin-demo" ||
-            activeCaller.orgId === "org-checin-demo" ||
-            activeCaller.orgId === "demo-org";
 
-          if (kiosk.orgId !== activeCaller.orgId && !isDemoMatch) {
+          if (kiosk.orgId !== caller.orgId) {
             return Response.json(
               { error: "Security Violation: This entrance terminal belongs to another organization." },
               { status: 403 },
@@ -86,7 +64,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
           // Use single-field query to avoid missing composite index crashes
           const recentEventsSnap = await firestoreAdmin
             .collection("clock_events")
-            .where("employeeId", "==", activeCaller.uid)
+            .where("employeeId", "==", caller.uid)
             .limit(10)
             .get();
 
@@ -121,11 +99,11 @@ export const Route = createFileRoute("/api/check-in/scan")({
           // 5. Create immutable audit record in clock_events
           const eventRef = firestoreAdmin.collection("clock_events").doc();
           const timestampIso = new Date().toISOString();
-          let employeeName = activeCaller.name || activeCaller.email?.split("@")[0] || "Employee";
+          let employeeName = caller.name || caller.email?.split("@")[0] || "Employee";
           let employeeDepartment = "General";
 
           try {
-            const userDoc = await firestoreAdmin.collection("users").doc(activeCaller.uid).get();
+            const userDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
             if (userDoc.exists) {
               const udata = userDoc.data();
               if (udata?.displayName) employeeName = udata.displayName;
@@ -137,11 +115,11 @@ export const Route = createFileRoute("/api/check-in/scan")({
 
           const eventData = {
             eventId: eventRef.id,
-            orgId: activeCaller.orgId,
-            managerId: (activeCaller as any).managerId || null,
-            employeeId: activeCaller.uid,
+            orgId: caller.orgId,
+            managerId: (caller as any).managerId || null,
+            employeeId: caller.uid,
             employeeName,
-            employeeEmail: activeCaller.email || "",
+            employeeEmail: caller.email || "",
             department: employeeDepartment,
             type: nextType,
             timestamp: timestampIso,

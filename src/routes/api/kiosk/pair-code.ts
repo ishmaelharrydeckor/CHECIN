@@ -6,20 +6,16 @@ export const Route = createFileRoute("/api/kiosk/pair-code")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
 
-          let callerOrgId = caller?.orgId;
-          let callerUid = caller?.uid || "demo-admin";
+          const callerOrgId = caller?.orgId;
+          const callerUid = caller?.uid;
 
-          if (!caller || !caller.orgId) {
-            if (isDemo) {
-              callerOrgId = "org-checin-demo";
-            } else {
-              return Response.json({ error: "Unauthorized" }, { status: 401 });
-            }
-          } else if (caller.role !== "org_admin" && !isDemo) {
+          if (!caller || !callerOrgId || !callerUid) {
+            return Response.json({ error: "Unauthorized: Missing organization membership" }, { status: 401 });
+          }
+
+          if (caller.role !== "org_admin") {
             return Response.json({ error: "Forbidden: Org Admin privileges required to pair kiosks" }, { status: 403 });
           }
 
@@ -48,11 +44,7 @@ export const Route = createFileRoute("/api/kiosk/pair-code")({
             });
           } else {
             const locData = locDoc.data()!;
-            if (
-              locData.orgId !== callerOrgId &&
-              callerOrgId !== "org-checin-demo" &&
-              callerOrgId !== "demo-org"
-            ) {
+            if (locData.orgId !== callerOrgId) {
               return Response.json({ error: "Location not found in your organization" }, { status: 404 });
             }
             locationName = locData.name || "Entrance Point";

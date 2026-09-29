@@ -26,7 +26,6 @@ function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"signin" | "register">("signin");
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   // Registration Form
@@ -64,29 +63,6 @@ function AuthPage() {
     });
     return () => unsub();
   }, [navigate]);
-
-  // 1-Click Instant Demo Manager Login
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    try {
-      const res = await fetch("/api/auth/demo-login", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.customToken) {
-        throw new Error(data?.error || "Failed to create demo session");
-      }
-
-      await signInWithCustomToken(firebaseAuth, data.customToken);
-      await refreshUserClaims();
-      toast.success("Signed in as Demo Organization Administrator!");
-      navigate({ to: "/dashboard" });
-    } catch (err: unknown) {
-      console.error("Demo login error:", err);
-      const errorObj = err as { message?: string };
-      toast.error(errorObj?.message || "Demo login failed");
-    } finally {
-      setDemoLoading(false);
-    }
-  };
 
   const [providerWarning, setProviderWarning] = useState<{
     title: string;
@@ -327,27 +303,6 @@ function AuthPage() {
                 Back
               </Button>
             </Link>
-          </div>
-
-          {/* 1-Click Demo Shortcut Banner */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#0E2322] to-[#1C3B38] text-white shadow-sm border border-[#2B4B48] flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#C0FD9B]">
-                <Sparkles className="size-3.5" /> 8:00 AM Presentation Mode
-              </div>
-              <p className="text-[11px] text-white/80 leading-tight">
-                Instant access to manager dashboard with live staff roster.
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleDemoLogin}
-              disabled={demoLoading}
-              className="bg-[#C0FD9B] hover:bg-[#A8F07D] text-[#0E2322] font-bold text-xs h-8 px-3 shrink-0 shadow cursor-pointer"
-            >
-              {demoLoading ? <Loader2 className="size-3.5 animate-spin" /> : "⚡ Demo Login"}
-            </Button>
           </div>
 
           <Card className="border-border/70 shadow-sm bg-white rounded-2xl">

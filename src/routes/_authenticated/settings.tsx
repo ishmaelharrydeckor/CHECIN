@@ -61,8 +61,8 @@ const INITIAL_LOCATIONS: KioskLocation[] = [
 
 function SettingsPage() {
   const { user, orgId, isOrgAdmin } = useAuth();
-  const isDemo = Boolean(orgId === "org-checin-demo" || (typeof window !== "undefined" && new URL(window.location.href).searchParams.get("demo") === "true" && !user));
-  const canManageKiosks = isOrgAdmin || isDemo;
+  const isDemo = false;
+  const canManageKiosks = isOrgAdmin;
 
   const [locations, setLocations] = useState<KioskLocation[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
@@ -113,7 +113,7 @@ function SettingsPage() {
   const fetchLocations = async () => {
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/locations${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/locations", {
         headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
       });
       const data = await res.json();
@@ -130,7 +130,7 @@ function SettingsPage() {
   const fetchOrg = async () => {
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/organization${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/organization", {
         headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
       });
       const data = await res.json();
@@ -144,10 +144,10 @@ function SettingsPage() {
   };
 
   useEffect(() => {
-    if (!user && !isDemo) return;
+    if (!user) return;
     fetchLocations();
     fetchOrg();
-  }, [user, orgId, isDemo]);
+  }, [user, orgId]);
 
   const handleUpdateOrgName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,7 +158,7 @@ function SettingsPage() {
     setSavingOrg(true);
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/organization${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/organization", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -187,7 +187,7 @@ function SettingsPage() {
 
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/locations${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/locations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -214,7 +214,7 @@ function SettingsPage() {
   const handleGeneratePairingCode = async (loc: KioskLocation) => {
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/kiosk/pair-code${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/kiosk/pair-code", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -239,7 +239,7 @@ function SettingsPage() {
     if (!confirm("Are you sure you want to revoke this entrance tablet? It will stop issuing valid QR codes.")) return;
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch(`/api/locations/revoke${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/locations/revoke", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

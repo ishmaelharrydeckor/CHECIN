@@ -11,12 +11,13 @@ export const Route = createFileRoute("/api/announcements/")({
     handlers: {
       GET: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
+          if (!caller || !caller.uid) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
 
-          let orgId = caller?.orgId;
-          if (!orgId && caller?.uid) {
+          let orgId = caller.orgId;
+          if (!orgId) {
             try {
               const uDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
               if (uDoc.exists && uDoc.data()?.orgId) {
@@ -27,12 +28,8 @@ export const Route = createFileRoute("/api/announcements/")({
             }
           }
 
-          if (isDemo && !orgId) {
-            orgId = "org-checin-demo";
-          }
-
           if (!orgId) {
-            return Response.json({ ok: true, announcements: [] });
+            return Response.json({ error: "No organization associated with this account" }, { status: 403 });
           }
 
           let query: FirebaseFirestore.Query = firestoreAdmin
@@ -53,6 +50,19 @@ export const Route = createFileRoute("/api/announcements/")({
             const timeB = new Date(b.data().createdAt || 0).getTime();
             return timeB - timeA;
           });
+
+          // Team-level visibility scoping per AGENTS.md
+          if (caller.role === "employee") {
+            docs = docs.filter((d) => {
+              const mId = d.data().managerId;
+              return !mId || mId === caller.managerId;
+            });
+          } else if (caller.role === "manager") {
+            docs = docs.filter((d) => {
+              const mId = d.data().managerId;
+              return !mId || mId === caller.uid;
+            });
+          }
 
           const announcements = docs.map((d) => {
             const data = d.data();
@@ -79,20 +89,28 @@ export const Route = createFileRoute("/api/announcements/")({
 
       POST: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
+          if (!caller || !caller.uid) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
 
-          let orgId = caller?.orgId;
-          if (!orgId && isDemo) {
-            orgId = "org-checin-demo";
+          let orgId = caller.orgId;
+          if (!orgId) {
+            try {
+              const uDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
+              if (uDoc.exists && uDoc.data()?.orgId) {
+                orgId = uDoc.data()!.orgId;
+              }
+            } catch (e) {
+              console.warn("Could not check user doc for orgId in POST announcement:", e);
+            }
           }
 
           if (!orgId) {
             return Response.json({ error: "Unauthorized: Missing organization membership" }, { status: 401 });
           }
 
-          if (caller && caller.role !== "org_admin" && caller.role !== "manager" && !isDemo) {
+          if (caller.role !== "org_admin" && caller.role !== "manager") {
             return Response.json({ error: "Forbidden: Only admins and managers can post announcements" }, { status: 403 });
           }
 
@@ -106,14 +124,15 @@ export const Route = createFileRoute("/api/announcements/")({
             return Response.json({ error: "Title and content are required" }, { status: 400 });
           }
 
-          const isOrgWide = requestedScope === "Organization-wide" && (caller?.role === "org_admin" || isDemo);
+          // Org admins can post org-wide or team notices; managers can ONLY post team notices to their team
+          const isOrgWide = caller.role === "org_admin" && requestedScope === "Organization-wide";
           const targetManagerId = isOrgWide
             ? null
-            : (caller?.role === "manager" ? caller.uid : body?.managerId || null);
+            : (caller.role === "manager" ? caller.uid : body?.managerId || null);
 
           const newDocRef = firestoreAdmin.collection("announcements").doc();
           const now = new Date().toISOString();
-          const authorName = caller?.name || caller?.email?.split("@")[0] || "Management";
+          const authorName = caller.name || caller.email?.split("@")[0] || "Management";
 
           const noticeData = {
             orgId,
@@ -122,8 +141,8 @@ export const Route = createFileRoute("/api/announcements/")({
             body: content,
             scope: isOrgWide ? "Organization-wide" : "Team",
             authorName,
-            authorUid: caller?.uid || "demo-user",
-            authorRole: caller?.role || "org_admin",
+            authorUid: caller.uid,
+            authorRole: caller.role,
             isImportant,
             createdAt: now,
           };

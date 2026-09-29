@@ -8,7 +8,7 @@ import {
   syncUserToFirestore,
   fbSignOut,
 } from "@/integrations/firebase/config";
-import { signInWithCustomToken } from "firebase/auth";
+import { signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 import { refreshUserClaims } from "@/lib/auth-claims";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ function AcceptInvitePage() {
     orgId: string;
     orgName: string;
     expiresAt: string;
+    hasExistingAccount?: boolean;
   } | null>(null);
 
   const [fullName, setFullName] = useState("");
@@ -163,13 +164,31 @@ function AcceptInvitePage() {
     );
 
     if (!isMatching && (!password || password.length < 6)) {
-      toast.error("Please choose a password with at least 6 characters");
+      toast.error("Please enter your password (minimum 6 characters)");
       return;
     }
 
     setSubmitting(true);
     try {
-      const idToken = isMatching ? await currentUser!.getIdToken() : null;
+      let activeUser = currentUser;
+
+      // If user has an existing account and is not currently signed in as that email
+      if (!isMatching && inviteData?.hasExistingAccount) {
+        try {
+          const cred = await signInWithEmailAndPassword(firebaseAuth, inviteData.email, password);
+          activeUser = cred.user;
+        } catch {
+          throw new Error("Incorrect password for your existing account. Please enter your valid credentials.");
+        }
+      }
+
+      const isNowMatching = Boolean(
+        activeUser?.email &&
+          inviteData?.email &&
+          activeUser.email.toLowerCase() === inviteData.email.toLowerCase(),
+      );
+
+      const idToken = isNowMatching ? await activeUser!.getIdToken() : null;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (idToken) headers.Authorization = `Bearer ${idToken}`;
 
@@ -180,7 +199,7 @@ function AcceptInvitePage() {
           token,
           fullName: fullName.trim(),
           department,
-          password: password || undefined,
+          password: !isNowMatching ? password : undefined,
         }),
       });
 
@@ -359,9 +378,11 @@ function AcceptInvitePage() {
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs font-semibold text-slate-700">
-                          Create Scanner Password
+                          {inviteData?.hasExistingAccount ? "Your Account Password" : "Create Scanner Password"}
                         </label>
-                        <span className="text-[10px] text-slate-400">Min 6 characters</span>
+                        <span className="text-[10px] text-slate-400">
+                          {inviteData?.hasExistingAccount ? "Verify credentials" : "Min 6 characters"}
+                        </span>
                       </div>
                       <div className="relative">
                         <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -374,6 +395,11 @@ function AcceptInvitePage() {
                           className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
                         />
                       </div>
+                      {inviteData?.hasExistingAccount && (
+                        <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                          An existing ChecIN account is registered to this email. Enter your password above or sign in with Google to link this invite.
+                        </p>
+                      )}
                     </div>
                   )}
 

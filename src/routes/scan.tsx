@@ -28,17 +28,9 @@ function ScanPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const cooldownRef = useRef(false);
 
-  const isDemoParam = typeof window !== "undefined" && new URL(window.location.href).searchParams.get("demo") === "true";
-  const [demoActive, setDemoActive] = useState(isDemoParam);
+  const activeUser = user;
 
-  const activeUser = user || (demoActive ? {
-    id: "demo-employee-alex",
-    displayName: "Alex Mensah",
-    email: "alex.m@company.com",
-    user_metadata: { full_name: "Alex Mensah" },
-  } : null);
-
-  const employeeName = activeUser?.user_metadata?.full_name || activeUser?.email?.split("@")[0] || "Employee";
+  const employeeName = activeUser?.user_metadata?.full_name || activeUser?.displayName || activeUser?.email?.split("@")[0] || "Employee";
   const employeeEmail = activeUser?.email || "employee@company.com";
   const employeeInitials =
     employeeName
@@ -86,7 +78,7 @@ function ScanPage() {
       console.warn("Camera start failed:", err);
       setCameraActive(false);
       setCameraError(
-        "Camera stream not available. Ensure HTTPS is active and camera permissions are granted. You can use Demo Scan below.",
+        "Camera stream not available. Ensure HTTPS is active and camera permissions are granted.",
       );
     }
   };
@@ -112,10 +104,9 @@ function ScanPage() {
     };
   }, [activeUser]);
 
-  // Process a scanned or simulated QR payload
+  // Process a scanned QR payload
   const handleScanDecoded = async (rawPayload: string) => {
-    const isDemo = typeof window !== "undefined" && (new URL(window.location.href).searchParams.get("demo") === "true" || !user);
-    if (!user && !isDemo) {
+    if (!user) {
       toast.error("Please sign in before scanning");
       return;
     }
@@ -151,18 +142,17 @@ function ScanPage() {
 
       // Get fresh Firebase ID token
       const idToken = await firebaseAuth.currentUser?.getIdToken();
-      if (!idToken && !isDemo) {
+      if (!idToken) {
         setScanMessage({ text: "Authentication session expired. Please re-login.", isError: true });
         setProcessingScan(false);
         return;
       }
 
-      console.log("SCAN IN FLIGHT:", { token, locationId, isDemo });
-      const res = await fetch(`/api/check-in/scan${isDemo ? "?demo=true" : ""}`, {
+      const res = await fetch("/api/check-in/scan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           token,
@@ -172,7 +162,6 @@ function ScanPage() {
       });
 
       const data = await res.json();
-      console.log("SCAN RESPONSE:", res.status, data);
 
       if (!res.ok) {
         setScanMessage({ text: data.error || "Check-in failed", isError: true });
@@ -214,49 +203,6 @@ function ScanPage() {
     }
   };
 
-  // Instant Demo Scan (Bulletproof backup for classroom presentation)
-  const handleInstantDemoScan = async () => {
-    try {
-      setProcessingScan(true);
-
-      // Check if there is a paired kiosk in localStorage, or fetch from locations
-      const locId = localStorage.getItem("checin_kiosk_location_id") || "loc-main-lobby";
-      const secret = localStorage.getItem("checin_kiosk_secret");
-
-      let token = "";
-      if (secret) {
-        // Fetch current live rotating token
-        const tokenRes = await fetch("/api/kiosk/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-kiosk-secret": secret,
-          },
-          body: JSON.stringify({ locationId: locId }),
-        });
-        const tokenData = await tokenRes.json();
-        if (tokenData.ok && tokenData.token) {
-          token = tokenData.token;
-        }
-      }
-
-      // If no local kiosk secret is found, we request a demo token or pair
-      if (!token) {
-        // Fallback: Use the default location token from server
-        const bucket = Math.floor(Date.now() / 15000);
-        // Mint via direct server call
-        token = `${bucket}.demo_hmac_valid`;
-      }
-
-      const qrPayload = JSON.stringify({ locationId: locId, token });
-      await handleScanDecoded(qrPayload);
-    } catch (err) {
-      console.error("Demo scan error:", err);
-    } finally {
-      setProcessingScan(false);
-    }
-  };
-
   // -------------------------------------------------------------
   // VIEW A: SIGN IN PROMPT (When employee is not logged in)
   // -------------------------------------------------------------
@@ -286,14 +232,6 @@ function ScanPage() {
               className="w-full py-3 px-4 rounded-xl bg-white/10 text-white font-medium text-xs hover:bg-white/20 transition"
             >
               Sign In with Corporate Email
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDemoActive(true)}
-              className="w-full py-2.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[#C0FD9B] font-semibold text-xs hover:bg-emerald-500/20 transition flex items-center justify-center space-x-1"
-            >
-              <span>⚡ Open Demo Scanner (Presentation Mode)</span>
             </button>
           </div>
 
@@ -401,16 +339,8 @@ function ScanPage() {
           )}
         </div>
 
-        {/* Presentation Fallback & Action Bar */}
+        {/* Action Bar */}
         <div className="mt-3 space-y-2">
-          <button
-            onClick={handleInstantDemoScan}
-            disabled={processingScan}
-            className="w-full py-3.5 rounded-xl bg-[#C0FD9B] text-[#122300] font-bold text-xs hover:opacity-90 active:scale-95 transition shadow-lg shadow-[#C0FD9B]/10 flex items-center justify-center space-x-2 disabled:opacity-50"
-          >
-            <span>⚡ Instant Demo Scan (1-Tap Punch)</span>
-          </button>
-
           <div className="flex gap-2">
             <button
               onClick={() => {

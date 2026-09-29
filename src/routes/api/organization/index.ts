@@ -9,14 +9,15 @@ export const Route = createFileRoute("/api/organization/")({
     handlers: {
       GET: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
-
           const caller = await verifyCallerToken(request.headers.get("authorization"));
-          let orgId = caller?.orgId as string | undefined;
+          if (!caller || !caller.uid) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
+
+          let orgId = caller.orgId as string | undefined;
 
           // Robust fallback if custom claims are settling
-          if (!orgId && caller?.uid) {
+          if (!orgId && caller.uid) {
             try {
               const userDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
               if (userDoc.exists && userDoc.data()?.orgId) {
@@ -36,25 +37,8 @@ export const Route = createFileRoute("/api/organization/")({
             }
           }
 
-          if (!orgId && isDemo) {
-            orgId = "org-checin-demo";
-          }
-
           if (!orgId) {
-            return Response.json({ error: "No organization associated with this account" }, { status: 400 });
-          }
-
-          if (isDemo && !caller) {
-            return Response.json({
-              ok: true,
-              organization: {
-                id: "org-checin-demo",
-                name: "Acme Innovations Ltd",
-                plan: "Growth (14-Day Trial)",
-                timezone: "Africa/Accra",
-                createdAt: "2026-09-01T08:00:00.000Z",
-              },
-            });
+            return Response.json({ error: "No organization associated with this account" }, { status: 404 });
           }
 
           const orgDoc = await firestoreAdmin.collection("organizations").doc(orgId).get();

@@ -6,20 +6,17 @@ export const Route = createFileRoute("/api/admin/seed-demo")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
-
-          let orgId = caller?.orgId;
-          let callerUid = caller?.uid || "demo-admin";
-
-          if (!caller || !caller.orgId) {
-            if (isDemo) {
-              orgId = "org-checin-demo";
-            } else {
-              return Response.json({ error: "Unauthorized" }, { status: 401 });
-            }
+          if (!caller || !caller.uid || !caller.orgId) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
           }
+
+          if (caller.role !== "org_admin") {
+            return Response.json({ error: "Forbidden: Only organization admins can seed sample data" }, { status: 403 });
+          }
+
+          const orgId = caller.orgId;
+          const callerUid = caller.uid;
 
           const today = new Date();
           const todayDateStr = today.toISOString().split("T")[0];

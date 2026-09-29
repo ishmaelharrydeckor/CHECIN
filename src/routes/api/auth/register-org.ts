@@ -67,14 +67,24 @@ export const Route = createFileRoute("/api/auth/register-org")({
             }
 
             try {
-              const existing = await auth.getUserByEmail(email);
-              userUid = existing.uid;
-              userEmail = existing.email || email;
-              userDisplayName = existing.displayName || email.split("@")[0];
+              await auth.getUserByEmail(email);
+              return Response.json(
+                {
+                  error:
+                    "An account with this email address already exists. Please sign in first before registering an organization.",
+                },
+                { status: 409 },
+              );
             } catch {
+              if (!password || password.length < 6) {
+                return Response.json(
+                  { error: "A secure password with at least 6 characters is required." },
+                  { status: 400 },
+                );
+              }
               const created = await auth.createUser({
                 email,
-                password: password && password.length >= 6 ? password : "ChecIN" + Math.random().toString(36).slice(-8),
+                password,
                 displayName: email.split("@")[0],
                 emailVerified: true,
               });

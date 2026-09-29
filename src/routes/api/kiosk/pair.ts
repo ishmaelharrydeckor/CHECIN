@@ -31,21 +31,29 @@ export const Route = createFileRoute("/api/kiosk/pair")({
           }
 
           const pairingRef = firestoreAdmin.collection("kiosk_pairings").doc(code);
-          const pairingSnap = await pairingRef.get();
 
-          if (!pairingSnap.exists) {
-            return Response.json({ error: "Invalid pairing code. Please generate a fresh pairing code in Settings." }, { status: 400 });
-          }
+          // Atomic validation and single-use claim
+          const pairing = await firestoreAdmin.runTransaction(async (t) => {
+            const snap = await t.get(pairingRef);
+            if (!snap.exists) {
+              throw new Error("INVALID: Invalid pairing code. Please generate a fresh pairing code in Settings.");
+            }
+            const data = snap.data()!;
+            if (data.status !== "pending") {
+              throw new Error("USED: This pairing code has already been used.");
+            }
+            if (new Date(data.expiresAt).getTime() < Date.now()) {
+              t.update(pairingRef, { status: "expired" });
+              throw new Error("EXPIRED: This pairing code has expired (10-minute limit). Please generate a new one.");
+            }
 
-          const pairing = pairingSnap.data()!;
+            t.update(pairingRef, {
+              status: "used",
+              pairedAt: new Date().toISOString(),
+            });
 
-          if (pairing.status !== "pending") {
-            return Response.json({ error: "This pairing code has already been used." }, { status: 400 });
-          }
-
-          if (new Date(pairing.expiresAt).getTime() < Date.now()) {
-            return Response.json({ error: "This pairing code has expired (10-minute limit). Please generate a new one." }, { status: 400 });
-          }
+            return data;
+          });
 
           // Generate 32-byte cryptographically secure random device secret
           const deviceSecret = crypto.randomBytes(32).toString("hex");
@@ -60,12 +68,6 @@ export const Route = createFileRoute("/api/kiosk/pair")({
             kiosk_paired_at: new Date().toISOString(),
           });
 
-          // Mark pairing code as used
-          await pairingRef.update({
-            status: "used",
-            pairedAt: new Date().toISOString(),
-          });
-
           // Return raw secret to the tablet ONCE
           return Response.json({
             ok: true,
@@ -75,6 +77,10 @@ export const Route = createFileRoute("/api/kiosk/pair")({
             deviceSecret,
           });
         } catch (err: any) {
+          const msg = err?.message || "";
+          if (msg.startsWith("INVALID:") || msg.startsWith("USED:") || msg.startsWith("EXPIRED:")) {
+            return Response.json({ error: msg.replace(/^[A-Z_]+:\s*/, "") }, { status: 400 });
+          }
           console.error("POST /api/kiosk/pair error:", err);
           return Response.json({ error: "Failed to pair tablet" }, { status: 500 });
         }

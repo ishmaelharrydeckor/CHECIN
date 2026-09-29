@@ -6,11 +6,9 @@ export const Route = createFileRoute("/api/locations/")({
     handlers: {
       GET: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
 
-          const callerOrgId = caller?.orgId || (isDemo ? "org-checin-demo" : null);
+          const callerOrgId = caller?.orgId;
 
           if (!callerOrgId) {
             return Response.json({ error: "Unauthorized: Missing organization membership" }, { status: 401 });
@@ -67,19 +65,17 @@ export const Route = createFileRoute("/api/locations/")({
 
       POST: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
 
-          const callerOrgId = caller?.orgId || (isDemo ? "org-checin-demo" : null);
-          const callerUid = caller?.uid || "demo-admin";
+          const callerOrgId = caller?.orgId;
+          const callerUid = caller?.uid;
 
-          if (!callerOrgId) {
+          if (!callerOrgId || !callerUid) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });
           }
 
           // Only org_admin can add locations
-          if (caller && caller.role !== "org_admin" && !isDemo) {
+          if (caller.role !== "org_admin") {
             return Response.json({ error: "Forbidden: Org Admin privileges required to create physical locations" }, { status: 403 });
           }
 

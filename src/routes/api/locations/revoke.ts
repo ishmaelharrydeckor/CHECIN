@@ -6,16 +6,18 @@ export const Route = createFileRoute("/api/locations/revoke")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const caller = await verifyCallerToken(request.headers.get("authorization"));
 
           if (!caller || !caller.orgId) {
-            if (!isDemo) {
-              return Response.json({ error: "Unauthorized" }, { status: 401 });
-            }
-          } else if (caller.role !== "org_admin" && caller.role !== "manager" && !isDemo) {
-            return Response.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
+            return Response.json({ error: "Unauthorized: Missing organization membership" }, { status: 401 });
+          }
+
+          // Strict privilege: only org_admin can manage physical entrance kiosks
+          if (caller.role !== "org_admin") {
+            return Response.json(
+              { error: "Forbidden: Only an Organization Administrator can revoke kiosk hardware." },
+              { status: 403 },
+            );
           }
 
           const body = await request.json();
@@ -23,6 +25,15 @@ export const Route = createFileRoute("/api/locations/revoke")({
 
           if (!locationId) {
             return Response.json({ error: "Missing locationId" }, { status: 400 });
+          }
+
+          // Verify location belongs to this caller's organization
+          const locDoc = await firestoreAdmin.collection("locations").doc(locationId).get();
+          if (!locDoc.exists || locDoc.data()?.orgId !== caller.orgId) {
+            return Response.json(
+              { error: "Location not found in your organization." },
+              { status: 404 },
+            );
           }
 
           // Delete kiosk secret hash from Admin-only collection

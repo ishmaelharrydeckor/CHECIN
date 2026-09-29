@@ -6,18 +6,17 @@ export const Route = createFileRoute("/api/attendance/history")({
     handlers: {
       GET: async ({ request }) => {
         try {
+          const caller = await verifyCallerToken(request.headers.get("authorization"));
+          if (!caller || !caller.uid) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
+
           const url = new URL(request.url);
-          const isDemo = url.searchParams.get("demo") === "true";
           const typeParam = url.searchParams.get("type"); // "in" | "out" | null
           const searchParam = (url.searchParams.get("search") || "").trim().toLowerCase();
 
-          let orgId: string | null = null;
-          const authHeader = request.headers.get("authorization");
-          const caller = await verifyCallerToken(authHeader);
-
-          if (caller && caller.orgId) {
-            orgId = caller.orgId;
-          } else if (caller && caller.uid) {
+          let orgId = caller.orgId;
+          if (!orgId) {
             try {
               const userDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
               if (userDoc.exists && userDoc.data()?.orgId) {
@@ -28,12 +27,8 @@ export const Route = createFileRoute("/api/attendance/history")({
             }
           }
 
-          if (isDemo && !orgId) {
-            orgId = "org-checin-demo";
-          }
-
           if (!orgId) {
-            return Response.json({ ok: true, records: [] });
+            return Response.json({ error: "No organization associated with this account" }, { status: 403 });
           }
 
           let query: FirebaseFirestore.Query = firestoreAdmin
@@ -41,9 +36,9 @@ export const Route = createFileRoute("/api/attendance/history")({
             .where("orgId", "==", orgId);
 
           // Role-based tenant & team scoping per AGENTS.md
-          if (caller?.role === "employee") {
+          if (caller.role === "employee") {
             query = query.where("employeeId", "==", caller.uid);
-          } else if (caller?.role === "manager") {
+          } else if (caller.role === "manager") {
             query = query.where("managerId", "==", caller.uid);
           }
 

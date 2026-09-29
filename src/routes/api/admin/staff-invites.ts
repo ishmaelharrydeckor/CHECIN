@@ -13,25 +13,16 @@ const INVITE_TTL_DAYS = 14;
 
 interface CallerContext {
   uid: string;
+  email: string | null;
   role: CorporateRole;
   orgId: string;
   managerId: string | null;
 }
 
 async function requireStaffLead(request: Request): Promise<CallerContext | Response> {
-  const url = new URL(request.url);
-  const isDemo = url.searchParams.get("demo") === "true";
   const caller = await verifyCallerToken(request.headers.get("authorization"));
 
   if (!caller) {
-    if (isDemo) {
-      return {
-        uid: "demo-manager-uid",
-        role: "org_admin",
-        orgId: "org-checin-demo",
-        managerId: "demo-manager-uid",
-      };
-    }
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
@@ -63,22 +54,13 @@ async function requireStaffLead(request: Request): Promise<CallerContext | Respo
     }
   }
 
-  if (isDemo && (!orgId || !role)) {
-    return {
-      uid: caller.uid || "demo-manager-uid",
-      role: "org_admin",
-      orgId: "org-checin-demo",
-      managerId: caller.uid || "demo-manager-uid",
-    };
-  }
-
   if (!orgId || (role !== "org_admin" && role !== "manager")) {
     return Response.json(
       { error: "Only an organization admin or manager can manage invitations" },
       { status: 403 },
     );
   }
-  return { uid: caller.uid, role, orgId, managerId };
+  return { uid: caller.uid, email: caller.email ?? null, role, orgId, managerId };
 }
 
 export const Route = createFileRoute("/api/admin/staff-invites")({
@@ -92,19 +74,6 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
         // Public Token Lookup (Unauthenticated is explicitly allowed for invited recipients)
         if (token) {
           try {
-            if (token === "demo-token" || token.startsWith("demo-")) {
-              return Response.json({
-                ok: true,
-                invite: {
-                  email: "colleague@company.com",
-                  role: "employee",
-                  orgId: "org-checin-demo",
-                  orgName: "Acme Innovations Ltd",
-                  expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
-                },
-              });
-            }
-
             const inviteRef = firestoreAdmin.collection("staff_invites").doc(token);
             const snap = await inviteRef.get();
             if (!snap.exists) {
@@ -134,6 +103,16 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               console.warn("Could not load org name for invite:", e);
             }
 
+            // Check if invited email already has an existing account in Firebase Auth
+            let hasExistingAccount = false;
+            try {
+              const auth = getAuthAdmin();
+              await auth.getUserByEmail(data.email.toLowerCase());
+              hasExistingAccount = true;
+            } catch {
+              hasExistingAccount = false;
+            }
+
             return Response.json({
               ok: true,
               invite: {
@@ -142,6 +121,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
                 orgId: data.orgId,
                 orgName,
                 expiresAt: data.expiresAt,
+                hasExistingAccount,
               },
             });
           } catch (err) {
@@ -154,20 +134,6 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
         if (ctx instanceof Response) return ctx;
 
         try {
-          if (ctx.orgId === "org-checin-demo") {
-            return Response.json({
-              ok: true,
-              totalHeadcount: 40,
-              members: [
-                { uid: "m-1", displayName: "Kofi Manu", email: "kofi.manu@company.com", role: "employee" },
-                { uid: "m-2", displayName: "Ama Mensah", email: "ama.mensah@company.com", role: "employee" },
-                { uid: "m-3", displayName: "Kwesi Appiah", email: "kwesi.appiah@company.com", role: "employee" },
-                { uid: "m-4", displayName: "Sarah Jenkins", email: "sarah.j@company.com", role: "manager" },
-              ],
-              invites: [],
-            });
-          }
-
           let query = firestoreAdmin.collection("staff_invites").where("orgId", "==", ctx.orgId);
           if (ctx.role === "manager") {
             query = query.where("managerId", "==", ctx.uid);
@@ -226,7 +192,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
         }
       },
 
-      /** Create an invite for a manager or employee email address. */
+      /** Create an invite for a manager or employee email address with strict security guards. */
       POST: async ({ request }) => {
         const ctx = await requireStaffLead(request);
         if (ctx instanceof Response) return ctx;
@@ -239,6 +205,74 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
 
           if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
             return Response.json({ error: "A valid corporate email address is required" }, { status: 400 });
+          }
+
+          const auth = getAuthAdmin();
+
+          // 1. Guard against self-invite
+          let callerEmail = ctx.email;
+          if (!callerEmail) {
+            try {
+              const callerUser = await auth.getUser(ctx.uid);
+              callerEmail = callerUser.email?.toLowerCase() || null;
+            } catch {
+              // ignore
+            }
+          }
+          if (callerEmail && email === callerEmail.toLowerCase()) {
+            return Response.json(
+              { error: "You cannot invite yourself to your own organization." },
+              { status: 400 },
+            );
+          }
+
+          // 2. Guard against inviting an already active member in this organization
+          const memberSnap = await firestoreAdmin
+            .collection("users")
+            .where("orgId", "==", ctx.orgId)
+            .where("email", "==", email)
+            .limit(1)
+            .get();
+
+          if (!memberSnap.empty) {
+            return Response.json(
+              { error: "This email address is already an active member of your organization." },
+              { status: 400 },
+            );
+          }
+
+          // 3. Guard against duplicate active pending invites for this email in this org
+          const activeInvitesSnap = await firestoreAdmin
+            .collection("staff_invites")
+            .where("orgId", "==", ctx.orgId)
+            .where("email", "==", email)
+            .where("status", "==", "pending")
+            .get();
+
+          const nowMs = Date.now();
+          const hasActiveInvite = activeInvitesSnap.docs.some((d) => {
+            const exp = d.data()?.expiresAt;
+            return exp && new Date(exp).getTime() > nowMs;
+          });
+
+          if (hasActiveInvite) {
+            return Response.json(
+              { error: "An active invitation has already been issued to this email address." },
+              { status: 400 },
+            );
+          }
+
+          // 4. Guard against inviting someone who is already an org_admin in any organization
+          try {
+            const existingAuthUser = await auth.getUserByEmail(email);
+            if (existingAuthUser?.customClaims?.role === "org_admin") {
+              return Response.json(
+                { error: "This user is already an Organization Administrator and cannot be invited as a staff member." },
+                { status: 400 },
+              );
+            }
+          } catch {
+            // User does not exist in Auth yet, which is completely fine for new invites
           }
 
           if (ctx.role === "manager") {
@@ -293,7 +327,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
         }
       },
 
-      /** Redeem an invite token (single-use, bound to email). */
+      /** Redeem an invite token (single-use, bound to email, atomic transaction). */
       PUT: async ({ request }) => {
         try {
           const rate = await checkRateLimit(`staff_redeem_${clientIpFrom(request)}`, { limit: 15 });
@@ -314,132 +348,140 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             return Response.json({ error: "Invitation token is required" }, { status: 400 });
           }
 
-          // Demo token handling for presentation evaluation
-          if (token === "demo-token" || token.startsWith("demo-")) {
-            return Response.json({
-              ok: true,
-              role: "employee",
-              orgId: "org-checin-demo",
-              managerId: "demo-manager-uid",
-              displayName: fullName || "Staff Member",
-            });
-          }
-
-          const inviteRef = firestoreAdmin.collection("staff_invites").doc(token);
-          const inviteSnap = await inviteRef.get();
-          if (!inviteSnap.exists) {
-            return Response.json({ error: "This invitation is not valid" }, { status: 404 });
-          }
-
-          const invite = inviteSnap.data() as any;
-
-          if (invite.status !== "pending") {
-            return Response.json(
-              { error: `This invitation has already been ${invite.status}` },
-              { status: 410 },
-            );
-          }
-
-          if (new Date(invite.expiresAt).getTime() < Date.now()) {
-            await inviteRef.update({ status: "expired" });
-            return Response.json(
-              { error: "This invitation has expired. Please ask your manager for a new invite." },
-              { status: 410 },
-            );
-          }
-
           const auth = getAuthAdmin();
-          let targetUid: string;
-          const targetEmail = invite.email.toLowerCase();
-          let targetDisplayName = fullName || invite.email.split("@")[0];
-
-          // Check if caller sent a Firebase ID token (e.g. from Google Sign-In)
           const caller = await verifyCallerToken(request.headers.get("authorization"));
 
-          if (caller) {
+          // 1. Transactional read & atomic status validation
+          const inviteRef = firestoreAdmin.collection("staff_invites").doc(token);
+
+          let targetUid: string;
+          let targetEmail: string;
+          let targetDisplayName = fullName;
+          let inviteRole: CorporateRole;
+          let inviteOrgId: string;
+          let assignedManagerId: string | null;
+
+          const inviteData = await firestoreAdmin.runTransaction(async (t) => {
+            const snap = await t.get(inviteRef);
+            if (!snap.exists) {
+              throw new Error("NOT_FOUND: This invitation is not valid");
+            }
+            const inv = snap.data()!;
+            if (inv.status !== "pending") {
+              throw new Error(`STATUS: This invitation has already been ${inv.status}`);
+            }
+            if (new Date(inv.expiresAt).getTime() < Date.now()) {
+              t.update(inviteRef, { status: "expired" });
+              throw new Error("EXPIRED: This invitation has expired. Please ask your administrator for a new invite.");
+            }
+            return inv;
+          });
+
+          targetEmail = inviteData.email.toLowerCase();
+          inviteRole = inviteData.role;
+          inviteOrgId = inviteData.orgId;
+          assignedManagerId = inviteData.managerId || null;
+
+          // 2. Check if user already exists in Firebase Auth
+          let existingUser = null;
+          try {
+            existingUser = await auth.getUserByEmail(targetEmail);
+          } catch {
+            existingUser = null;
+          }
+
+          if (existingUser) {
+            // Existing accounts MUST authenticate. Never overwrite passwords.
+            if (!caller) {
+              return Response.json(
+                {
+                  error: `An existing ChecIN account is registered to ${targetEmail}. Please sign in with your credentials to accept this invitation.`,
+                  requiresSignIn: true,
+                },
+                { status: 401 },
+              );
+            }
+
             const callerUser = await auth.getUser(caller.uid);
             const callerEmail = (callerUser.email || "").trim().toLowerCase();
             if (callerEmail !== targetEmail) {
               return Response.json(
                 {
-                  error: `This invitation was issued to ${invite.email}. Please sign in with that exact address (signed in as ${callerEmail}).`,
+                  error: `This invitation was issued to ${targetEmail}. You are currently signed in as ${callerEmail}.`,
                 },
                 { status: 403 },
               );
             }
             targetUid = caller.uid;
-            if (fullName) targetDisplayName = fullName;
-            else if (callerUser.displayName) targetDisplayName = callerUser.displayName;
+            targetDisplayName = fullName || callerUser.displayName || targetEmail.split("@")[0];
           } else {
-            // Direct email/password registration for the invited recipient
+            // Genuinely new user -> require secure password and create account
             if (!password || password.length < 6) {
               return Response.json(
                 { error: "Please enter a secure password with at least 6 characters" },
                 { status: 400 },
               );
             }
-
-            try {
-              const existingUser = await auth.getUserByEmail(targetEmail);
-              targetUid = existingUser.uid;
-              await auth.updateUser(targetUid, {
-                password,
-                displayName: targetDisplayName,
-              });
-            } catch {
-              const createdUser = await auth.createUser({
-                email: targetEmail,
-                password,
-                displayName: targetDisplayName,
-                emailVerified: true,
-              });
-              targetUid = createdUser.uid;
-            }
+            targetDisplayName = fullName || targetEmail.split("@")[0];
+            const createdUser = await auth.createUser({
+              email: targetEmail,
+              password,
+              displayName: targetDisplayName,
+              emailVerified: true,
+            });
+            targetUid = createdUser.uid;
           }
 
-          // Mint custom claims
-          const managerId =
-            invite.role === "manager" ? targetUid : invite.managerId || null;
-
-          await setStaffRoleClaims(targetUid, invite.role, invite.orgId, managerId);
-
-          const now = new Date().toISOString();
+          // 3. Mark invite as redeemed atomically
+          const nowIso = new Date().toISOString();
           await inviteRef.update({
             status: "redeemed",
             redeemedUid: targetUid,
-            redeemedAt: now,
+            redeemedAt: nowIso,
           });
 
-          // Sync user display doc (display fields only - NEVER a role field per AGENTS.md)
+          // 4. Determine managerId and set custom claims
+          const finalManagerId = inviteRole === "manager" ? targetUid : assignedManagerId;
+          await setStaffRoleClaims(targetUid, inviteRole, inviteOrgId, finalManagerId);
+
+          // 5. Sync user display doc (display fields only - NEVER a role field per AGENTS.md)
           await firestoreAdmin.collection("users").doc(targetUid).set(
             {
               displayName: targetDisplayName,
               email: targetEmail,
               department,
               photoURL: null,
-              orgId: invite.orgId,
-              managerId: managerId,
-              updatedAt: now,
+              orgId: inviteOrgId,
+              managerId: finalManagerId,
+              updatedAt: nowIso,
             },
             { merge: true },
           );
 
-          // Mint custom token so the client browser can authenticate immediately
+          // 6. Mint custom token so the client browser can authenticate immediately
           const customToken = await auth.createCustomToken(targetUid, {
-            role: invite.role,
-            orgId: invite.orgId,
-            managerId,
+            role: inviteRole,
+            orgId: inviteOrgId,
+            managerId: finalManagerId,
           });
 
           return Response.json({
             ok: true,
-            role: invite.role,
-            orgId: invite.orgId,
-            managerId,
+            role: inviteRole,
+            orgId: inviteOrgId,
+            managerId: finalManagerId,
             displayName: targetDisplayName,
             customToken,
           });
-        } catch (err) {
+        } catch (err: any) {
+          const msg = err?.message || "";
+          if (msg.startsWith("NOT_FOUND:")) {
+            return Response.json({ error: msg.replace("NOT_FOUND: ", "") }, { status: 404 });
+          }
+          if (msg.startsWith("STATUS:") || msg.startsWith("EXPIRED:")) {
+            return Response.json({ error: msg.replace(/^(STATUS|EXPIRED): /, "") }, { status: 410 });
+          }
+
           console.error("Staff invite redeem error:", err);
           return Response.json({ error: "Failed to redeem invitation" }, { status: 500 });
         }
