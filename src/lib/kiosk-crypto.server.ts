@@ -20,6 +20,19 @@ function getKioskSecret(): string {
       }
     } catch {}
   }
+  // High-entropy derivation from server's private Firebase Service Account key if KIOSK_TOKEN_SECRET is unconfigured in host
+  if (!secret && process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+      const json = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
+      const parsed = JSON.parse(json);
+      if (parsed.private_key) {
+        secret = crypto.createHmac("sha256", parsed.private_key).update("checin-kiosk-token-secret-v1").digest("hex");
+        process.env.KIOSK_TOKEN_SECRET = secret;
+      }
+    } catch {}
+  }
+
   if (!secret) {
     throw new Error(
       "FATAL: Missing KIOSK_TOKEN_SECRET in environment variables. Refusing to operate kiosk cryptographic routines without a configured secret.",
