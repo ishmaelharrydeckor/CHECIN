@@ -42,6 +42,9 @@ interface KioskLocation {
   name: string;
   isPaired: boolean;
   pairedAt?: string;
+  reportingTime?: string | null;
+  closingTime?: string | null;
+  checkoutWindowMinutes?: number;
 }
 
 const INITIAL_LOCATIONS: KioskLocation[] = [
@@ -94,7 +97,13 @@ function SettingsPage() {
   });
   const [editingOrg, setEditingOrg] = useState(false);
   const [orgNameInput, setOrgNameInput] = useState("");
+  const [orgTimezoneInput, setOrgTimezoneInput] = useState("UTC");
   const [savingOrg, setSavingOrg] = useState(false);
+
+  // Reporting/closing hours editing (one location at a time)
+  const [editingHoursId, setEditingHoursId] = useState<string | null>(null);
+  const [hoursDraft, setHoursDraft] = useState({ reportingTime: "", closingTime: "", checkoutWindowMinutes: "120" });
+  const [savingHours, setSavingHours] = useState(false);
 
   // Device Sessions
   const [devices, setDevices] = useState<UserDevice[]>([]);
@@ -145,6 +154,7 @@ function SettingsPage() {
       if (data.ok && data.organization) {
         setOrgDetails(data.organization);
         setOrgNameInput(data.organization.name);
+        setOrgTimezoneInput(data.organization.timezone || "UTC");
       }
     } catch (e) {
       console.warn("Could not fetch org details:", e);
@@ -172,13 +182,17 @@ function SettingsPage() {
           "Content-Type": "application/json",
           ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         },
-        body: JSON.stringify({ name: orgNameInput.trim() }),
+        body: JSON.stringify({ name: orgNameInput.trim(), timezone: orgTimezoneInput.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
-        setOrgDetails((prev) => ({ ...prev, name: orgNameInput.trim() }));
+        setOrgDetails((prev) => ({
+          ...prev,
+          name: orgNameInput.trim(),
+          timezone: orgTimezoneInput.trim() || prev.timezone,
+        }));
         setEditingOrg(false);
-        toast.success("Organization name updated successfully!");
+        toast.success("Organization details updated successfully!");
       } else {
         toast.error(data.error || "Failed to update organization");
       }
@@ -240,6 +254,62 @@ function SettingsPage() {
       }
     } catch (err) {
       toast.error("Error generating pairing code");
+    }
+  };
+
+  const startEditHours = (loc: KioskLocation) => {
+    setHoursDraft({
+      reportingTime: loc.reportingTime || "",
+      closingTime: loc.closingTime || "",
+      checkoutWindowMinutes: String(loc.checkoutWindowMinutes ?? 120),
+    });
+    setEditingHoursId(loc.id);
+  };
+
+  const handleSaveHours = async (locId: string) => {
+    if (!hoursDraft.reportingTime || !hoursDraft.closingTime) {
+      toast.error("Please set both a reporting time and a closing time");
+      return;
+    }
+    setSavingHours(true);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/locations", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({
+          locationId: locId,
+          reportingTime: hoursDraft.reportingTime,
+          closingTime: hoursDraft.closingTime,
+          checkoutWindowMinutes: Number(hoursDraft.checkoutWindowMinutes),
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setLocations((prev) =>
+          prev.map((l) =>
+            l.id === locId
+              ? {
+                  ...l,
+                  reportingTime: data.reportingTime,
+                  closingTime: data.closingTime,
+                  checkoutWindowMinutes: data.checkoutWindowMinutes,
+                }
+              : l,
+          ),
+        );
+        setEditingHoursId(null);
+        toast.success("Reporting and closing hours saved");
+      } else {
+        toast.error(data.error || "Failed to save hours");
+      }
+    } catch {
+      toast.error("Error saving hours");
+    } finally {
+      setSavingHours(false);
     }
   };
 
@@ -347,6 +417,27 @@ function SettingsPage() {
                   required
                 />
               </div>
+              <div className="space-y-1.5 w-full sm:w-56">
+                <Label htmlFor="orgTimezoneInput" className="text-xs font-medium">
+                  Timezone
+                </Label>
+                <Input
+                  id="orgTimezoneInput"
+                  list="tz-options"
+                  value={orgTimezoneInput}
+                  onChange={(e) => setOrgTimezoneInput(e.target.value)}
+                  placeholder="e.g. Africa/Accra"
+                  className="h-10 text-sm"
+                />
+                <datalist id="tz-options">
+                  {(typeof Intl !== "undefined" && (Intl as any).supportedValuesOf
+                    ? ((Intl as any).supportedValuesOf("timeZone") as string[])
+                    : ["UTC", "Africa/Accra"]
+                  ).map((tz) => (
+                    <option key={tz} value={tz} />
+                  ))}
+                </datalist>
+              </div>
               <div className="flex gap-2">
                 <Button
                   type="submit"
@@ -376,11 +467,12 @@ function SettingsPage() {
                       size="sm"
                       onClick={() => {
                         setOrgNameInput(orgDetails.name);
+                        setOrgTimezoneInput(orgDetails.timezone);
                         setEditingOrg(true);
                       }}
                       className="h-7 px-2 text-xs text-slate-600 hover:text-[#0E2322] hover:bg-slate-200/60"
                     >
-                      <Pencil className="size-3 mr-1" /> Edit Name
+                      <Pencil className="size-3 mr-1" /> Edit Details
                     </Button>
                   )}
                 </div>
@@ -444,6 +536,7 @@ function SettingsPage() {
               <thead className="bg-slate-50 text-xs text-muted-foreground uppercase border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4 font-semibold">Location</th>
+                  <th className="py-3 px-4 font-semibold">Work Hours</th>
                   <th className="py-3 px-4 font-semibold">Hardware Status</th>
                   <th className="py-3 px-4 font-semibold">Paired Date</th>
                   <th className="py-3 px-4 font-semibold text-right">Actions</th>
@@ -452,14 +545,14 @@ function SettingsPage() {
               <tbody className="divide-y divide-slate-100">
                 {loadingLocations ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
                       <RefreshCw className="size-4 animate-spin inline mr-2 text-[#0E2322]" />
                       Loading entrance locations...
                     </td>
                   </tr>
                 ) : locations.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
                       No entrance locations configured yet. Add a location above to pair a tablet kiosk.
                     </td>
                   </tr>
@@ -467,6 +560,85 @@ function SettingsPage() {
                   locations.map((loc) => (
                     <tr key={loc.id} className="hover:bg-slate-50/50">
                       <td className="py-3 px-4 font-medium text-[#0E2322]">{loc.name}</td>
+                      <td className="py-3 px-4 text-xs">
+                        {editingHoursId === loc.id ? (
+                          <div className="space-y-2 min-w-[210px]">
+                            <div className="flex items-center gap-2">
+                              <Label className="w-16 text-[11px] text-muted-foreground">Report</Label>
+                              <Input
+                                type="time"
+                                value={hoursDraft.reportingTime}
+                                onChange={(e) => setHoursDraft((d) => ({ ...d, reportingTime: e.target.value }))}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="w-16 text-[11px] text-muted-foreground">Close</Label>
+                              <Input
+                                type="time"
+                                value={hoursDraft.closingTime}
+                                onChange={(e) => setHoursDraft((d) => ({ ...d, closingTime: e.target.value }))}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="w-16 text-[11px] text-muted-foreground">Window (min)</Label>
+                              <Input
+                                type="number"
+                                min={15}
+                                max={720}
+                                value={hoursDraft.checkoutWindowMinutes}
+                                onChange={(e) =>
+                                  setHoursDraft((d) => ({ ...d, checkoutWindowMinutes: e.target.value }))
+                                }
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                disabled={savingHours}
+                                onClick={() => handleSaveHours(loc.id)}
+                                className="h-7 text-xs bg-[#0E2322] hover:bg-[#163331] text-white"
+                              >
+                                {savingHours ? "Saving..." : "Save"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingHoursId(null)}
+                                className="h-7 text-xs border-slate-300"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {loc.reportingTime && loc.closingTime ? (
+                              <span className="text-slate-700">
+                                {loc.reportingTime} – {loc.closingTime}
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  (+{loc.checkoutWindowMinutes ?? 120}m)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">Not set</span>
+                            )}
+                            {canManageKiosks && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditHours(loc)}
+                                className="h-6 px-1.5 text-slate-600 hover:bg-slate-200/60"
+                              >
+                                <Pencil className="size-3" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         {loc.isPaired ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#E8FCE4] text-[#122300]">

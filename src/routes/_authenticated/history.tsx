@@ -51,6 +51,8 @@ interface ClockRecord {
   type: "in" | "out";
   timestamp: string;
   verifiedMethod: string;
+  late?: boolean;
+  earlyDeparture?: boolean;
 }
 
 function HistoryPage() {
@@ -341,6 +343,16 @@ function HistoryPage() {
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800">
                             <ArrowUpRight className="size-3 text-amber-600" />
                             Clock Out
+                          </span>
+                        )}
+                        {r.late && (
+                          <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                            Late
+                          </span>
+                        )}
+                        {r.earlyDeparture && (
+                          <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                            Early departure
                           </span>
                         )}
                       </td>
