@@ -12,6 +12,7 @@ import { signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth
 import { refreshUserClaims } from "@/lib/auth-claims";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   CheckCircle2,
   ShieldCheck,
@@ -66,6 +67,7 @@ function AcceptInvitePage() {
   const [fullName, setFullName] = useState("");
   const [department, setDepartment] = useState("Operations");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -165,6 +167,12 @@ function AcceptInvitePage() {
 
     if (!isMatching && (!password || password.length < 6)) {
       toast.error("Please enter your password (minimum 6 characters)");
+      return;
+    }
+
+    // New accounts choose a password, so it must be typed twice. Existing accounts just sign in.
+    if (!isMatching && !inviteData?.hasExistingAccount && password !== confirmPassword) {
+      toast.error("The two passwords don't match. Please re-enter them.");
       return;
     }
 
@@ -386,15 +394,36 @@ function AcceptInvitePage() {
                       </div>
                       <div className="relative">
                         <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="password"
+                        <PasswordInput
                           required
                           placeholder="••••••••"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
+                          autoComplete={inviteData?.hasExistingAccount ? "current-password" : "new-password"}
+                          className="h-auto w-full pl-9 py-2.5 rounded-xl border-slate-200 bg-transparent text-xs sm:text-sm focus-visible:ring-2 focus-visible:ring-[#C0FD9B]"
                         />
                       </div>
+                      {!inviteData?.hasExistingAccount && (
+                        <div className="mt-3">
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Confirm Password
+                          </label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <PasswordInput
+                              required
+                              placeholder="Re-enter your password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              autoComplete="new-password"
+                              className="h-auto w-full pl-9 py-2.5 rounded-xl border-slate-200 bg-transparent text-xs sm:text-sm focus-visible:ring-2 focus-visible:ring-[#C0FD9B]"
+                            />
+                          </div>
+                          {confirmPassword.length > 0 && confirmPassword !== password && (
+                            <p className="text-[11px] text-rose-600 mt-1">Passwords don't match yet.</p>
+                          )}
+                        </div>
+                      )}
                       {inviteData?.hasExistingAccount && (
                         <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
                           An existing ChecIN account is registered to this email. Enter your password above or sign in with Google to link this invite.

@@ -24,6 +24,7 @@ import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
+import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-link'
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
 import { Route as ApiAdminSeedDemoRouteImport } from './routes/api/admin/seed-demo'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
@@ -120,6 +121,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
   id: '/accept-invite/$token',
   path: '/accept-invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminResetLinkRoute = ApiAdminResetLinkRouteImport.update({
+  id: '/api/admin/reset-link',
+  path: '/api/admin/reset-link',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminRolesRoute = ApiAdminRolesRouteImport.update({
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
+    | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
@@ -395,6 +405,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
+    | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
@@ -433,6 +444,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
+    | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
@@ -465,6 +477,7 @@ export interface RootRouteChildren {
   ScanRoute: typeof ScanRoute
   TermsRoute: typeof TermsRoute
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
+  ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
   ApiAdminSeedDemoRoute: typeof ApiAdminSeedDemoRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
@@ -593,6 +606,13 @@ declare module '@tanstack/react-router' {
       path: '/accept-invite/$token'
       fullPath: '/accept-invite/$token'
       preLoaderRoute: typeof AcceptInviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/reset-link': {
+      id: '/api/admin/reset-link'
+      path: '/api/admin/reset-link'
+      fullPath: '/api/admin/reset-link'
+      preLoaderRoute: typeof ApiAdminResetLinkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/roles': {
@@ -777,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScanRoute: ScanRoute,
   TermsRoute: TermsRoute,
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
+  ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
   ApiAdminSeedDemoRoute: ApiAdminSeedDemoRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,

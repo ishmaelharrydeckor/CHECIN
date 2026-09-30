@@ -83,6 +83,17 @@ function SettingsPage() {
   const [pairingLocationName, setPairingLocationName] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Team members + admin-generated password reset links
+  const [members, setMembers] = useState<
+    { uid: string; displayName: string; email: string; department?: string }[]
+  >([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [resettingUid, setResettingUid] = useState<string | null>(null);
+  const [resetResult, setResetResult] = useState<{ name: string; email: string; link: string } | null>(
+    null,
+  );
+  const [copiedResetLink, setCopiedResetLink] = useState(false);
+
   // Organization Profile State
   const [orgDetails, setOrgDetails] = useState<{
     name: string;
@@ -337,6 +348,61 @@ function SettingsPage() {
     } catch {
       toast.error("Error revoking kiosk");
     }
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/staff-invites", {
+        headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+      });
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.members)) {
+        setMembers(data.members);
+      }
+    } catch (err) {
+      console.error("Error fetching team members:", err);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user && canAccessSettings) void fetchMembers();
+  }, [user, canAccessSettings]);
+
+  const handleGenerateResetLink = async (member: { uid: string; displayName: string; email: string }) => {
+    setResettingUid(member.uid);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/reset-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ targetUid: member.uid }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok && data.link) {
+        setCopiedResetLink(false);
+        setResetResult({ name: member.displayName, email: data.email || member.email, link: data.link });
+      } else {
+        toast.error(data.error || "Could not generate a reset link");
+      }
+    } catch {
+      toast.error("Error generating reset link");
+    } finally {
+      setResettingUid(null);
+    }
+  };
+
+  const copyResetLink = () => {
+    if (!resetResult) return;
+    navigator.clipboard.writeText(resetResult.link);
+    setCopiedResetLink(true);
+    setTimeout(() => setCopiedResetLink(false), 2000);
+    toast.success("Reset link copied");
   };
 
   const copyCode = () => {
@@ -683,6 +749,124 @@ function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* TEAM MEMBERS — admin-generated password reset links */}
+      <Card className="border-border/80 shadow-sm">
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <KeyRound className="size-5 text-[#0E2322]" /> Team Members &amp; Password Help
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {isOrgAdmin
+                ? "If someone is locked out, generate a one-time reset link and send it to them privately."
+                : "If someone on your team is locked out, generate a one-time reset link and send it to them privately."}{" "}
+              Works even if their email address isn't a real inbox.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs text-muted-foreground uppercase border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4 font-semibold">Name</th>
+                  <th className="py-3 px-4 font-semibold">Email</th>
+                  <th className="py-3 px-4 font-semibold text-right">Password</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loadingMembers ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-xs text-muted-foreground">
+                      <RefreshCw className="size-4 animate-spin inline mr-2 text-[#0E2322]" />
+                      Loading team members...
+                    </td>
+                  </tr>
+                ) : members.filter((m) => m.uid !== user?.id).length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-xs text-muted-foreground">
+                      No other team members yet. Invite people from the dashboard.
+                    </td>
+                  </tr>
+                ) : (
+                  members
+                    .filter((m) => m.uid !== user?.id)
+                    .map((m) => (
+                      <tr key={m.uid} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-4 font-medium text-[#0E2322]">{m.displayName}</td>
+                        <td className="py-3 px-4 text-xs text-muted-foreground">{m.email}</td>
+                        <td className="py-3 px-4 text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={resettingUid === m.uid}
+                            onClick={() => handleGenerateResetLink(m)}
+                            className="text-xs border-slate-300"
+                          >
+                            {resettingUid === m.uid ? "Generating..." : "Generate reset link"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* RESET LINK MODAL */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-md shadow-2xl border-border bg-white rounded-2xl animate-in zoom-in-95">
+            <CardHeader className="text-center pb-2">
+              <div className="mx-auto size-12 rounded-full bg-[#E8FCE4] text-[#0E2322] flex items-center justify-center mb-2">
+                <KeyRound className="size-6" />
+              </div>
+              <CardTitle className="text-xl font-bold text-[#0E2322]">Password reset link</CardTitle>
+              <CardDescription className="text-xs">
+                For <span className="font-semibold text-slate-800">{resetResult.name}</span> ({resetResult.email})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] font-mono break-all text-slate-700 max-h-28 overflow-auto">
+                {resetResult.link}
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Send this link only to <strong>{resetResult.name}</strong>, in person or in a private message.
+                It works once and expires in about an hour. Anyone who has it can set a new password for
+                this account, so don't post it in a group chat.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={copyResetLink}
+                  className="flex-1 bg-[#0E2322] hover:bg-[#163331] text-white text-xs h-10 font-medium"
+                >
+                  {copiedResetLink ? (
+                    <>
+                      <Check className="size-4 mr-1.5" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-4 mr-1.5" /> Copy link
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setResetResult(null)}
+                  className="text-xs h-10 border-slate-300"
+                >
+                  Done
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* PAIRING CODE MODAL */}
       {pairingModalOpen && (
