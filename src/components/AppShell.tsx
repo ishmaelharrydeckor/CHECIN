@@ -24,10 +24,24 @@ import { InAppNotificationCenter } from "@/components/PushNotificationManager";
 import { toast } from "sonner";
 import { clearUserAppCache } from "@/lib/query-client";
 
+// Pages employees must never see (management views); they are sent to their own history instead
+const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings"];
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, role, orgId, isOrgAdmin, isManager } = useAuth();
+  const { user, isOrgAdmin, isManager, loading } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Default-deny UI: anyone who is not an org admin or manager (employees, or a role that
+  // has not loaded yet) gets the limited employee menu. Data is also scoped server-side.
+  const canManage = isOrgAdmin || isManager;
+
+  useEffect(() => {
+    if (loading || !user || canManage) return;
+    if (MANAGER_ONLY_PATHS.some((p) => pathname.startsWith(p))) {
+      navigate({ to: "/history", replace: true });
+    }
+  }, [loading, user, canManage, pathname, navigate]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -58,13 +72,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [user?.id, navigate]);
 
-  const navLinks = [
-    { to: "/dashboard", label: "Roster", icon: Home },
-    { to: "/history", label: "History", icon: Clock },
-    { to: "/reports", label: "Reports", icon: FileBarChart },
-    { to: "/announcements", label: "Notices", icon: Megaphone },
-    ...(isOrgAdmin || isManager ? [{ to: "/settings", label: "Settings", icon: Settings }] : []),
-  ];
+  const navLinks = canManage
+    ? [
+        { to: "/dashboard", label: "Roster", icon: Home },
+        { to: "/history", label: "History", icon: Clock },
+        { to: "/reports", label: "Reports", icon: FileBarChart },
+        { to: "/announcements", label: "Notices", icon: Megaphone },
+        { to: "/settings", label: "Settings", icon: Settings },
+      ]
+    : [
+        { to: "/history", label: "My History", icon: Clock },
+        { to: "/announcements", label: "Notices", icon: Megaphone },
+      ];
 
   return (
     <div className="min-h-screen flex flex-col w-full bg-[#F8FAFC] font-sans">
@@ -82,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
 
           {/* ChecIN Brand Mark */}
-          <Link to="/dashboard" className="flex items-center space-x-2.5 group">
+          <Link to={canManage ? "/dashboard" : "/history"} className="flex items-center space-x-2.5 group">
             <div className="w-8 h-8 rounded-xl bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-sm shadow-md group-hover:scale-105 transition-transform">
               C
             </div>
@@ -117,15 +136,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Right Action Icons & Profile */}
         <div className="flex items-center space-x-2 sm:space-x-3">
           {/* Quick Launch Kiosk & Mobile Scan links */}
-          <Link
-            to="/kiosk"
-            target="_blank"
-            className="hidden sm:inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-            title="Open physical entrance tablet screen"
-          >
-            <span>📺 Kiosk</span>
-            <ExternalLink className="w-3 h-3 text-slate-400" />
-          </Link>
+          {canManage && (
+            <Link
+              to="/kiosk"
+              target="_blank"
+              className="hidden sm:inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+              title="Open physical entrance tablet screen"
+            >
+              <span>📺 Kiosk</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </Link>
+          )}
 
           <Link
             to="/scan"
@@ -186,15 +207,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <Link
-              to="/kiosk"
-              target="_blank"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-1 py-1 text-slate-700 font-medium"
-            >
-              <span>📺 Open Kiosk</span>
-              <ExternalLink className="w-3 h-3 text-slate-400" />
-            </Link>
+            {canManage && (
+              <Link
+                to="/kiosk"
+                target="_blank"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center space-x-1 py-1 text-slate-700 font-medium"
+              >
+                <span>📺 Open Kiosk</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </Link>
+            )}
             <Link
               to="/scan"
               target="_blank"
