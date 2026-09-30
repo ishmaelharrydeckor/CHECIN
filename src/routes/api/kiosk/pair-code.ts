@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { randomInt } from "node:crypto";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 
 export const Route = createFileRoute("/api/kiosk/pair-code")({
@@ -25,33 +26,16 @@ export const Route = createFileRoute("/api/kiosk/pair-code")({
             return Response.json({ error: "Missing locationId" }, { status: 400 });
           }
 
-          // Verify location belongs to caller's org, or auto-provision if initial location
+          // The location must already exist in the caller's org. Locations are created only by
+          // org admins (POST /api/locations); pairing never creates them.
           const locDoc = await firestoreAdmin.collection("locations").doc(locationId).get();
-          let locationName = "Main Entrance Lobby";
-
-          if (!locDoc.exists) {
-            const defaultNames: Record<string, string> = {
-              "loc-01": "Main Lobby Entrance",
-              "loc-02": "South Gate Entrance",
-              "loc-main-lobby": "Main Entrance Lobby",
-            };
-            locationName = defaultNames[locationId] || `Entrance (${locationId})`;
-            await firestoreAdmin.collection("locations").doc(locationId).set({
-              name: locationName,
-              orgId: callerOrgId,
-              createdAt: new Date().toISOString(),
-              createdById: callerUid,
-            });
-          } else {
-            const locData = locDoc.data()!;
-            if (locData.orgId !== callerOrgId) {
-              return Response.json({ error: "Location not found in your organization" }, { status: 404 });
-            }
-            locationName = locData.name || "Entrance Point";
+          if (!locDoc.exists || locDoc.data()?.orgId !== callerOrgId) {
+            return Response.json({ error: "Location not found in your organization" }, { status: 404 });
           }
+          const locationName: string = locDoc.data()!.name || "Entrance Point";
 
-          // Generate 6-digit random code
-          const rawCode = Math.floor(100000 + Math.random() * 900000).toString();
+          // Generate 6-digit code from a cryptographically secure source
+          const rawCode = randomInt(100000, 1000000).toString();
           const code = `CHK-${rawCode}`;
 
           // Expire in 10 minutes (AGENTS.md Kiosk pairing flow)

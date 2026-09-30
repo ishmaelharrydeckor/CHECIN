@@ -26,7 +26,12 @@ export const Route = createFileRoute("/api/auth/register-org")({
 
           const body = await request.json();
           const orgName = (body?.orgName || "").trim();
-          const timezone = (body?.timezone || "UTC").trim();
+          let timezone = String(body?.timezone || "UTC").trim();
+          try {
+            new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+          } catch {
+            timezone = "UTC"; // unknown zone names fall back to UTC; admins can change it in Settings
+          }
           const email = (body?.email || "").trim().toLowerCase();
           const password = body?.password || "";
 
