@@ -48,6 +48,8 @@ interface ActivityItem {
   location: string;
   type: "in" | "out";
   time: string;
+  late?: boolean;
+  earlyDeparture?: boolean;
 }
 
 interface AttendanceRecord {
@@ -60,6 +62,8 @@ interface AttendanceRecord {
   type: "in" | "out";
   timestamp: string;
   locationName?: string;
+  late?: boolean;
+  earlyDeparture?: boolean;
 }
 
 function DashboardPage() {
@@ -188,6 +192,8 @@ function DashboardPage() {
         department: r.department || "General Operations",
         location: r.locationName || (r as any).location || "Main Entrance Terminal",
         type: r.type,
+        late: r.late === true,
+        earlyDeparture: r.earlyDeparture === true,
         time: new Date(r.timestamp).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -934,6 +940,16 @@ function DashboardPage() {
                         />
                         {item.type === "in" ? "Clocked IN" : "Clocked OUT"}
                       </span>
+                      {item.late && (
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                          Late
+                        </span>
+                      )}
+                      {item.earlyDeparture && (
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                          Early departure
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-3.5 font-mono text-slate-800">{item.time}</td>
                     <td className="px-6 py-3.5 text-right">

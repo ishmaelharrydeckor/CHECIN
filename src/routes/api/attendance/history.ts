@@ -70,6 +70,8 @@ export const Route = createFileRoute("/api/attendance/history")({
               locationId: d.locationId || "",
               locationName: d.locationName || "Main Entrance Terminal",
               type: d.type === "out" ? "out" : "in",
+              late: d.late === true,
+              earlyDeparture: d.earlyDeparture === true,
               timestamp: d.timestamp,
               verifiedMethod: d.verifiedBy || "15s Dynamic QR · HMAC Verified",
             };
