@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
+import { computeScanFlags, type LocationHours } from "@/lib/attendance-windows";
 
 export const Route = createFileRoute("/api/check-in/scan")({
   server: {
@@ -75,6 +76,20 @@ export const Route = createFileRoute("/api/check-in/scan")({
             console.warn("Could not fetch user profile for scan event:", e);
           }
 
+          // 3b. Location hours + org timezone (server-side; only used for late/early flags)
+          let hours: LocationHours = {};
+          let orgTimezone = "UTC";
+          try {
+            const [locSnap, orgSnap] = await Promise.all([
+              firestoreAdmin.collection("locations").doc(locationId).get(),
+              firestoreAdmin.collection("organizations").doc(caller.orgId).get(),
+            ]);
+            if (locSnap.exists && locSnap.data()?.orgId === caller.orgId) hours = locSnap.data()!;
+            orgTimezone = orgSnap.data()?.timezone || "UTC";
+          } catch (e) {
+            console.warn("Could not load location hours for scan flags:", e);
+          }
+
           // 4. Atomic Cooldown Verification, Direction Toggle, & Write Transaction
           const clockEventsQuery = firestoreAdmin
             .collection("clock_events")
@@ -107,6 +122,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
             // Determine Direction (IN vs OUT) based on last event
             const nextType: "in" | "out" = lastEvent && lastEvent.type === "in" ? "out" : "in";
 
+            const flags = computeScanFlags(nextType, hours, new Date(now), orgTimezone);
+
             const eventData = {
               eventId: eventRef.id,
               orgId: caller.orgId,
@@ -116,6 +133,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
               employeeEmail: caller.email || "",
               department: employeeDepartment,
               type: nextType,
+              late: flags.late,
+              earlyDeparture: flags.earlyDeparture,
               timestamp: timestampIso,
               locationId,
               locationName: kiosk.locationName || "Main Entrance",
@@ -143,6 +162,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
             return {
               eventId: eventRef.id,
               type: nextType,
+              late: flags.late,
+              earlyDeparture: flags.earlyDeparture,
               timestamp: timestampIso,
               timeDisplay,
               employeeName,

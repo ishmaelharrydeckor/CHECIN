@@ -3,6 +3,7 @@ import {
   firestoreAdmin,
   verifyCallerToken,
 } from "@/integrations/firebase/admin.server";
+import { isValidTimezone } from "@/lib/attendance-windows";
 
 export const Route = createFileRoute("/api/organization/")({
   server: {
@@ -92,7 +93,12 @@ export const Route = createFileRoute("/api/organization/")({
           };
 
           if (name && name.length >= 2) updates.name = name;
-          if (timezone) updates.timezone = timezone;
+          if (timezone) {
+            if (!isValidTimezone(timezone)) {
+              return Response.json({ error: "Invalid timezone (use an IANA name, e.g. Africa/Accra)" }, { status: 400 });
+            }
+            updates.timezone = timezone;
+          }
 
           await firestoreAdmin.collection("organizations").doc(caller.orgId).set(updates, { merge: true });
 

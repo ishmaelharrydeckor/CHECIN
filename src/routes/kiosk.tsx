@@ -24,6 +24,7 @@ function KioskPage() {
   const [tokenHash, setTokenHash] = useState("Loading...");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  const [modeLabel, setModeLabel] = useState<string>("Scan to Check In / Out");
   const [lastSeenScanTimestamp, setLastSeenScanTimestamp] = useState<number>(() => Date.now());
 
   const [toastData, setToastData] = useState<{
@@ -150,6 +151,8 @@ function KioskPage() {
       if (data.locationName) {
         setLocationName(data.locationName);
       }
+      // Label is decided server-side (org timezone); the kiosk only displays it.
+      if (typeof data.label === "string") setModeLabel(data.label);
 
       // Generate real QR code image
       const qrPayload = JSON.stringify({
@@ -368,7 +371,7 @@ function KioskPage() {
 
         {/* Scan Instruction Pill */}
         <div className="inline-block bg-[#C0FD9B]/10 border border-[#C0FD9B]/30 px-3.5 py-1 rounded-full text-xs font-medium text-[#C0FD9B] mb-4">
-          Scan with Phone Camera to Check In / Out
+          {modeLabel} · Use Phone Camera
         </div>
 
         {/* Real Dynamic QR Code SVG / Canvas */}
