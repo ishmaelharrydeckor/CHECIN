@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { firestoreAdmin, resolveTargetInScope, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import {
   sendNotificationToOrg,
   sendNotificationToTeam,
@@ -52,15 +52,20 @@ export const Route = createFileRoute("/api/announcements/")({
           });
 
           // Team-level visibility scoping per AGENTS.md
-          if (caller.role === "employee") {
-            docs = docs.filter((d) => {
-              const mId = d.data().managerId;
-              return !mId || mId === caller.managerId;
-            });
-          } else if (caller.role === "manager") {
+          // Default-deny: only an explicit org_admin sees every team's notices; anyone else
+          // (including a missing role) sees org-wide notices plus their own team's.
+          if (caller.role === "org_admin" && caller.orgId) {
+            // org-wide within orgId
+          } else if (caller.role === "manager" && caller.orgId) {
             docs = docs.filter((d) => {
               const mId = d.data().managerId;
               return !mId || mId === caller.uid;
+            });
+          } else {
+            const myManagerId = (caller.managerId as string | undefined) || null;
+            docs = docs.filter((d) => {
+              const mId = d.data().managerId;
+              return !mId || (myManagerId !== null && mId === myManagerId);
             });
           }
 
@@ -129,6 +134,14 @@ export const Route = createFileRoute("/api/announcements/")({
           const targetManagerId = isOrgWide
             ? null
             : (caller.role === "manager" ? caller.uid : body?.managerId || null);
+
+          // A team notice from an org admin must target a real manager in the admin's own org
+          if (caller.role === "org_admin" && !isOrgWide) {
+            const mgr = targetManagerId ? await resolveTargetInScope(caller, targetManagerId) : null;
+            if (!mgr || mgr.role !== "manager") {
+              return Response.json({ error: "Target team was not found in your organization" }, { status: 400 });
+            }
+          }
 
           const newDocRef = firestoreAdmin.collection("announcements").doc();
           const now = new Date().toISOString();

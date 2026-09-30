@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   getUserClaims,
+  resolveTargetInScope,
+  revokeUserSessions,
   setStaffRoleClaims,
   verifyCallerToken,
 } from "@/integrations/firebase/admin.server";
@@ -9,9 +11,12 @@ import type { CorporateRole } from "@/lib/auth-claims";
 /**
  * ChecIN Role Management Endpoint
  *
- * Supported role transitions (AGENTS.md):
- *  - An org_admin may grant 'manager' or 'employee' within their own orgId.
- *  - A manager may grant 'employee' scoped to their own team (managerId == caller.uid) within their own orgId.
+ * The target user is always resolved from Firebase Auth claims and must be in
+ * the caller's scope BEFORE any change is made:
+ *  - An org_admin may grant 'manager' or 'employee' to users in their own orgId.
+ *    Org admins can never be changed through this endpoint.
+ *  - A manager may only set 'employee' on a user already on their own team.
+ *    A manager can never modify another manager or an admin.
  *  - Cannot change one's own role through this endpoint.
  */
 export const Route = createFileRoute("/api/admin/roles")({
@@ -19,7 +24,9 @@ export const Route = createFileRoute("/api/admin/roles")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const caller = await verifyCallerToken(request.headers.get("authorization"));
+          const caller = await verifyCallerToken(request.headers.get("authorization"), {
+            checkRevoked: true,
+          });
           if (!caller) {
             return Response.json({ error: "Not authenticated" }, { status: 401 });
           }
@@ -28,9 +35,9 @@ export const Route = createFileRoute("/api/admin/roles")({
           const callerOrgId = (caller.orgId as string | undefined) ?? null;
           const callerUid = caller.uid;
 
-          if (!callerOrgId || !callerRole) {
+          if (!callerOrgId || (callerRole !== "org_admin" && callerRole !== "manager")) {
             return Response.json(
-              { error: "Caller does not belong to an active organization" },
+              { error: "Only an organization admin or manager can change roles" },
               { status: 403 },
             );
           }
@@ -46,6 +53,25 @@ export const Route = createFileRoute("/api/admin/roles")({
           if (targetUid === callerUid) {
             return Response.json({ error: "Cannot change your own role" }, { status: 403 });
           }
+          if (role !== "manager" && role !== "employee") {
+            return Response.json(
+              { error: "org_admin roles cannot be granted through this endpoint" },
+              { status: 403 },
+            );
+          }
+
+          // Scope check: the target must exist, be in the caller's org (and team, for managers).
+          // Same 404 for "unknown" and "other org" so ids can't be probed across tenants.
+          const target = await resolveTargetInScope(caller, targetUid);
+          if (!target) {
+            return Response.json({ error: "User not found in your organization" }, { status: 404 });
+          }
+          if (target.role === "org_admin") {
+            return Response.json(
+              { error: "Organization admins cannot be changed through this endpoint" },
+              { status: 403 },
+            );
+          }
 
           if (role === "manager") {
             if (callerRole !== "org_admin") {
@@ -56,36 +82,37 @@ export const Route = createFileRoute("/api/admin/roles")({
             }
             // A manager owns their team: managerId is their own uid
             await setStaffRoleClaims(targetUid, "manager", callerOrgId, targetUid);
+            await revokeUserSessions(targetUid);
             return Response.json({ ok: true, targetUid, role, orgId: callerOrgId, managerId: targetUid });
           }
 
-          if (role === "employee") {
-            let managerIdForEmployee: string | null = null;
-            if (callerRole === "manager") {
-              managerIdForEmployee = callerUid;
-            } else if (callerRole === "org_admin") {
-              managerIdForEmployee = assignedManagerId ?? callerUid;
-            } else {
-              return Response.json(
-                { error: "Not authorized to add employees" },
-                { status: 403 },
-              );
+          // role === "employee"
+          let managerIdForEmployee: string;
+          if (callerRole === "manager") {
+            managerIdForEmployee = callerUid;
+          } else {
+            managerIdForEmployee = assignedManagerId ?? callerUid;
+            if (managerIdForEmployee !== callerUid) {
+              // Must be a real manager in the same org (claims, not the client-writable users doc)
+              const mgr = await resolveTargetInScope(caller, managerIdForEmployee);
+              if (!mgr || mgr.role !== "manager") {
+                return Response.json(
+                  { error: "The assigned manager was not found in your organization" },
+                  { status: 400 },
+                );
+              }
             }
-
-            await setStaffRoleClaims(targetUid, "employee", callerOrgId, managerIdForEmployee);
-            return Response.json({
-              ok: true,
-              targetUid,
-              role,
-              orgId: callerOrgId,
-              managerId: managerIdForEmployee,
-            });
           }
 
-          return Response.json(
-            { error: "org_admin roles cannot be granted through this endpoint" },
-            { status: 403 },
-          );
+          await setStaffRoleClaims(targetUid, "employee", callerOrgId, managerIdForEmployee);
+          await revokeUserSessions(targetUid);
+          return Response.json({
+            ok: true,
+            targetUid,
+            role,
+            orgId: callerOrgId,
+            managerId: managerIdForEmployee,
+          });
         } catch (err) {
           console.error("roles endpoint error:", err);
           return Response.json({ error: "Internal error" }, { status: 500 });
@@ -99,14 +126,17 @@ export const Route = createFileRoute("/api/admin/roles")({
         if (!caller) {
           return Response.json({ error: "Not authenticated" }, { status: 401 });
         }
-        const callerOrgId = (caller.orgId as string | undefined) ?? null;
         const uid = targetUid || caller.uid;
 
-        const target = await getUserClaims(uid);
-        if (uid !== caller.uid && target.orgId !== callerOrgId) {
-          return Response.json({ error: "Not authorized to view this user" }, { status: 403 });
+        if (uid === caller.uid) {
+          return Response.json(await getUserClaims(uid));
         }
 
+        // Looking up someone else: org admins (org-wide) and managers (own team) only
+        const target = await resolveTargetInScope(caller, uid);
+        if (!target) {
+          return Response.json({ error: "Not authorized to view this user" }, { status: 403 });
+        }
         return Response.json(target);
       },
     },

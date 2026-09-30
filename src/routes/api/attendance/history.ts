@@ -36,10 +36,14 @@ export const Route = createFileRoute("/api/attendance/history")({
             .where("orgId", "==", orgId);
 
           // Role-based tenant & team scoping per AGENTS.md
-          if (caller.role === "employee") {
-            query = query.where("employeeId", "==", caller.uid);
-          } else if (caller.role === "manager") {
+          // Default-deny: only an explicit org_admin sees org-wide; a missing/unknown role is
+          // treated as an employee and sees only their own events.
+          if (caller.role === "org_admin" && caller.orgId) {
+            // org-wide within orgId
+          } else if (caller.role === "manager" && caller.orgId) {
             query = query.where("managerId", "==", caller.uid);
+          } else {
+            query = query.where("employeeId", "==", caller.uid);
           }
 
           let snap;

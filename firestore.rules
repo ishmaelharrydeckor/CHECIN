@@ -44,22 +44,28 @@ service cloud.firestore {
     match /organizations/{targetOrgId} {
       // Any signed-in member of this organization can read its metadata
       allow read: if isSignedIn() && orgId() == targetOrgId;
-      // Only org_admin can update organization details
-      allow update: if isOrgAdmin() && orgId() == targetOrgId;
+      // Only org_admin can update organization details, and only display fields —
+      // plan/billing, createdById etc. are server-managed (Admin SDK only)
+      allow update: if isOrgAdmin() && orgId() == targetOrgId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "timezone", "updatedAt"]);
       // Creation and deletion managed exclusively by server Admin SDK
       allow create, delete: if false;
     }
 
     // ---- 2. Users (Display Profile Only — NEVER stores a role field or modifies tenancy) ----
     match /users/{userId} {
-      // User can read their own profile, or coworkers within same org can read display info
-      allow read: if isSignedIn() && (request.auth.uid == userId || inOrg(resource.data));
-      // User can update their own display fields only (displayName, photoURL, department)
-      // Must NEVER modify or create role, customClaims, or alter orgId from client
-      allow create, update: if isSignedIn() && request.auth.uid == userId
-        && !("role" in request.resource.data)
-        && !("customClaims" in request.resource.data)
-        && (!("orgId" in request.resource.data) || (resource != null && request.resource.data.orgId == resource.data.orgId));
+      // Self; org admin (whole org); manager (own team only). Employees cannot read coworkers.
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        (inOrg(resource.data) && (isOrgAdmin() || (isManager() && resource.data.managerId == request.auth.uid)))
+      );
+      // Create: display fields only. Tenancy/team fields (orgId, managerId) and anything
+      // role-like are set exclusively by the server (Admin SDK).
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(["id", "email", "displayName", "photoURL", "department", "createdAt", "updatedAt"]);
+      // Update: only the same display fields may change
+      allow update: if isSignedIn() && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["id", "email", "displayName", "photoURL", "department", "createdAt", "updatedAt"]);
       allow delete: if false;
     }
 
@@ -93,14 +99,17 @@ service cloud.firestore {
         resource.data.employeeId == request.auth.uid
       );
       // Employee creates their own leave request within their org & team
+      // Always starts as pending — an employee cannot self-approve
       allow create: if inOrg(request.resource.data)
         && request.resource.data.employeeId == request.auth.uid
-        && request.resource.data.managerId == managerId();
-      // Manager approves/rejects within their own team; Org Admin can override
+        && request.resource.data.managerId == managerId()
+        && request.resource.data.status == "pending";
+      // Manager approves/rejects within their own team; Org Admin can override.
+      // Only the decision fields may change (not employee, team, dates or type).
       allow update: if inOrg(resource.data) && (
         (isManager() && resource.data.managerId == request.auth.uid) ||
         isOrgAdmin()
-      );
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewedBy", "reviewedAt"]);
       allow delete: if false;
     }
 

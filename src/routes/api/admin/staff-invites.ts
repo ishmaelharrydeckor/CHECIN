@@ -4,6 +4,7 @@ import {
   firestoreAdmin,
   verifyCallerToken,
   setStaffRoleClaims,
+  resolveTargetInScope,
   getAuthAdmin,
 } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
@@ -289,6 +290,16 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               assignedManagerId = null; // Will be set to the user's own uid upon redemption
             } else {
               assignedManagerId = body?.managerId || ctx.uid;
+              // An explicit team must be a real manager in the admin's own org
+              if (assignedManagerId !== ctx.uid) {
+                const mgr = await resolveTargetInScope(ctx, String(assignedManagerId));
+                if (!mgr || mgr.role !== "manager") {
+                  return Response.json(
+                    { error: "The selected manager was not found in your organization" },
+                    { status: 400 },
+                  );
+                }
+              }
             }
           }
 
@@ -342,7 +353,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
           const body = await request.json();
           const token = (body?.token || "").trim();
           const fullName = (body?.fullName || "").trim();
-          const department = (body?.department || "General").trim();
+          const department = String(body?.department || "General").trim().slice(0, 60) || "General";
           const password = (body?.password || "").trim();
 
           if (!token) {
@@ -434,11 +445,18 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
           }
 
           // 3. Mark invite as redeemed atomically
+          // Conditional claim: only one concurrent request can flip pending -> redeemed.
           const nowIso = new Date().toISOString();
-          await inviteRef.update({
-            status: "redeemed",
-            redeemedUid: targetUid,
-            redeemedAt: nowIso,
+          await firestoreAdmin.runTransaction(async (t) => {
+            const fresh = await t.get(inviteRef);
+            if (!fresh.exists || fresh.data()?.status !== "pending") {
+              throw new Error("STATUS: This invitation has already been redeemed");
+            }
+            t.update(inviteRef, {
+              status: "redeemed",
+              redeemedUid: targetUid,
+              redeemedAt: nowIso,
+            });
           });
 
           // 4. Determine managerId and set custom claims

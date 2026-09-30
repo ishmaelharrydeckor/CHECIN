@@ -5,7 +5,7 @@ import {
   sendNotificationToOrg,
   NotificationPayload,
 } from "@/lib/push-service.server";
-import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { resolveTargetInScope, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import type { CorporateRole } from "@/lib/auth-claims";
 
 export const Route = createFileRoute("/api/push/send")({
@@ -13,7 +13,9 @@ export const Route = createFileRoute("/api/push/send")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const caller = await verifyCallerToken(request.headers.get("authorization"));
+          const caller = await verifyCallerToken(request.headers.get("authorization"), {
+            checkRevoked: true,
+          });
           if (!caller) {
             return Response.json({ error: "Not authenticated" }, { status: 401 });
           }
@@ -35,11 +37,22 @@ export const Route = createFileRoute("/api/push/send")({
             payload: NotificationPayload;
           };
 
-          if (!payload || !payload.title) {
+          if (!payload || typeof payload.title !== "string" || !payload.title.trim()) {
             return Response.json(
               { error: "Notification payload with title is required" },
               { status: 400 },
             );
+          }
+
+          // Bound the content and keep links inside this app (no external phishing URLs)
+          if (payload.title.length > 120 || (payload.body && String(payload.body).length > 500)) {
+            return Response.json({ error: "Notification title or body is too long" }, { status: 400 });
+          }
+          if (payload.url !== undefined && payload.url !== null) {
+            const u = String(payload.url);
+            if (!u.startsWith("/") || u.startsWith("//")) {
+              return Response.json({ error: "Notification url must be a relative in-app path" }, { status: 400 });
+            }
           }
 
           // Case 1: Organization-wide broadcast (Admin only)
@@ -59,9 +72,20 @@ export const Route = createFileRoute("/api/push/send")({
             });
           }
 
-          // Case 2: Specific team members / users
+          // Case 2: Specific team members / users — every id must be in the caller's scope
+          // (org for admins, own team for managers). Out-of-scope ids are dropped.
           if (Array.isArray(userIds) && userIds.length > 0) {
-            const res = await sendNotificationToUsers(userIds, payload);
+            if (userIds.length > 200) {
+              return Response.json({ error: "Too many recipients (max 200)" }, { status: 400 });
+            }
+            const checks = await Promise.all(
+              userIds.map(async (id) => ((await resolveTargetInScope(caller, String(id))) ? String(id) : null)),
+            );
+            const allowedIds = checks.filter((id): id is string => id !== null);
+            if (allowedIds.length === 0) {
+              return Response.json({ error: "No recipients in your organization or team" }, { status: 403 });
+            }
+            const res = await sendNotificationToUsers(allowedIds, payload);
             return Response.json({
               success: true,
               mode: "users",
@@ -72,7 +96,10 @@ export const Route = createFileRoute("/api/push/send")({
 
           // Case 3: Single user notification
           if (userId) {
-            const res = await sendNotificationToUser(userId, payload);
+            if (!(await resolveTargetInScope(caller, String(userId)))) {
+              return Response.json({ error: "Recipient not found in your organization or team" }, { status: 403 });
+            }
+            const res = await sendNotificationToUser(String(userId), payload);
             return Response.json({
               success: true,
               mode: "user",

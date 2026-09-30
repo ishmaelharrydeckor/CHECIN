@@ -134,11 +134,13 @@ export const firestoreAdmin = new Proxy({} as Firestore, {
  */
 export async function verifyCallerToken(
   authorizationHeader: string | null | undefined,
+  options?: { checkRevoked?: boolean },
 ): Promise<DecodedIdToken | null> {
   const match = authorizationHeader?.match(/^Bearer (.+)$/);
   if (!match) return null;
   try {
-    return await getAuthAdmin().verifyIdToken(match[1]);
+    // checkRevoked adds a network round-trip; use it on routes that change roles or send messages
+    return await getAuthAdmin().verifyIdToken(match[1], options?.checkRevoked === true);
   } catch {
     return null;
   }
@@ -160,6 +162,39 @@ export async function setStaffRoleClaims(
     orgId,
     managerId: managerId ?? (role === "manager" ? targetUid : null),
   });
+}
+
+/**
+ * Authorizes a caller to act on another user. Reads the target's claims from
+ * Firebase Auth (the source of truth — never the client-writable `users` doc).
+ * Returns the target's claims, or null when the target is out of scope:
+ *  - different organization (hard tenant wall), or
+ *  - caller is a manager and the target is not on their own team.
+ * Org admins are scoped by organization only.
+ */
+export async function resolveTargetInScope(
+  caller: { uid: string; role?: unknown; orgId?: unknown },
+  targetUid: string,
+): Promise<{ role: AppRole | null; orgId: string | null; managerId: string | null } | null> {
+  const uid = String(targetUid || "").trim();
+  if (!uid || !caller.orgId) return null;
+  let target;
+  try {
+    target = await getUserClaims(uid);
+  } catch {
+    return null; // unknown uid
+  }
+  if (!target.orgId || target.orgId !== caller.orgId) return null;
+  if (caller.role === "org_admin") return target;
+  if (caller.role === "manager") {
+    return target.managerId === caller.uid ? target : null;
+  }
+  return null;
+}
+
+/** Forces a user's existing sessions to re-authenticate so claim changes take effect at once. */
+export async function revokeUserSessions(uid: string): Promise<void> {
+  await getAuthAdmin().revokeRefreshTokens(uid);
 }
 
 export async function getUserClaims(
