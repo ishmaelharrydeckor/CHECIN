@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { parseHoursInput, DEFAULT_CHECKOUT_WINDOW_MINUTES } from "@/lib/attendance-windows";
 
 export const Route = createFileRoute("/api/locations/")({
   server: {
@@ -32,6 +33,9 @@ export const Route = createFileRoute("/api/locations/")({
               name: data.name,
               orgId: data.orgId,
               createdAt: data.createdAt,
+              reportingTime: data.reportingTime ?? null,
+              closingTime: data.closingTime ?? null,
+              checkoutWindowMinutes: data.checkoutWindowMinutes ?? DEFAULT_CHECKOUT_WINDOW_MINUTES,
               isPaired,
               pairedAt,
             });
@@ -51,6 +55,9 @@ export const Route = createFileRoute("/api/locations/")({
               name: "Main Entrance Lobby",
               orgId: callerOrgId,
               createdAt: now,
+              reportingTime: null,
+              closingTime: null,
+              checkoutWindowMinutes: DEFAULT_CHECKOUT_WINDOW_MINUTES,
               isPaired: false,
               pairedAt: null,
             });
@@ -103,12 +110,69 @@ export const Route = createFileRoute("/api/locations/")({
               name,
               orgId: callerOrgId,
               createdAt: now,
+              reportingTime: null,
+              closingTime: null,
+              checkoutWindowMinutes: DEFAULT_CHECKOUT_WINDOW_MINUTES,
               isPaired: false,
             },
           });
         } catch (err: any) {
           console.error("POST /api/locations error:", err);
           return Response.json({ error: "Failed to create location" }, { status: 500 });
+        }
+      },
+
+      // Set reporting/closing hours. Org admins and managers may edit; the
+      // location must belong to the caller's org (derived from the verified token).
+      PATCH: async ({ request }) => {
+        try {
+          const caller = await verifyCallerToken(request.headers.get("authorization"));
+          if (!caller?.uid || !caller.orgId) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
+          if (caller.role !== "org_admin" && caller.role !== "manager") {
+            return Response.json({ error: "Forbidden: Admin or Manager privileges required" }, { status: 403 });
+          }
+
+          const body = await request.json();
+          const locationId = (body?.locationId || "").trim();
+          if (!locationId) {
+            return Response.json({ error: "Missing locationId" }, { status: 400 });
+          }
+
+          const { value, error } = parseHoursInput(body);
+          if (error) return Response.json({ error }, { status: 400 });
+          if (Object.keys(value).length === 0) {
+            return Response.json({ error: "No hours supplied" }, { status: 400 });
+          }
+
+          const ref = firestoreAdmin.collection("locations").doc(locationId);
+          const snap = await ref.get();
+          if (!snap.exists || snap.data()?.orgId !== caller.orgId) {
+            return Response.json({ error: "Location not found" }, { status: 404 });
+          }
+
+          const existing = snap.data()!;
+          const reporting = value.reportingTime ?? existing.reportingTime;
+          const closing = value.closingTime ?? existing.closingTime;
+          if (reporting && closing && reporting >= closing) {
+            return Response.json({ error: "Closing time must be after reporting time" }, { status: 400 });
+          }
+
+          await ref.set({ ...value, updatedAt: new Date().toISOString() }, { merge: true });
+
+          return Response.json({
+            ok: true,
+            reportingTime: reporting ?? null,
+            closingTime: closing ?? null,
+            checkoutWindowMinutes:
+              value.checkoutWindowMinutes ??
+              existing.checkoutWindowMinutes ??
+              DEFAULT_CHECKOUT_WINDOW_MINUTES,
+          });
+        } catch (err: any) {
+          console.error("PATCH /api/locations error:", err);
+          return Response.json({ error: "Failed to update location hours" }, { status: 500 });
         }
       },
     },

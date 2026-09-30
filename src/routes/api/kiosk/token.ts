@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { timingSafeHashMatch, generateKioskToken } from "@/lib/kiosk-crypto.server";
+import { getKioskMode, KIOSK_MODE_LABEL, type KioskMode } from "@/lib/attendance-windows";
 
 export const Route = createFileRoute("/api/kiosk/token")({
   server: {
@@ -61,11 +62,28 @@ export const Route = createFileRoute("/api/kiosk/token")({
             console.warn("Could not check recent_scans for kiosk:", scanErr);
           }
 
+          // Display label from the location's hours in the ORG's timezone (server clock only).
+          // Cosmetic: never affects whether a scan succeeds or its direction.
+          let mode: KioskMode = "idle";
+          try {
+            const [locSnap, orgSnap] = await Promise.all([
+              firestoreAdmin.collection("locations").doc(locationId).get(),
+              firestoreAdmin.collection("organizations").doc(kiosk.orgId).get(),
+            ]);
+            if (locSnap.exists && locSnap.data()?.orgId === kiosk.orgId) {
+              mode = getKioskMode(locSnap.data()!, new Date(now), orgSnap.data()?.timezone || "UTC");
+            }
+          } catch (modeErr) {
+            console.warn("Could not compute kiosk mode:", modeErr);
+          }
+
           return Response.json({
             ok: true,
             token,
             timeBucket,
             secondsRemaining,
+            mode,
+            label: KIOSK_MODE_LABEL[mode],
             locationName: kiosk.locationName || "Main Entrance",
             recentScan,
           });

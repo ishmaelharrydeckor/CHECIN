@@ -71,7 +71,7 @@ A dedicated tablet (kiosk mode) at each entrance displays a QR code that regener
 | `users/{uid}` | displayName, email, photoURL, orgId | **Display fields only — never a role field.** Self read/write own doc. |
 | `staff_invites/{token}` | email, role, orgId, managerId, status, expiresAt | Admin SDK only |
 | `kiosk_pairings/{code}` | orgId, locationId, status, expiresAt | Admin SDK only |
-| `locations/{locationId}` | orgId, name | Org-scoped read. Holds no secrets, because Firestore rules cannot hide a single field from a reader who can read the document |
+| `locations/{locationId}` | orgId, name, reportingTime, closingTime, checkoutWindowMinutes | Org-scoped read. Holds no secrets, because Firestore rules cannot hide a single field from a reader who can read the document. The time fields drive the kiosk's display label and `late`/`earlyDeparture` flags — they never gate whether a scan succeeds |
 | `kiosks/{locationId}` | orgId, kiosk_secret_hash, kiosk_paired_at | Admin SDK only (`allow read, write: if false`) |
 | `clock_events/{eventId}` | orgId, managerId, employeeId, type (`in`/`out`), timestamp, locationId | Employee reads own; manager reads their team's; created only via the verified-scan server route |
 | `leave_requests/{id}` | orgId, managerId, employeeId, type, startDate, endDate, status | Employee creates own; manager approves within their team |

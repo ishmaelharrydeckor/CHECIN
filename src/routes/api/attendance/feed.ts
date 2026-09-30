@@ -75,6 +75,8 @@ export const Route = createFileRoute("/api/attendance/feed")({
               department: d.department || "General Operations",
               location: d.locationName || "Main Lobby",
               type: d.type === "out" ? "out" : "in",
+              late: d.late === true,
+              earlyDeparture: d.earlyDeparture === true,
               time: new Date(d.timestamp).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
