@@ -1,7 +1,8 @@
 // ChecIN Official Web Push & PWA Service Worker
 // Corporate Workforce Attendance & Check-In SaaS
 
-const CACHE_NAME = "checin-pwa-v1";
+// Bump this whenever icons or shell assets change so older caches are deleted on activate
+const CACHE_NAME = "checin-pwa-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.webmanifest",
