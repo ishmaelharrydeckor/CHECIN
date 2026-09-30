@@ -1,6 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { signInWithPopup, signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithPopup,
+  signInWithCustomToken,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import {
   firebaseAuth,
   onAuthStateChanged,
@@ -12,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Building2, ShieldCheck, Check, Sparkles, Mail, Lock } from "lucide-react";
@@ -32,6 +38,7 @@ function AuthPage() {
   const [orgName, setOrgName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [regConfirm, setRegConfirm] = useState("");
   const [timezone, setTimezone] = useState(
     typeof Intl !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -41,6 +48,38 @@ function AuthPage() {
   // Direct Login Form
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+
+  // Forgot password
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSending, setResetSending] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = resetEmail.trim();
+    if (!email || !email.includes("@")) {
+      toast.error("Please enter the email address of your account");
+      return;
+    }
+    setResetSending(true);
+    try {
+      await sendPasswordResetEmail(firebaseAuth, email);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/too-many-requests") {
+        toast.error("Too many requests. Please try again later.");
+        setResetSending(false);
+        return;
+      }
+      // Any other result (including unknown accounts) gets the same message so accounts can't be probed
+    }
+    toast.success(
+      "If an account exists for that email, a reset link is on its way. No email? Ask your admin or manager for a reset link.",
+      { duration: 9000 },
+    );
+    setResetSending(false);
+    setResetOpen(false);
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
@@ -199,6 +238,16 @@ function AuthPage() {
       } else {
         if (!regEmail.trim() || !regEmail.includes("@")) {
           toast.error("Please provide your work email address.");
+          setLoading(false);
+          return;
+        }
+        if (regPassword.length < 6) {
+          toast.error("Please choose a password of at least 6 characters.");
+          setLoading(false);
+          return;
+        }
+        if (regPassword !== regConfirm) {
+          toast.error("The two passwords don't match. Please re-enter them.");
           setLoading(false);
           return;
         }
@@ -416,18 +465,30 @@ function AuthPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="loginPassword" className="text-xs font-medium text-[#0E2322]">
-                        Password
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="loginPassword" className="text-xs font-medium text-[#0E2322]">
+                          Password
+                        </Label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResetEmail(loginEmail);
+                            setResetOpen((o) => !o);
+                          }}
+                          className="text-xs font-medium text-[#0E2322] underline cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                        <Input
+                        <PasswordInput
                           id="loginPassword"
-                          type="password"
                           placeholder="••••••••"
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
                           className="h-10 pl-9 text-sm"
+                          autoComplete="current-password"
                         />
                       </div>
                     </div>
@@ -447,6 +508,43 @@ function AuthPage() {
                       )}
                     </Button>
                   </form>
+
+                  {resetOpen && (
+                    <form
+                      onSubmit={handleForgotPassword}
+                      className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5"
+                    >
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Enter your account email and we'll send you a link to choose a new password. If you
+                        don't get an email, ask your admin or manager to generate a reset link for you.
+                      </p>
+                      <Input
+                        type="email"
+                        placeholder="name@company.com"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="h-10 text-sm bg-white"
+                        required
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="submit"
+                          disabled={resetSending}
+                          className="h-9 flex-1 bg-[#0E2322] hover:bg-[#163331] text-white text-xs font-medium"
+                        >
+                          {resetSending ? "Sending..." : "Send reset link"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setResetOpen(false)}
+                          className="h-9 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  )}
 
                   <div className="pt-3 text-center text-xs text-muted-foreground border-t border-slate-100">
                     New company?{" "}
@@ -512,19 +610,42 @@ function AuthPage() {
 
                         <div className="space-y-1.5">
                           <Label htmlFor="regPassword" className="text-xs font-medium text-[#0E2322]">
-                            Password (Optional)
+                            Password (min 6 characters)
                           </Label>
                           <div className="relative">
                             <Lock className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                            <Input
+                            <PasswordInput
                               id="regPassword"
-                              type="password"
                               placeholder="••••••••"
                               value={regPassword}
                               onChange={(e) => setRegPassword(e.target.value)}
                               className="h-10 pl-9 text-sm"
+                              autoComplete="new-password"
+                              required
+                              minLength={6}
                             />
                           </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="regConfirm" className="text-xs font-medium text-[#0E2322]">
+                            Confirm password
+                          </Label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                            <PasswordInput
+                              id="regConfirm"
+                              placeholder="Re-enter your password"
+                              value={regConfirm}
+                              onChange={(e) => setRegConfirm(e.target.value)}
+                              className="h-10 pl-9 text-sm"
+                              autoComplete="new-password"
+                              required
+                            />
+                          </div>
+                          {regConfirm.length > 0 && regConfirm !== regPassword && (
+                            <p className="text-xs text-rose-600">Passwords don't match yet.</p>
+                          )}
                         </div>
                       </>
                     )}
