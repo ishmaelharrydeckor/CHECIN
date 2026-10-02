@@ -15,7 +15,7 @@ feature branch  ->  PR into `staging`  ->  test on staging  ->  integrator opens
 
 ## Two ways to work
 
-**Browser path (default for non-developers).** No installs. Build with a normal Claude chat, paste the code into GitHub's web editor (press `.` on the repo page), open a draft PR, and test on the Vercel preview link. Full steps: [docs/TEAMMATE-GUIDE.md](docs/TEAMMATE-GUIDE.md). Paste [docs/CLAUDE-PROJECT-INSTRUCTIONS.md](docs/CLAUDE-PROJECT-INSTRUCTIONS.md) into your Claude Project first. Nobody runs your code before review, so CI and the preview are your tests.
+**Browser path (default for non-developers).** No installs. Build with a normal Claude chat, paste the code into GitHub's web editor (press `.` on the repo page), open a draft PR, and write "How to test" steps for the integrator, who tests it on staging. Full steps: [docs/TEAMMATE-GUIDE.md](docs/TEAMMATE-GUIDE.md). Paste [docs/CLAUDE-PROJECT-INSTRUCTIONS.md](docs/CLAUDE-PROJECT-INSTRUCTIONS.md) into your Claude Project first. Nobody runs your code before review, so the green CI checks are your safety net and the integrator does the hands-on testing.
 
 **Local path (developers).**
 
@@ -58,7 +58,7 @@ If your feature needs a menu entry, a Firestore rule, or a custom-claim change, 
 ## Before you open the PR
 
 - Developers: `npm run check`, then read your own diff once.
-- Browser path: wait for the green checks on the PR and try the preview link.
+- Browser path: wait for the green checks on the PR and fill in "How to test".
 
 The PR template has the full checklist.
 

@@ -37,7 +37,7 @@ Search the diff for each:
 
 ## 3. Behaviour
 - [ ] CI green (build + typecheck)
-- [ ] Pull the branch or use the Vercel preview. Try it as an **employee**, a **manager**, and an **org admin**
+- [ ] Test it yourself (teammates can't run it): open the PR's Vercel preview while signed in to Vercel, or run the branch locally with staging `.env`. Follow the PR's "How to test" steps, then try it as an **employee**, a **manager**, and an **org admin**. Preview URLs use email/password logins, because Google sign-in only works on authorized domains
 - [ ] Try it as the wrong role: a manager must not see another manager's team; an employee must not see anyone else's data
 - [ ] Empty state, loading state, error state exist
 - [ ] Phone width for anything an employee sees

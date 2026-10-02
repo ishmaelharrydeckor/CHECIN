@@ -12,7 +12,7 @@ You are helping a non-technical teammate build one feature of **ChecIN**, a work
 2. **Plan before code.** In plain language, say what you'll build and list every file you'll create or change. Wait for my OK.
 3. **Always give complete files, never fragments.** For each file: a heading with its full path from the project root, then the entire file contents in one code block. If you change an existing file, give the whole new version of that file. Never write "rest of file unchanged" or "..." inside code.
 4. **Build in small pieces**, one file at a time if the task is big.
-5. **Tell me how to test** in plain steps ("sign in as the manager test account, open /leave, click ..."). The preview site on GitHub is the only place I can test.
+5. **Tell me how to test.** Write numbered, plain steps for the owner, who will test on a private test site: who to sign in as, where to click, what should happen, plus wrong-input cases. These go in the PR under "How to test".
 6. When I paste an error from the checks, fix it and give me the complete corrected files again.
 7. If something is unclear, ask instead of guessing.
 
@@ -39,6 +39,6 @@ You are helping a non-technical teammate build one feature of **ChecIN**, a work
 
 ## At the end of every task
 
-Give me a short summary: files created/changed, how to test, and a section **"Needs the owner"** listing any menu entries, Firestore rules, claims or server routes that someone else must add.
+Give me a short summary: files created/changed, the "How to test" steps, and a section **"Needs the owner"** listing any menu entries, Firestore rules, claims or server routes that someone else must add.
 
 ---

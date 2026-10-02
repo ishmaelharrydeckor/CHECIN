@@ -1,6 +1,6 @@
 # Teammate guide: build a task using Claude and your browser
 
-You don't need to install anything or be a programmer. You'll use a normal Claude chat to write the code and your web browser to put it into GitHub. The owner reviews everything before it reaches the app. **Your job: describe the task clearly, put Claude's code in the right place, check it works on the preview site, and ask for help when stuck.**
+You don't need to install anything or be a programmer. You'll use a normal Claude chat to write the code and your web browser to put it into GitHub. The owner reviews everything before it reaches the app. **Your job: describe the task clearly, put Claude's code in the right place, get the checks green, write clear test steps, and ask for help when stuck.**
 
 If anything here doesn't match your screen, stop and message the owner. Don't guess.
 
@@ -23,7 +23,7 @@ If anything here doesn't match your screen, stop and message the owner. Don't gu
    - Paste the instructions from [docs/CLAUDE-PROJECT-INSTRUCTIONS.md](CLAUDE-PROJECT-INSTRUCTIONS.md) (the part between the lines) into the Project's instructions.
    - Download these three files from GitHub (open the file, click the download icon) and add them to the Project's knowledge: `AGENTS.md`, `CONTRIBUTING.md`, `docs/TEAM-TASKS.md`.
    - Can't make a Project? Paste the instructions at the start of every new chat instead.
-3. **Get your test logins** and the staging site address from the owner (privately). You use these to try your work.
+3. That's it. You don't run the app yourself. The owner tests your work on a private test site, so you never need logins or settings.
 
 ## Doing a task
 
@@ -58,11 +58,11 @@ Ask for **complete files, one code block per file, with the full path**. If Clau
 - **Red ✗:** click **Details**, copy the error text, paste it to Claude: *"This failed on GitHub. Fix it and give me the complete corrected files."* Put the new files in the same branch (the same steps as above, in the same branch) and push again.
 - If it fails twice in a row, message the owner.
 
-### 7. Test on the preview site
-A **Vercel** check appears on your PR with a **Visit Preview** link. Open it and test your feature using your test logins. Try wrong inputs too: empty fields, a past date, the wrong role. Google sign-in may not work on preview sites; use the email/password test logins. If the preview asks you for a Vercel login, tell the owner.
+### 7. Write test steps for the owner
+You can't run the app, so the owner will test your feature for you. In the PR description, under a heading **"How to test"**, write numbered steps in plain words: who to sign in as (manager or employee), where to click, and what should happen. Include the wrong-input cases ("leave the dates empty: an error should appear"). Ask Claude: *"Write the How to test steps for the owner, based on what we built."*
 
 ### 8. Ask for review
-When it works, click **Ready for review** on the PR and message the owner with the PR link. The owner reviews it and may leave comments. Paste each comment into your Claude chat: *"The reviewer said: ... Fix it and give me the complete files."* Push the changes to the same branch. The owner merges it when it's good.
+When the checks are green and your "How to test" steps are in, click **Ready for review** on the PR and message the owner with the PR link. The owner reviews the code, tests it on the staging site, and may leave comments. Paste each comment into your Claude chat: *"The reviewer said: ... Fix it and give me the complete files."* Push the changes to the same branch. The owner merges it when it's good.
 
 ## Hard rules (the app depends on these)
 
