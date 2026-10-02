@@ -1,6 +1,23 @@
 # Integrator review checklist
 
-For reviewing teammates' PRs into `staging`. Most teammates are non-technical and work through an AI assistant, so assume the code looks plausible and verify the parts that matter. About 10 minutes per PR.
+For reviewing teammates' PRs into `staging`. Teammates are non-technical, build in normal Claude chats, and paste code into GitHub through the browser. **Nobody has run their code.** Assume it looks plausible and verify the parts that matter. About 10 minutes per PR.
+
+## Fastest way: let Claude Code do the first pass
+
+In this repo's Claude Code session:
+
+```
+/review-pr <number>
+```
+
+It checks the base branch and CI, runs the build and typecheck on the branch, does the security/scope/behaviour passes below, and writes a plain-language message you can paste to the teammate. You still decide and merge. The checklist below is what it follows, and what you check by hand when the PR is risky.
+
+## Common problems with browser-built PRs
+- Base branch is `main` instead of `staging`. Retarget it.
+- A file pasted into the wrong folder, or a duplicate of an existing file.
+- Placeholder text or `...` left in the code (partial files).
+- Stale `src/routeTree.gen.ts`: harmless, `vite build` regenerates it. Commit the regenerated file after merge if the diff shows it changed.
+- Never merge a PR with a red check. Ask the teammate to paste the error into their Claude chat, or fix it yourself and say so in a PR comment.
 
 ## 1. Scope (30 seconds)
 - [ ] One task, matches the linked issue's "Done when"
@@ -19,7 +36,7 @@ Search the diff for each:
 - [ ] Credential-like collections (invites, device secrets, hashes) readable from the client. **Reject.**
 
 ## 3. Behaviour
-- [ ] CI green (typecheck + build)
+- [ ] CI green (build + typecheck)
 - [ ] Pull the branch or use the Vercel preview. Try it as an **employee**, a **manager**, and an **org admin**
 - [ ] Try it as the wrong role: a manager must not see another manager's team; an employee must not see anyone else's data
 - [ ] Empty state, loading state, error state exist

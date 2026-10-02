@@ -2,11 +2,11 @@
 <!-- One or two sentences. Link the task, e.g. "Task 1.3 from docs/V2-TASK-PLAN.md". -->
 
 ## Target branch
-- [ ] This PR targets `staging` (only the integrator opens `staging` -> `main`)
+- [ ] This PR's base branch is `staging` (only the integrator opens `staging` -> `main`)
 
 ## Checklist
-- [ ] `npx tsc --noEmit` and `npm run build` pass locally
-- [ ] Tested on staging data, never against production
+- [ ] The PR checks are green (or `npm run check` passes locally)
+- [ ] I tried it on the Vercel preview with the staging test logins, never against production
 - [ ] No secrets, keys, or `.env` values anywhere in the diff
 - [ ] I did not edit shared files (see CODEOWNERS). If I needed to, I said so below
 - [ ] No role, orgId, or managerId is read from a request body or query string. Identity comes from the verified ID token
