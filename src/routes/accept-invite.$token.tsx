@@ -55,6 +55,7 @@ function AcceptInvitePage() {
 
   const [loadingToken, setLoadingToken] = useState(true);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteErrorTitle, setInviteErrorTitle] = useState("Invitation Not Found");
   const [inviteData, setInviteData] = useState<{
     email: string;
     role: string;
@@ -90,7 +91,21 @@ function AcceptInvitePage() {
             .replace(/\b\w/g, (c: string) => c.toUpperCase());
           setFullName(nameSuggestion);
         } else {
-          setInviteError(data.error || "This invitation link is invalid or has expired.");
+          const msg: string = data.error || "This invitation link is invalid or has expired.";
+          if (/already been/i.test(msg)) {
+            setInviteErrorTitle("Invitation Already Used");
+            setInviteError(
+              "This invitation link has already been used. Each invite works once and only for the email address it was sent to. Ask your administrator to send you your own new invite.",
+            );
+          } else if (/expired/i.test(msg)) {
+            setInviteErrorTitle("Invitation Expired");
+            setInviteError(msg);
+          } else {
+            setInviteErrorTitle("Invalid Invitation Link");
+            setInviteError(
+              "We couldn't find this invitation. Check that the whole link was copied, or ask your administrator to send a new one.",
+            );
+          }
         }
       } catch {
         if (active) setInviteError("Could not verify invitation link. Please check your internet connection.");
@@ -276,7 +291,7 @@ function AcceptInvitePage() {
                 <AlertCircle className="size-8" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Invitation Not Found</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">{inviteErrorTitle}</h3>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
                   {inviteError}
                 </p>

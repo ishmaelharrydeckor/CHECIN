@@ -572,8 +572,14 @@ function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Add Location Form */}
-          {canManageKiosks && (
+          {/* Adding locations is an org-admin action (the server enforces this too) */}
+          {!isOrgAdmin && (
+            <p className="text-xs text-muted-foreground rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+              Your organization admin adds new entrance locations and revokes tablets. You can pair a tablet
+              and set work hours below.
+            </p>
+          )}
+          {isOrgAdmin && (
             <form onSubmit={handleCreateLocation} className="flex gap-3 items-end">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="locName" className="text-xs font-medium">
@@ -722,14 +728,18 @@ function SettingsPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         {loc.isPaired ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRevokeKiosk(loc.id)}
-                            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                          >
-                            Revoke Secret
-                          </Button>
+                          isOrgAdmin ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRevokeKiosk(loc.id)}
+                              className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                            >
+                              Revoke Secret
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Admin can revoke</span>
+                          )
                         ) : (
                           <Button
                             variant="outline"
