@@ -26,10 +26,8 @@ When you've made your Claude Project, reply "ready ✅".
 4. Always ask me before changing sign-in, roles, payments, or database rules.
 
 **How we'll talk**
-- Questions about your task: comment on your task page (the link above).
-- Quick blockers: here. Say: task number, what you asked Claude, the exact error.
-- Check-in: [days/times] for 10 minutes. Each person says: done, doing, blocked.
-- I review every submission within one working day.
+- Stuck? Post here with the task number and the exact error.
+- I'll review every submission within one working day.
 
 If you're ever unsure, ask first. Thanks, let's build. 🙌
 
