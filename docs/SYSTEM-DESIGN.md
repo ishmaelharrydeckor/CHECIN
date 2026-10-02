@@ -254,7 +254,7 @@ Each has a recommendation; none is irreversible except where noted.
 | D4 | Employee changes manager | Events follow the employee / events stay with the old manager | **Events stay (immutable audit)**; reports query by `employeeId` and reach history through the *current* team membership. Needs a short design note before building 1.6. |
 | D5 | Leave over balance | Block / allow negative / warn | **Block by default**, org-configurable later. |
 | D6 | WFH approval | Self-declared / manager-approved | **Self-declared in v2**, as the roadmap says; revisit with a customer. |
-| D7 | Greeting latency vs cost | 4 s poll (about 900 reads/h) / 12 s with the token / push channel | **4 s poll with caching.** A push channel (websocket/SSE) is not available on serverless without extra infrastructure. |
+| D7 | Greeting latency vs cost | 4 s poll (about 900 reads/h) / adaptive by location hours / 12 s with the token / push channel / drop the greeting | **Now: 4 s poll with caching, made adaptive (4 s around reporting/closing time, 60 s otherwise).** At scale (section 12) polling cannot be the mechanism; decide push channel vs dropping the kiosk greeting before about 100 kiosks. A push channel is not available on serverless without extra infrastructure. |
 | D8 | Org timezone | Keep browser-detected default / make it an explicit required choice / warn when on UTC | **Keep the default, add a visible warning while an org is on UTC and verify the pilot org's value.** Everything in section 6 depends on it being right. |
 
 ---
@@ -265,7 +265,7 @@ Maps onto [V2-TASK-PLAN.md](V2-TASK-PLAN.md). New work items added by this desig
 
 **Phase 0 additions (integrator, before teammates' features land):**
 - **NEW 0.7** Fix K1 + K2: shared `dayKey` util with tests, `daily_summaries`, scan transaction rewrite, idempotent `scanId`. (Largest single risk reduction.)
-- **NEW 0.8** Kiosk polling fix (5.1): cache, single read, 4 s greeting poll. Fixes K4, K12. **Do this first:** a single kiosk left on all day used about the whole free read quota on Sep 28.
+- **NEW 0.8** Kiosk polling fix (5.1): cache, single read, 4 s greeting poll, adaptive by location hours. Fixes K4, K12. **Do this first:** a single kiosk left on all day used about the whole free read quota on Sep 28.
 - **NEW 0.9** Usage monitoring on production (weekly check of the Firebase usage page against the 50k/day quota), PITR on, environment guard at startup. Blaze + budget alert is a later gate before the first paying customer, not a prerequisite (D1, D3, section 7).
 - **NEW 0.10** Verify every existing org's timezone (pilot lab first); warn admins while an org is on the UTC fallback (D8).
 - 0.6 tests: cover `dayKey`, scan direction, cooldown, scoping.
@@ -277,3 +277,76 @@ Maps onto [V2-TASK-PLAN.md](V2-TASK-PLAN.md). New work items added by this desig
 **Phase 3:** each starts with its own design note that extends sections 3, 5 and 6 of this document.
 
 **Teammate impact.** 1.6 (Augustine) should **not** start on the current feed/history approach. Either wait for 0.7's `team_days`, or build the UI against a documented response shape and let the integrator provide the data route. Task 1.1 (leave) and 1.5/1.3 are unaffected.
+
+---
+
+## 12. Designing for millions
+
+Sections 1-11 size the system for about 50 organizations. This section answers "what if ChecIN really grows to millions of users": which design choices must be right **now** because they are cheap today and brutal to change later, and which pieces of infrastructure to add **only when a measured threshold is crossed**. Firestore and Vercel can scale horizontally; what does not scale is a design that polls, recomputes, or funnels writes into one document.
+
+### 12.1 What "millions" means (pick the one that is true)
+
+| Scenario | Shape | Dominant pressure |
+|---|---|---|
+| A. Many small/medium orgs | 1M employees, 10,000 orgs, about 1 kiosk per 100 people | Total request volume, kiosk polling, cost per seat |
+| B. A few huge enterprises | 100k employees in one org | Hot documents, report generation, per-tenant isolation |
+| C. Millions of *events*, not users | What section 1 plans: 6.5M events a year | Bounded queries and summaries (already designed) |
+
+The numbers below use **A** (the harder one for infrastructure). Assumptions: 2 scans per employee per day, 30% of staff scan within one 15-minute window in a time-zone band.
+
+| Quantity | Result |
+|---|---|
+| Scans | 2M/day, about 23/s average, **about 330/s at the morning peak** |
+| Kiosks | 10,000 |
+| Kiosk polling **today** (2.5 s) | 4,000 requests/s around the clock = **346M requests/day**, about **576M Firestore reads/day** (10 h of use) |
+| Kiosk polling after fix 5.1 (4 s, 1 read) | **about 90M reads/day** |
+| Kiosk polling, adaptive (4 s only in the hours around reporting/closing time, 60 s otherwise) | **about 40M reads/day** |
+| An employee's own usage after the fixes | about 230 reads/month (scans, dashboards, reports) |
+| Kiosk reads per employee per month | about **2,700** after fix 5.1; about **1,200** adaptive |
+
+**The finding: after the section 5 fixes, the kiosk's polling is still 5-10x larger than all employee activity combined.** At millions of users it would be the largest line in the infrastructure bill and the biggest risk to availability, and no amount of caching removes a request that arrives every few seconds from thousands of devices. Polling is the wrong shape at that scale (D7).
+
+### 12.2 What breaks, in the order it will
+
+1. **Kiosk polling (above).** Needs a different mechanism before the kiosk count reaches the hundreds: either adaptive polling by location hours (cheap, ships with 0.8), or removing the server-side greeting (the phone already confirms the scan; the kiosk greeting is a nicety), or a push channel with a narrowly scoped **device** credential. The last one must be designed against the AGENTS.md rule that a kiosk has no user account.
+2. **Hot documents.** A single `team_days`/org rollup updated on every scan sustains about 1 write/second per document. A 50,000-person org with 40% scanning in 15 minutes is about **22 writes/second on one document**. Rollups must be **sharded counters** (N sub-documents, summed on read) or built **asynchronously** (a queue/cron job aggregating `daily_summaries`), not updated inline for large orgs. Per-person summaries (`daily_summaries`, one doc each) do not have this problem.
+3. **Reports at volume.** Whole-org exports run past a serverless function's time limit. Move to background generation writing a file, and stream the raw-event history to **BigQuery** (export) for analytics so dashboards for big tenants don't query Firestore.
+4. **Unit economics.** Cost per seat must be known and below the price per seat. Reads/writes per employee per month (above) feed that; so do auth, push and email. **Per-active-user pricing for Firebase Auth beyond its free tier**, SMS/email delivery, and Vercel invocations all scale with users. Verify current prices before setting a plan price (not verified in this draft).
+5. **Data residency and latency.** The database is `nam5` (US). Customers in Ghana/EU have legal and latency considerations (Ghana Data Protection Act, GDPR). At scale, expect **regional deployments** (a database per region, tenants pinned to a region at signup). Keep `region` as a field on `organizations` from now, even though it only has one value.
+6. **Noisy neighbors.** One huge or misbehaving org must not exhaust shared capacity: per-org rate limits and per-org daily quotas on expensive routes (reports, exports, invites), enforced with the existing Firestore-backed limiter.
+7. **Operational maturity.** Service-level objectives (for example, "99.9% of scans complete under 2 s"), alerting on them, on-call, load testing, tested disaster recovery (a restore drill, not just backups enabled), an external penetration test, and (for enterprise buyers) SOC 2 or ISO 27001 evidence.
+
+### 12.3 Cheap now, expensive later (do these in v2)
+
+These cost almost nothing today and are painful to retrofit. Each is already in sections 3-6; this is the checklist:
+
+- [ ] **Immutable, append-only `clock_events`** with deterministic ids and a client-generated `scanId` (idempotent retries).
+- [ ] **`dayKey` computed once, server-side, in the org timezone**, stored on every event and summary.
+- [ ] **Summaries and rollups are derived data**: always rebuildable from events by a job. Never the only copy.
+- [ ] **Every query bounded** (limit + date range + cursor) and covered by an index. A route with an unbounded `.get()` is a defect.
+- [ ] **No polling that reads a database.** New features use fetch-on-demand or change-detection on one small doc; the exception (kiosk) has a written budget and an adaptive interval.
+- [ ] **`orgId` on every document**, `region` on `organizations`, and **no cross-org query anywhere** (so tenants can later be moved or sharded).
+- [ ] **Schema versions** (`schemaVersion` on documents that will evolve) so migrations can run lazily.
+- [ ] **Feature flags / plan gating on the server** (task 0.5), so expensive features can be switched off per tenant.
+- [ ] **Per-org quotas and rate limits** on expensive routes.
+- [ ] **Structured audit log** and a **correlation id** on every request, for tracing one scan across the system.
+- [ ] **Environment guard** and separate staging (staging is done; the guard is task 0.9).
+- [ ] **Load-test harness** in the repo: a script that simulates N employees scanning against staging. Without it, every capacity claim is a guess.
+
+### 12.4 Add only when a measured threshold is crossed
+
+| Trigger (measure it first) | Add |
+|---|---|
+| More than about 100 kiosks, or kiosk requests above about 100/s | Replace greeting polling (push channel or drop the greeting) |
+| One org above about 2,000 people scanning in a short window | Async or sharded rollups |
+| Any report taking over about 10 s | Background report generation, BigQuery export |
+| First customer outside the US/Ghana with residency needs | Regional database + tenant pinning |
+| Paying customers above about 50 orgs | SLOs, on-call rota, quarterly restore drill |
+| First enterprise security questionnaire | Penetration test, SOC 2 readiness |
+| Firestore cost per seat above target | Revisit data access patterns before anything else |
+
+### 12.5 What not to do
+
+- **No rewrite, no microservices, no Kubernetes.** A modular Vercel + Firestore monolith comfortably handles scenario C and a long way into A. The risk at scale is a bad access pattern, not the wrong platform.
+- **Do not build sharding, BigQuery, regional deployments or a push gateway before the trigger fires.** They are real work and each has its own failure modes. Prepare the data model (12.3), measure, then build.
+- **Do not claim a scale number you haven't load-tested.** "Millions" is a target; the load-test harness is how it becomes a fact.
