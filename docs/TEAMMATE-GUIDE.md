@@ -25,6 +25,14 @@ If anything here doesn't match your screen, stop and message the owner. Don't gu
    - Can't make a Project? Paste the instructions at the start of every new chat instead.
 3. That's it. You don't run the app yourself. The owner tests your work on a private test site, so you never need logins or settings.
 
+## Finding your task
+
+- **Your tasks:** go to https://github.com/ishmaelharrydeckor/CHECIN/issues/assigned/@me (the Issues tab, filter **Assigned to you**). GitHub also emails you when a task is assigned to you.
+- **Everything planned:** https://github.com/ishmaelharrydeckor/CHECIN/issues?q=label%3Av2 shows all v2 tasks and who owns them.
+- **Order matters:** some tasks depend on others (the issue says "after #12"). Don't start one before the task it waits on has been merged. You can read it and plan, though.
+- **When you finish:** once the owner merges your PR, tell the owner and ask what's next. Don't pick up a task someone else owns. The owner assigns the next one, or you can suggest an unassigned task by commenting on it.
+- **If you have no task:** tell the owner. Don't start on your own idea. Add it as a comment on a related issue.
+
 ## Doing a task
 
 ### 1. Understand the task
