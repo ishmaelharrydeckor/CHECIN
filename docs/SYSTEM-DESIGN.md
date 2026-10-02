@@ -118,7 +118,7 @@ Unchanged from AGENTS.md; v2 adds only these rules:
 
 ## 5. Core flows: design and cost budgets
 
-Firestore bills per document read/write, so "cost" below is **document reads per operation**. The Spark (free) plan hard-stops at about 50k reads and 20k writes a day; on Blaze (pay as you go) the same volume costs cents to a few dollars a month, so **the real risk of overshooting is an outage on Spark, not a big bill** (D1).
+Firestore bills per document read/write, so "cost" below is **document reads per operation**. The Spark (free) plan allows 50,000 reads, 20,000 writes and 20,000 deletes a day and then **stops serving requests**. Blaze (pay as you go) has no such stop, and Google Cloud budgets **alert but do not cap spending by default**. So the two plans fail differently: Spark fails as an **outage**, Blaze fails as a **bill**. Neither is acceptable as the plan for a design that wastes reads, which is why **fixing the read patterns comes first and the plan decision second** (D1). Exact per-read prices were not verified for this draft; check the Google Cloud Firestore pricing page for the nam5 rate before relying on any dollar figure.
 
 ### 5.1 Kiosk token + greeting
 
@@ -201,7 +201,7 @@ This is the single biggest correctness area and the source of bugs K1, K2 and K8
 
 Operations to put in place:
 
-- **Budget alert** on production (needs Blaze). Alert at a low threshold.
+- **Usage monitoring on Spark** during the pilot: check the Firebase usage page against the daily quotas (reads 50k, writes 20k). **Budget alert** once on Blaze, at a low threshold. Alerts do not stop spending.
 - **Environment guard:** at server start, log `FIREBASE_PROJECT_ID`, and refuse to start if `VERCEL_ENV == "preview"` and the project ID equals the production project ID. This would have caught the earlier staging mix-up automatically.
 - **Structured logs** for scan, pair, invite, approve actions (who, org, action, outcome). `audit_logs` exists; define its schema and write to it from every privileged action.
 - **Quota and error monitoring:** Firebase usage dashboard weekly during the pilot; Vercel function error rate.
@@ -248,7 +248,7 @@ Each has a recommendation; none is irreversible except where noted.
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
-| D1 | Production Firebase plan | Stay on Spark / upgrade to Blaze with budget alert | **Blaze + alert.** Spark's hard daily cap would stop check-ins during the pilot. Needs your billing details. |
+| D1 | Production Firebase plan | Stay on Spark / upgrade to Blaze with budget alert | **Fix the read patterns first (0.8, then 5.3), stay on Spark through the pilot while usage is monitored, and move to Blaze only before paying customers.** Blaze removes the hard stop, so it must not be the way we absorb wasteful reads. When on Blaze: budget alert at a low threshold, a daily-usage check, and the environment guard (section 7). Revisit if the pilot nears the 50k/day read quota before the fixes ship. |
 | D2 | Kiosk revocation latency | Up to 60 s via cache TTL / instant via denylist read | **60 s TTL.** Revoke is for lost tablets, not live attacks. Revisit if a customer demands instant. |
 | D3 | Backups on production | Firestore PITR / scheduled export / none | **PITR on**, small cost, enable before the pilot grows. |
 | D4 | Employee changes manager | Events follow the employee / events stay with the old manager | **Events stay (immutable audit)**; reports query by `employeeId` and reach history through the *current* team membership. Needs a short design note before building 1.6. |
@@ -265,8 +265,8 @@ Maps onto [V2-TASK-PLAN.md](V2-TASK-PLAN.md). New work items added by this desig
 
 **Phase 0 additions (integrator, before teammates' features land):**
 - **NEW 0.7** Fix K1 + K2: shared `dayKey` util with tests, `daily_summaries`, scan transaction rewrite, idempotent `scanId`. (Largest single risk reduction.)
-- **NEW 0.8** Kiosk polling fix (5.1): cache, single read, 4 s greeting poll. Fixes K4, K12.
-- **NEW 0.9** Production on Blaze + budget alert; PITR on; environment guard at startup (D1, D3, section 7).
+- **NEW 0.8** Kiosk polling fix (5.1): cache, single read, 4 s greeting poll. Fixes K4, K12. **Do this first:** a single kiosk left on all day used about the whole free read quota on Sep 28.
+- **NEW 0.9** Usage monitoring on production (weekly check of the Firebase usage page against the 50k/day quota), PITR on, environment guard at startup. Blaze + budget alert is a later gate before the first paying customer, not a prerequisite (D1, D3, section 7).
 - **NEW 0.10** Verify every existing org's timezone (pilot lab first); warn admins while an org is on the UTC fallback (D8).
 - 0.6 tests: cover `dayKey`, scan direction, cooldown, scoping.
 
