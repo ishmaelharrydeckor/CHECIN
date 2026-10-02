@@ -356,15 +356,15 @@ function KioskPage() {
               ✓
             </div>
             <h3 className="text-2xl font-bold text-white mb-1">
-              Welcome, {toastData.name}
+              {toastData.status.includes("OUT") ? "Goodbye" : "Welcome"}, {toastData.name}
             </h3>
             <p className="text-sm text-[#C0FD9B] font-semibold">
               {toastData.status} • {toastData.time}
             </p>
             <p className="text-xs text-white/60 mt-3">
-              {toastData.status.includes("IN")
-                ? "Have a safe and productive day at the office!"
-                : "Thank you for your hard work. Have a great evening!"}
+              {toastData.status.includes("OUT")
+                ? "Thank you for your hard work. Have a great evening!"
+                : "Have a safe and productive day at the office!"}
             </p>
           </div>
         )}

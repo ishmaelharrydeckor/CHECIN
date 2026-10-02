@@ -61,9 +61,8 @@ function ScanPage() {
       await html5QrCode.start(
         { facingMode: "environment" },
         {
-          fps: 10,
-          qrbox: { width: 220, height: 220 },
-          aspectRatio: 1.0,
+          // No qrbox: decode the entire camera frame, not a small centre square.
+          fps: 15,
         },
         async (decodedText) => {
           if (cooldownRef.current || processingScan) return;
@@ -247,10 +246,14 @@ function ScanPage() {
   // VIEW B: ACTIVE SCANNER VIEW (Authenticated Employee)
   // -------------------------------------------------------------
   return (
-    <main className="min-h-screen bg-slate-900 sm:bg-slate-100 p-2 sm:p-4 flex flex-col justify-center items-center font-sans">
-      <div className="w-full max-w-[390px] bg-black text-white rounded-[40px] p-4 border-[8px] border-slate-800 shadow-2xl overflow-hidden relative">
-        {/* Dynamic Island / Notch */}
-        <div className="w-32 h-4 bg-slate-900 rounded-full mx-auto mb-3 flex items-center justify-center">
+    <main className="h-[100dvh] bg-black sm:bg-slate-100 sm:p-4 flex flex-col justify-center items-center font-sans">
+      <style>{`
+        #qr-reader { border: none !important; }
+        #qr-reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+      `}</style>
+      <div className="w-full h-full sm:h-auto sm:max-w-[390px] flex flex-col bg-black text-white sm:rounded-[40px] p-3 sm:p-4 sm:border-[8px] sm:border-slate-800 sm:shadow-2xl overflow-hidden relative">
+        {/* Dynamic Island / Notch (desktop preview only) */}
+        <div className="hidden sm:flex w-32 h-4 bg-slate-900 rounded-full mx-auto mb-3 items-center justify-center">
           <div className="w-10 h-1 bg-slate-700 rounded-full"></div>
         </div>
 
@@ -296,9 +299,14 @@ function ScanPage() {
         </div>
 
         {/* Camera Viewfinder / HTML5 QR Scanner */}
-        <div className="bg-slate-950 rounded-2xl h-64 border-2 border-dashed border-[#C0FD9B]/50 relative flex flex-col items-center justify-center p-2 text-center overflow-hidden">
-          {/* HTML5 QR Code Mount Element */}
-          <div id="qr-reader" className="w-full h-full object-cover"></div>
+        <div className="bg-slate-950 rounded-2xl flex-1 min-h-0 sm:flex-none sm:h-[28rem] border-2 border-dashed border-[#C0FD9B]/50 relative overflow-hidden">
+          {/* HTML5 QR Code Mount Element — fills the whole viewfinder */}
+          <div id="qr-reader" className="absolute inset-0"></div>
+
+          {/* Corner guides (visual only; the whole frame is scanned) */}
+          {cameraActive && (
+            <div className="pointer-events-none absolute inset-6 z-10 border-2 border-white/30 rounded-xl" />
+          )}
 
           {/* Fallback Viewfinder Overlay if camera is loading or permission pending */}
           {!cameraActive && (
