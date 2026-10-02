@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "checin-staging",
+    "staging": "checin-staging",
+    "production": "checin-d172e"
+  }
+}

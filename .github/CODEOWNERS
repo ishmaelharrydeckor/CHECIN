@@ -1,0 +1,13 @@
+# Shared / security-critical files. Changes here need the integrator's review.
+# Keep in sync with "Shared files" in docs/V2-TASK-PLAN.md.
+/AGENTS.md                                      @ishmaelharrydeckor
+/firestore.rules                                @ishmaelharrydeckor
+/firebase.json                                  @ishmaelharrydeckor
+/.github/                                       @ishmaelharrydeckor
+/src/components/AppShell.tsx                    @ishmaelharrydeckor
+/src/routes/auth.tsx                            @ishmaelharrydeckor
+/src/integrations/firebase/admin.server.ts      @ishmaelharrydeckor
+/src/routes/api/admin/                          @ishmaelharrydeckor
+/src/routes/api/auth/                           @ishmaelharrydeckor
+/src/routes/api/kiosk/                          @ishmaelharrydeckor
+/src/routes/api/check-in/                       @ishmaelharrydeckor
