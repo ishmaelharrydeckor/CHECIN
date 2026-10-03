@@ -101,8 +101,12 @@ function KioskPage() {
     });
   };
 
-  // Poll /api/kiosk/token when paired
-  const fetchTokenRef = useRef<() => void>(() => {});
+  // Poll /api/kiosk/token when paired. The server tells us how soon to ask again
+  // (fast around reporting/closing time so the greeting feels instant, slower
+  // otherwise). We clamp it: never faster than 3 s (database cost) and never
+  // slower than 12 s (the QR token must be refreshed before it goes stale).
+  const pollMsRef = useRef<number>(4000);
+  const fetchTokenRef = useRef<() => void | Promise<void>>(() => {});
   fetchTokenRef.current = async () => {
     if (!deviceSecret || !locationId) return;
 
@@ -144,6 +148,9 @@ function KioskPage() {
       }
 
       setTokenError(null);
+      if (typeof data.pollMs === "number" && Number.isFinite(data.pollMs)) {
+        pollMsRef.current = Math.min(12000, Math.max(3000, data.pollMs));
+      }
       setTokenHash(data.token.slice(0, 8) + "..." + data.token.slice(-6));
       if (data.secondsRemaining) {
         setCountdown(data.secondsRemaining);
@@ -185,15 +192,22 @@ function KioskPage() {
   useEffect(() => {
     if (!deviceSecret || !locationId) return;
 
-    // Initial fetch
-    fetchTokenRef.current();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    // Poll every 2.5 seconds for instant toast response
-    const interval = setInterval(() => {
-      fetchTokenRef.current();
-    }, 2500);
+    // Self-scheduling loop so the interval can change with the server's hint.
+    // A failed request keeps the last interval (default 4 s), so a flaky
+    // network does not slow the QR refresh below its safe floor.
+    const tick = async () => {
+      await fetchTokenRef.current();
+      if (!cancelled) timer = setTimeout(tick, pollMsRef.current);
+    };
+    tick();
 
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [deviceSecret, locationId]);
 
   const handlePair = async (e: React.FormEvent) => {
