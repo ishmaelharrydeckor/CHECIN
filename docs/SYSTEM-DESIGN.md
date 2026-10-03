@@ -254,7 +254,7 @@ Each has a recommendation; none is irreversible except where noted.
 | D4 | Employee changes manager | Events follow the employee / events stay with the old manager | **Events stay (immutable audit)**; reports query by `employeeId` and reach history through the *current* team membership. Needs a short design note before building 1.6. |
 | D5 | Leave over balance | Block / allow negative / warn | **Block by default**, org-configurable later. |
 | D6 | WFH approval | Self-declared / manager-approved | **Self-declared in v2**, as the roadmap says; revisit with a customer. |
-| D7 | Greeting latency vs cost | 4 s poll (about 900 reads/h) / adaptive by location hours / 12 s with the token / push channel / drop the greeting | **Now: 4 s poll with caching, made adaptive (4 s around reporting/closing time, 60 s otherwise).** At scale (section 12) polling cannot be the mechanism; decide push channel vs dropping the kiosk greeting before about 100 kiosks. A push channel is not available on serverless without extra infrastructure. |
+| D7 | Greeting latency vs cost | 4 s poll (about 900 reads/h) / adaptive by location hours / 12 s with the token / push channel / drop the greeting | **Now: 4 s poll with caching, made adaptive (4 s around reporting/closing time, 12 s otherwise).** At scale (section 12) polling cannot be the mechanism; decide push channel vs dropping the kiosk greeting before about 100 kiosks. A push channel is not available on serverless without extra infrastructure. |
 | D8 | Org timezone | Keep browser-detected default / make it an explicit required choice / warn when on UTC | **Keep the default, add a visible warning while an org is on UTC and verify the pilot org's value.** Everything in section 6 depends on it being right. |
 
 ---
@@ -300,11 +300,11 @@ The numbers below use **A** (the harder one for infrastructure). Assumptions: 2 
 | Kiosks | 10,000 |
 | Kiosk polling **today** (2.5 s) | 4,000 requests/s around the clock = **346M requests/day**, about **576M Firestore reads/day** (10 h of use) |
 | Kiosk polling after fix 5.1 (4 s, 1 read) | **about 90M reads/day** |
-| Kiosk polling, adaptive (4 s only in the hours around reporting/closing time, 60 s otherwise) | **about 40M reads/day** |
+| Kiosk polling, adaptive (4 s in the hours around reporting/closing time, 12 s otherwise; this is what PR #27 implements) | **about 54M reads/day** |
 | An employee's own usage after the fixes | about 230 reads/month (scans, dashboards, reports) |
-| Kiosk reads per employee per month | about **2,700** after fix 5.1; about **1,200** adaptive |
+| Kiosk reads per employee per month | about **2,700** after fix 5.1 with a flat 4 s poll; about **1,600** adaptive |
 
-**The finding: after the section 5 fixes, the kiosk's polling is still 5-10x larger than all employee activity combined.** At millions of users it would be the largest line in the infrastructure bill and the biggest risk to availability, and no amount of caching removes a request that arrives every few seconds from thousands of devices. Polling is the wrong shape at that scale (D7).
+**The finding: after the section 5 fixes, the kiosk's polling is still 5-10x larger than all employee activity combined.** At millions of users it would be the largest line in the infrastructure bill and the biggest risk to availability, and no amount of caching removes a request that arrives every few seconds from thousands of devices. Polling is the wrong shape at that scale (D7). Note the floor: because a QR token lives only about 30-45 s, an idle kiosk can't poll slower than every 12 s, so adaptive polling roughly halves, not eliminates, the load. Only a push channel, or dropping the server-side greeting, changes the shape.
 
 ### 12.2 What breaks, in the order it will
 
