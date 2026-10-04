@@ -74,11 +74,11 @@ Once deployed (or locally on `http://localhost:3001`), follow this sequential ch
 ### 2. Entrance Location & Kiosk Pairing
 1. Go to **Settings** (`/settings`) from the sidebar.
 2. In the **Entrance Terminals** card:
-   - Notice the default location: `Main Entrance Turnstile A`.
+   - A new organization starts with no locations. Type a name (e.g. "Main Entrance") and click **"Add Location"**.
    - Click **"Generate Pairing Code"**.
    - A modal displays a single-use 6-digit code (e.g. `CHK-842714`) valid for 10 minutes.
 3. Open a separate browser window or tablet at `/kiosk`:
-   - Enter the pairing code from step 2 (or click **"One-Click Quick Pair"** for testing).
+   - Enter the pairing code from step 2.
    - Click **"Authorize Terminal"**.
 4. The kiosk transitions into the **Entrance Display Mode**:
    - Digital clock and current date.
@@ -88,10 +88,9 @@ Once deployed (or locally on `http://localhost:3001`), follow this sequential ch
 ---
 
 ### 3. Employee Scan & Live Punch Verification
-1. On your phone (or a 3rd browser tab), open `/scan` (or `/scan?demo=true` for demonstration).
-2. If using camera: Point your phone camera at the rotating QR code on the kiosk screen.
-3. If testing in browser: Click **"Instant Demo Scan"**.
-4. **Observe the simultaneous triple-screen reaction**:
+1. On your phone, sign in as an employee and open `/scan`.
+2. Point the phone camera at the rotating QR code on the kiosk screen.
+3. **Observe the simultaneous triple-screen reaction**:
    - **Phone Scanner**: Shows a haptic confirmation: `"Clocked IN · Welcome to work!"`.
    - **Entrance Kiosk**: Flashes a high-visibility welcome toast at the top: `"👋 Welcome, Alex Mensah"`.
    - **Manager Dashboard**: The live table immediately prepends the check-in event at the top with timestamp, and the **"Present Today"** metric counter increments.
@@ -99,7 +98,7 @@ Once deployed (or locally on `http://localhost:3001`), follow this sequential ch
 ---
 
 ### 4. Clock-Out Verification
-1. On the same scanner, trigger another scan after ~15 seconds.
+1. On the same scanner, scan again after more than a minute (there is a 60-second cooldown between scans).
 2. The system detects the employee's last status was `IN` and automatically performs a **Clock OUT**.
 3. **Observations**:
    - Phone flashes: `"Clocked OUT · See you tomorrow!"`.
@@ -110,8 +109,7 @@ Once deployed (or locally on `http://localhost:3001`), follow this sequential ch
 
 ### 5. Staff Management & Reports
 1. On the **Dashboard**:
-   - Click **"🌱 Seed Demo Team"** to populate realistic colleagues across Engineering, Product, and Sales.
-   - Test the search bar (filter by name e.g. "Kofi").
+   - Test the search bar (filter by an employee's name).
    - Test department and status filters (`Present`, `Checked Out`).
    - Click **"Export CSV"** to download the official timesheet audit report.
 2. In **Team Invites**:

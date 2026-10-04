@@ -11,7 +11,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | Task | Title | Size | Assignee | Status | Depends on |
 |---|---|---|---|---|---|
 | 1.3 | Change password on Account page | S | _unassigned_ | todo | none |
-| 1.5 | Remove demo/mock leftovers | S | _unassigned_ | todo | none |
+| 1.5 | Remove demo/mock leftovers | S | integrator | done | none |
 | 1.1 | Leave requests (basic) | M | _unassigned_ | todo | none |
 | 1.6 | Manager dashboard: today's attendance and late list | M | _unassigned_ | todo | none |
 | 1.2 | Employee self-service page | M | _unassigned_ | todo | 1.1 |
@@ -39,13 +39,9 @@ Update the Status column in your PR (`todo` > `in progress` > `in review` > `on 
 - Success toast; form clears
 - No password is logged, stored, or sent to our own server
 
-## 1.5 Remove demo and mock leftovers (S)
+## 1.5 Remove demo and mock leftovers (S): DONE by the integrator
 
-**What:** Remove the fake `INITIAL_LOCATIONS` list in Settings so the page shows only real locations from Firestore, with a proper empty state ("No entrances yet. Add your first one").
-
-**Files:** `src/routes/_authenticated/settings.tsx`. Search the codebase for other hardcoded sample names, fake staff, or "demo" UI text and list them in the PR. Don't touch `src/routes/api/admin/seed-demo.ts` or `src/routes/api/auth/demo-login.ts`; the integrator removes those.
-
-**Done when:** a brand new org sees an empty state, no fake data anywhere, add/pair/revoke location still work.
+Removed: the unused `INITIAL_LOCATIONS` sample list in Settings, the automatic creation of a "Main Entrance Lobby" location when an organization first opens Settings (a read request that wrote data), the `seed-demo` route (fake staff and events), the disabled `demo-login` and `login-direct` stubs, and stale demo instructions in `DEPLOYMENT.md`. A new organization now starts with no locations and an "Add Location" form.
 
 ## 1.1 Leave requests, basic (M)
 

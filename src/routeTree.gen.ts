@@ -26,13 +26,10 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
 import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-link'
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
-import { Route as ApiAdminSeedDemoRouteImport } from './routes/api/admin/seed-demo'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
 import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
-import { Route as ApiAuthDemoLoginRouteImport } from './routes/api/auth/demo-login'
-import { Route as ApiAuthLoginDirectRouteImport } from './routes/api/auth/login-direct'
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
 import { Route as ApiCheckInScanRouteImport } from './routes/api/check-in/scan'
 import { Route as ApiKioskPairRouteImport } from './routes/api/kiosk/pair'
@@ -133,11 +130,6 @@ const ApiAdminRolesRoute = ApiAdminRolesRouteImport.update({
   path: '/api/admin/roles',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminSeedDemoRoute = ApiAdminSeedDemoRouteImport.update({
-  id: '/api/admin/seed-demo',
-  path: '/api/admin/seed-demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAdminStaffInvitesRoute = ApiAdminStaffInvitesRouteImport.update({
   id: '/api/admin/staff-invites',
   path: '/api/admin/staff-invites',
@@ -156,16 +148,6 @@ const ApiAttendanceFeedRoute = ApiAttendanceFeedRouteImport.update({
 const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   id: '/api/attendance/history',
   path: '/api/attendance/history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthDemoLoginRoute = ApiAuthDemoLoginRouteImport.update({
-  id: '/api/auth/demo-login',
-  path: '/api/auth/demo-login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthLoginDirectRoute = ApiAuthLoginDirectRouteImport.update({
-  id: '/api/auth/login-direct',
-  path: '/api/auth/login-direct',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthRegisterOrgRoute = ApiAuthRegisterOrgRouteImport.update({
@@ -251,12 +233,9 @@ export interface FileRoutesByFullPath {
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
-  '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
-  '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
-  '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -289,12 +268,9 @@ export interface FileRoutesByTo {
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
-  '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
-  '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
-  '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -329,12 +305,9 @@ export interface FileRoutesById {
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
-  '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
-  '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
-  '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -369,12 +342,9 @@ export interface FileRouteTypes {
     | '/accept-invite/$token'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
-    | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
-    | '/api/auth/demo-login'
-    | '/api/auth/login-direct'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -407,12 +377,9 @@ export interface FileRouteTypes {
     | '/accept-invite/$token'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
-    | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
-    | '/api/auth/demo-login'
-    | '/api/auth/login-direct'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -446,12 +413,9 @@ export interface FileRouteTypes {
     | '/accept-invite/$token'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
-    | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
-    | '/api/auth/demo-login'
-    | '/api/auth/login-direct'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -479,12 +443,9 @@ export interface RootRouteChildren {
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
   ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
-  ApiAdminSeedDemoRoute: typeof ApiAdminSeedDemoRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
   ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
-  ApiAuthDemoLoginRoute: typeof ApiAuthDemoLoginRoute
-  ApiAuthLoginDirectRoute: typeof ApiAuthLoginDirectRoute
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
   ApiCheckInScanRoute: typeof ApiCheckInScanRoute
   ApiKioskPairRoute: typeof ApiKioskPairRoute
@@ -622,13 +583,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminRolesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/seed-demo': {
-      id: '/api/admin/seed-demo'
-      path: '/api/admin/seed-demo'
-      fullPath: '/api/admin/seed-demo'
-      preLoaderRoute: typeof ApiAdminSeedDemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/admin/staff-invites': {
       id: '/api/admin/staff-invites'
       path: '/api/admin/staff-invites'
@@ -655,20 +609,6 @@ declare module '@tanstack/react-router' {
       path: '/api/attendance/history'
       fullPath: '/api/attendance/history'
       preLoaderRoute: typeof ApiAttendanceHistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/demo-login': {
-      id: '/api/auth/demo-login'
-      path: '/api/auth/demo-login'
-      fullPath: '/api/auth/demo-login'
-      preLoaderRoute: typeof ApiAuthDemoLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/login-direct': {
-      id: '/api/auth/login-direct'
-      path: '/api/auth/login-direct'
-      fullPath: '/api/auth/login-direct'
-      preLoaderRoute: typeof ApiAuthLoginDirectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/register-org': {
@@ -799,12 +739,9 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
   ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
-  ApiAdminSeedDemoRoute: ApiAdminSeedDemoRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
   ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
-  ApiAuthDemoLoginRoute: ApiAuthDemoLoginRoute,
-  ApiAuthLoginDirectRoute: ApiAuthLoginDirectRoute,
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
   ApiCheckInScanRoute: ApiCheckInScanRoute,
   ApiKioskPairRoute: ApiKioskPairRoute,
