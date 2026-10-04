@@ -9,8 +9,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --test scripts/tests/attendance-day.test.mjs",
-    "check": "vite build && tsc --noEmit && node --test scripts/tests/attendance-day.test.mjs",
+    "test": "node --test \"scripts/tests/*.test.mjs\"",
+    "check": "vite build && tsc --noEmit && npm test",
     "format": "prettier --write ."
   },
   "dependencies": {
