@@ -41,28 +41,6 @@ export const Route = createFileRoute("/api/locations/")({
             });
           }
 
-          // If no locations exist yet for this org, auto-seed a default "Main Entrance Lobby"
-          if (locations.length === 0) {
-            const defaultRef = firestoreAdmin.collection("locations").doc();
-            const now = new Date().toISOString();
-            await defaultRef.set({
-              name: "Main Entrance Lobby",
-              orgId: callerOrgId,
-              createdAt: now,
-            });
-            locations.push({
-              id: defaultRef.id,
-              name: "Main Entrance Lobby",
-              orgId: callerOrgId,
-              createdAt: now,
-              reportingTime: null,
-              closingTime: null,
-              checkoutWindowMinutes: DEFAULT_CHECKOUT_WINDOW_MINUTES,
-              isPaired: false,
-              pairedAt: null,
-            });
-          }
-
           return Response.json({ ok: true, locations });
         } catch (err: any) {
           console.error("GET /api/locations error:", err);
