@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test": "node --test scripts/tests/attendance-day.test.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {
