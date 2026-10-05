@@ -41,6 +41,8 @@ Search the diff for each:
 - [ ] Try it as the wrong role: a manager must not see another manager's team; an employee must not see anyone else's data
 - [ ] Empty state, loading state, error state exist
 - [ ] Phone width for anything an employee sees
+- [ ] **Looks like the rest of the app** (`docs/UI-STYLE-GUIDE.md`): same title, card and button styles; only guide colors; status colors used correctly; no new fonts, shadows or libraries; no hard-coded colors outside the guide
+- [ ] The PR description includes the "Style check" and names the reference screen it matched
 
 ## 4. Shared-file changes the PR asked for
 - [ ] Menu entry / route wiring (AppShell): add on top of their branch or in a follow-up commit

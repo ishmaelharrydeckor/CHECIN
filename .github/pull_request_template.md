@@ -19,5 +19,8 @@
 ## How to test
 <!-- Numbered plain-language steps: who to sign in as, where to click, what should happen, plus the wrong-input cases. -->
 
+## Style check
+<!-- Which existing page did you match? Confirm the checklist in docs/UI-STYLE-GUIDE.md, section 9. -->
+
 ## Screenshots
 <!-- For UI changes: desktop and phone width. -->

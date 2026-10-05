@@ -115,4 +115,5 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 - [ ] PR into `staging`, CI green, checklist in the PR template ticked
 - [ ] Tried on the staging URL with at least one manager and one employee account
 - [ ] Phone width checked for anything an employee sees
+- [ ] Matches the look of the rest of the app (`docs/UI-STYLE-GUIDE.md`), with a "Style check" in the PR
 - [ ] Integrator review done; shared-file changes handled by the integrator
