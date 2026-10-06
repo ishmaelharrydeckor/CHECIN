@@ -1,4 +1,18 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   LEAVE_TYPES,
   LEAVE_TYPE_LABELS,
@@ -15,31 +29,20 @@ interface Props {
 
 const EMPTY: LeaveFormInput = { type: "annual", startDate: "", endDate: "", note: "" };
 
-const fieldClass =
-  "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500";
-const errorClass = "mt-1 text-sm text-red-600";
-
 export function LeaveRequestForm({ onSubmit }: Props) {
   const [values, setValues] = useState<LeaveFormInput>(EMPTY);
   const [errors, setErrors] = useState<LeaveFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const today = todayISO();
 
-  const handleChange =
-    (field: keyof LeaveFormInput) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      setValues((v) => ({ ...v, [field]: e.target.value }));
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-      setSuccess(false);
-    };
+  function setField(field: keyof LeaveFormInput, value: string) {
+    setValues((v) => ({ ...v, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSubmitError(null);
-    setSuccess(false);
 
     const found = validateLeaveInput(values);
     setErrors(found);
@@ -49,101 +52,122 @@ export function LeaveRequestForm({ onSubmit }: Props) {
     try {
       await onSubmit(values);
       setValues(EMPTY);
-      setSuccess(true);
+      toast.success("Leave request sent");
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : "Couldn't send your request. Try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4 rounded-lg border p-4">
-      <h2 className="text-lg font-semibold">Request leave</h2>
+    <Card className="border-border/80 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-semibold">Request leave</CardTitle>
+        <CardDescription className="text-xs">
+          Your manager will review it. Start dates can&apos;t be in the past.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="leave-type" className="text-xs font-medium text-[#0E2322]">
+              Type
+            </Label>
+            <Select value={values.type} onValueChange={(v) => setField("type", v)}>
+              <SelectTrigger id="leave-type" className="h-10 text-sm">
+                <SelectValue placeholder="Choose a type" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAVE_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {LEAVE_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.type && (
+              <p role="alert" className="text-xs text-destructive">
+                {errors.type}
+              </p>
+            )}
+          </div>
 
-      <div>
-        <label htmlFor="leave-type" className="mb-1 block text-sm font-medium">
-          Type
-        </label>
-        <select
-          id="leave-type"
-          value={values.type}
-          onChange={handleChange("type")}
-          className={fieldClass}
-        >
-          {LEAVE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {LEAVE_TYPE_LABELS[t]}
-            </option>
-          ))}
-        </select>
-        {errors.type && <p className={errorClass}>{errors.type}</p>}
-      </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="leave-start" className="text-xs font-medium text-[#0E2322]">
+                Start date
+              </Label>
+              <Input
+                id="leave-start"
+                type="date"
+                min={today}
+                value={values.startDate}
+                onChange={(e) => setField("startDate", e.target.value)}
+                className="h-10 text-sm"
+              />
+              {errors.startDate && (
+                <p role="alert" className="text-xs text-destructive">
+                  {errors.startDate}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="leave-end" className="text-xs font-medium text-[#0E2322]">
+                End date
+              </Label>
+              <Input
+                id="leave-end"
+                type="date"
+                min={values.startDate || today}
+                value={values.endDate}
+                onChange={(e) => setField("endDate", e.target.value)}
+                className="h-10 text-sm"
+              />
+              {errors.endDate && (
+                <p role="alert" className="text-xs text-destructive">
+                  {errors.endDate}
+                </p>
+              )}
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="leave-start" className="mb-1 block text-sm font-medium">
-            Start date
-          </label>
-          <input
-            id="leave-start"
-            type="date"
-            min={today}
-            value={values.startDate}
-            onChange={handleChange("startDate")}
-            className={fieldClass}
-          />
-          {errors.startDate && <p className={errorClass}>{errors.startDate}</p>}
-        </div>
-        <div>
-          <label htmlFor="leave-end" className="mb-1 block text-sm font-medium">
-            End date
-          </label>
-          <input
-            id="leave-end"
-            type="date"
-            min={values.startDate || today}
-            value={values.endDate}
-            onChange={handleChange("endDate")}
-            className={fieldClass}
-          />
-          {errors.endDate && <p className={errorClass}>{errors.endDate}</p>}
-        </div>
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="leave-note" className="text-xs font-medium text-[#0E2322]">
+              Note (optional)
+            </Label>
+            <Textarea
+              id="leave-note"
+              rows={3}
+              maxLength={NOTE_MAX_LENGTH}
+              value={values.note}
+              onChange={(e) => setField("note", e.target.value)}
+              className="text-sm"
+            />
+            <div className="flex items-start justify-between gap-2">
+              {errors.note ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {errors.note}
+                </p>
+              ) : (
+                <span />
+              )}
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {values.note.length}/{NOTE_MAX_LENGTH}
+              </span>
+            </div>
+          </div>
 
-      <div>
-        <label htmlFor="leave-note" className="mb-1 block text-sm font-medium">
-          Note <span className="font-normal text-gray-500">(optional)</span>
-        </label>
-        <textarea
-          id="leave-note"
-          rows={3}
-          maxLength={NOTE_MAX_LENGTH}
-          value={values.note}
-          onChange={handleChange("note")}
-          className={fieldClass}
-        />
-        {errors.note && <p className={errorClass}>{errors.note}</p>}
-      </div>
-
-      {submitError && (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-          {submitError}
-        </p>
-      )}
-      {success && (
-        <p role="status" className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-          Request submitted. Your manager will review it.
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-md bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-60 sm:w-auto"
-      >
-        {submitting ? "Submitting…" : "Submit request"}
-      </button>
-    </form>
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="h-10 w-full bg-[#0E2322] text-xs font-medium text-white hover:bg-[#163331] sm:w-auto"
+          >
+            {submitting && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+            {submitting ? "Sending…" : "Send request"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
