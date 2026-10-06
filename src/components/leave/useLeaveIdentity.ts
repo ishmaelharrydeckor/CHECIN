@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-// ASSUMPTION: adjust this import to wherever the client `auth` is exported,
-// or swap this whole hook for the helper in src/lib/auth-claims.ts.
-import { auth } from "@/integrations/firebase/client";
+import { firebaseAuth } from "@/integrations/firebase/config";
 
 export type LeaveRole = "org_admin" | "manager" | "employee";
 
@@ -28,7 +26,7 @@ export function useLeaveIdentity(): LeaveIdentity {
   const [identity, setIdentity] = useState<LeaveIdentity>({ status: "loading" });
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
+    return onAuthStateChanged(firebaseAuth, async (user) => {
       if (!user) {
         setIdentity({ status: "signed-out" });
         return;

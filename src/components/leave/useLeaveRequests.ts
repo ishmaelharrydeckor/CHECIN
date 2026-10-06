@@ -12,8 +12,7 @@ import {
   type QueryDocumentSnapshot,
   type QueryConstraint,
 } from "firebase/firestore";
-// ASSUMPTION: adjust this import to wherever the client `db` is exported.
-import { db } from "@/integrations/firebase/client";
+import { firestoreDb } from "@/integrations/firebase/config";
 import {
   isLeaveType,
   type LeaveFormInput,
@@ -112,7 +111,7 @@ export function useLeaveRequests(identity: ReadyIdentity) {
     setError(null);
 
     return onSnapshot(
-      query(collection(db, COLLECTION), ...constraints),
+      query(collection(firestoreDb, COLLECTION), ...constraints),
       (snap) => {
         const rows = snap.docs
           .map(fromSnapshot)
@@ -135,7 +134,7 @@ export function useLeaveRequests(identity: ReadyIdentity) {
       }
       const note = input.note.trim();
       try {
-        await addDoc(collection(db, COLLECTION), {
+        await addDoc(collection(firestoreDb, COLLECTION), {
           orgId,
           managerId,
           employeeId: uid,
@@ -160,7 +159,7 @@ export function useLeaveRequests(identity: ReadyIdentity) {
         throw new Error("You can't review requests.");
       }
       try {
-        await updateDoc(doc(db, COLLECTION, id), {
+        await updateDoc(doc(firestoreDb, COLLECTION, id), {
           status: decision,
           reviewedBy: uid,
           reviewedAt: serverTimestamp(),
