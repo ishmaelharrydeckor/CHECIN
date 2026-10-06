@@ -53,6 +53,26 @@ Source: `docs/ChecIN-V2-Feature-Roadmap.md` + what we learned building v1 and th
 | 3.4 | **Divisions** (grouping label above teams; no new claim) | I | M | Keep claims as `{role, orgId, managerId}` |
 | 3.5 | Payroll export formats | I | M | Wait for a customer's actual format |
 
+## Phase 4 — Dashboard redesign (LAST: only after every feature above is built)
+
+Target look and structure: [DASHBOARD-DESIGN-REFERENCE.md](DASHBOARD-DESIGN-REFERENCE.md). **Do not start any of this early.** The redesign needs the real data and features it displays, and teammates keep following `UI-STYLE-GUIDE.md` until 4.8. Every task starts with a design pass (mock in ChecIN's own palette and wording), and the integrator reviews against the "do not copy" list in the reference doc.
+
+**Gate to start:** 0.7b summaries (#23), 1.1 leave, 1.2 employee page, 2.1 reports, 2.2 leave balances, 2.3 work from home, 2.4 analytics data, 2.5 holidays are all done and on `main`. Phase 3 items (shifts, overtime, divisions, scheduled reports) join the redesign only if they have shipped; otherwise their slots are left out, not faked.
+
+| # | Task | Who | Size | Depends on |
+|---|---|---|---|---|
+| 4.1 | **Design pass:** a mock of the shell, KPI row, organization, team, employee and reports screens in ChecIN's palette; confirm the status colour system (present / work from home / on leave / absent / weekend / holiday) | I | M | Gate above |
+| 4.2 | **App shell:** grouped left sidebar with action-count badges, "Jump to" search, breadcrumbs, period control area; drawer on phones | I (shared file `AppShell.tsx`) | L | 4.1 |
+| 4.3 | **`KpiCard` and period control:** Today / Week / Month / Quarter / YTD, filter chips (location first), change vs previous period, real sparklines only when history exists | I design, T build | M | 4.1, summaries with history |
+| 4.4 | **Organization dashboard:** up to 4 KPI cards per row, trend chart with metric tabs and Line/Area/Bar toggle, leave composition as horizontal bars, table of children (teams; divisions only if 3.4 shipped) with drill-down | I data, T UI | L | 4.2, 4.3 |
+| 4.5 | **Team roster:** status and shift pills, check-in time, attendance and punctuality bars, location, filters; **card list on phones** | T + I review | M | 4.3 |
+| 4.6 | **Employee detail:** stats header, month heatmap, leave balance bars, today's timeline, recent leave, hours chart | I data, T UI | L | 4.5, 2.2, 2.3, 2.5 |
+| 4.7 | **Reports hub:** report cards with Preview and Generate, plus a scheduled reports table | T + I review | M | 2.1, 3.3 |
+| 4.8 | **Update `UI-STYLE-GUIDE.md`** and the teammate Claude Project instructions to the new pattern; migrate the remaining old screens | I | M | 4.2 to 4.7 |
+| 4.9 | **Acceptance pass:** every figure on every screen traces to one server calculation (no tile and chart can disagree), phone check at 375 px, accessibility check (no colour-only status), read-cost check with the load-test harness (#26) | I | M | 4.2 to 4.8 |
+
+**Exit criteria:** a manager can go organization, then team, then person in at most three clicks; numbers agree everywhere on a screen; nothing is drawn for the future; no screen reads raw events for a period view; the geo-fence screens and India's EPFO filing from the reference are **not** built (no GPS, ever).
+
 ## Shared files — teammates do not edit these (integrator wires them in)
 
 `src/components/AppShell.tsx`, `src/routes/auth.tsx`, `src/integrations/firebase/admin.server.ts`,
@@ -70,3 +90,5 @@ New features go in **new files**; the integrator adds menu entries and rules.
 ## Suggested order of execution
 
 Phase 0 (tomorrow) → 1.3, 1.5 (quick wins, good first tasks for teammates) → 1.1 → 1.2 / 1.6 / 2.1 in parallel → 2.2 / 2.3 / 2.4 → Phase 3 after the lab's answers.
+
+**Last of all:** Phase 4 (dashboard redesign) once every feature above is built and live. See `DASHBOARD-DESIGN-REFERENCE.md`.
