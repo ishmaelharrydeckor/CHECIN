@@ -25,6 +25,7 @@ import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
+import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
 import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-link'
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
@@ -46,6 +47,7 @@ import { Route as ApiPushPreferencesRouteImport } from './routes/api/push/prefer
 import { Route as ApiPushSendRouteImport } from './routes/api/push/send'
 import { Route as ApiPushSubscribeRouteImport } from './routes/api/push/subscribe'
 import { Route as ApiPushVapidKeyRouteImport } from './routes/api/push/vapid-key'
+import { Route as ApiReportsIndexRouteImport } from './routes/api/reports/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -128,6 +130,12 @@ const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
   path: '/accept-invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOwnerReportsRoute =
+  AuthenticatedOwnerReportsRouteImport.update({
+    id: '/owner/reports',
+    path: '/owner/reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiAdminResetLinkRoute = ApiAdminResetLinkRouteImport.update({
   id: '/api/admin/reset-link',
   path: '/api/admin/reset-link',
@@ -233,6 +241,11 @@ const ApiPushVapidKeyRoute = ApiPushVapidKeyRouteImport.update({
   path: '/api/push/vapid-key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReportsIndexRoute = ApiReportsIndexRouteImport.update({
+  id: '/api/reports/',
+  path: '/api/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -250,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
@@ -271,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
+  '/api/reports/': typeof ApiReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -288,6 +303,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
@@ -309,6 +325,7 @@ export interface FileRoutesByTo {
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
   '/api/locations': typeof ApiLocationsIndexRoute
   '/api/organization': typeof ApiOrganizationIndexRoute
+  '/api/reports': typeof ApiReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -328,6 +345,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
@@ -349,6 +367,7 @@ export interface FileRoutesById {
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
+  '/api/reports/': typeof ApiReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -368,6 +387,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
+    | '/owner/reports'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
@@ -389,6 +409,7 @@ export interface FileRouteTypes {
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
+    | '/api/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -406,6 +427,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
+    | '/owner/reports'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
@@ -427,6 +449,7 @@ export interface FileRouteTypes {
     | '/api/announcements'
     | '/api/locations'
     | '/api/organization'
+    | '/api/reports'
   id:
     | '__root__'
     | '/'
@@ -445,6 +468,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
+    | '/_authenticated/owner/reports'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
@@ -466,6 +490,7 @@ export interface FileRouteTypes {
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
+    | '/api/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -498,6 +523,7 @@ export interface RootRouteChildren {
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
   ApiLocationsIndexRoute: typeof ApiLocationsIndexRoute
   ApiOrganizationIndexRoute: typeof ApiOrganizationIndexRoute
+  ApiReportsIndexRoute: typeof ApiReportsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -613,6 +639,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/accept-invite/$token'
       preLoaderRoute: typeof AcceptInviteTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/owner/reports': {
+      id: '/_authenticated/owner/reports'
+      path: '/owner/reports'
+      fullPath: '/owner/reports'
+      preLoaderRoute: typeof AuthenticatedOwnerReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/admin/reset-link': {
       id: '/api/admin/reset-link'
@@ -761,6 +794,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPushVapidKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reports/': {
+      id: '/api/reports/'
+      path: '/api/reports'
+      fullPath: '/api/reports/'
+      preLoaderRoute: typeof ApiReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -773,6 +813,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -784,6 +825,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -819,6 +861,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
   ApiLocationsIndexRoute: ApiLocationsIndexRoute,
   ApiOrganizationIndexRoute: ApiOrganizationIndexRoute,
+  ApiReportsIndexRoute: ApiReportsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
