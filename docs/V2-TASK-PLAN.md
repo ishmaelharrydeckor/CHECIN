@@ -52,6 +52,7 @@ Source: `docs/ChecIN-V2-Feature-Roadmap.md` + what we learned building v1 and th
 | 3.3 | **Scheduled report delivery** (email on a cadence) | I | L | 2.1, email infrastructure |
 | 3.4 | **Divisions** (grouping label above teams; no new claim) | I | M | Keep claims as `{role, orgId, managerId}` |
 | 3.5 | Payroll export formats | I | M | Wait for a customer's actual format |
+| 3.6 | **Reporting database (Supabase / Postgres), hybrid with Firebase** | I | L | **Only when a trigger fires** (see `SYSTEM-DESIGN.md` 12.6, decision D9). First a one-day experiment; Firestore stays the source of truth and Firebase Auth the only identity. Not for teammates. |
 
 ## Phase 4 — Dashboard redesign (LAST: only after every feature above is built)
 
