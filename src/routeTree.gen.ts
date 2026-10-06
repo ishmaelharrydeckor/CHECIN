@@ -21,6 +21,7 @@ import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authen
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
@@ -30,6 +31,8 @@ import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/sta
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
 import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
+import { Route as ApiAttendanceTodayRouteImport } from './routes/api/attendance/today'
+import { Route as ApiAttendanceWeekRouteImport } from './routes/api/attendance/week'
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
 import { Route as ApiCheckInScanRouteImport } from './routes/api/check-in/scan'
 import { Route as ApiKioskPairRouteImport } from './routes/api/kiosk/pair'
@@ -105,6 +108,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHolidaysRoute = AuthenticatedHolidaysRouteImport.update({
+  id: '/holidays',
+  path: '/holidays',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -148,6 +156,16 @@ const ApiAttendanceFeedRoute = ApiAttendanceFeedRouteImport.update({
 const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   id: '/api/attendance/history',
   path: '/api/attendance/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceTodayRoute = ApiAttendanceTodayRouteImport.update({
+  id: '/api/attendance/today',
+  path: '/api/attendance/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceWeekRoute = ApiAttendanceWeekRouteImport.update({
+  id: '/api/attendance/week',
+  path: '/api/attendance/week',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthRegisterOrgRoute = ApiAuthRegisterOrgRouteImport.update({
@@ -228,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/holidays': typeof AuthenticatedHolidaysRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
@@ -236,6 +255,8 @@ export interface FileRoutesByFullPath {
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/today': typeof ApiAttendanceTodayRoute
+  '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -263,6 +284,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/holidays': typeof AuthenticatedHolidaysRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
@@ -271,6 +293,8 @@ export interface FileRoutesByTo {
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/today': typeof ApiAttendanceTodayRoute
+  '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -300,6 +324,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
@@ -308,6 +333,8 @@ export interface FileRoutesById {
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/today': typeof ApiAttendanceTodayRoute
+  '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -337,6 +364,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/departments'
     | '/history'
+    | '/holidays'
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
@@ -345,6 +373,8 @@ export interface FileRouteTypes {
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
+    | '/api/attendance/today'
+    | '/api/attendance/week'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -372,6 +402,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/departments'
     | '/history'
+    | '/holidays'
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
@@ -380,6 +411,8 @@ export interface FileRouteTypes {
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
+    | '/api/attendance/today'
+    | '/api/attendance/week'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -408,6 +441,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/departments'
     | '/_authenticated/history'
+    | '/_authenticated/holidays'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
@@ -416,6 +450,8 @@ export interface FileRouteTypes {
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
+    | '/api/attendance/today'
+    | '/api/attendance/week'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -446,6 +482,8 @@ export interface RootRouteChildren {
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
   ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
+  ApiAttendanceTodayRoute: typeof ApiAttendanceTodayRoute
+  ApiAttendanceWeekRoute: typeof ApiAttendanceWeekRoute
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
   ApiCheckInScanRoute: typeof ApiCheckInScanRoute
   ApiKioskPairRoute: typeof ApiKioskPairRoute
@@ -548,6 +586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/holidays': {
+      id: '/_authenticated/holidays'
+      path: '/holidays'
+      fullPath: '/holidays'
+      preLoaderRoute: typeof AuthenticatedHolidaysRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -609,6 +654,20 @@ declare module '@tanstack/react-router' {
       path: '/api/attendance/history'
       fullPath: '/api/attendance/history'
       preLoaderRoute: typeof ApiAttendanceHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/today': {
+      id: '/api/attendance/today'
+      path: '/api/attendance/today'
+      fullPath: '/api/attendance/today'
+      preLoaderRoute: typeof ApiAttendanceTodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/week': {
+      id: '/api/attendance/week'
+      path: '/api/attendance/week'
+      fullPath: '/api/attendance/week'
+      preLoaderRoute: typeof ApiAttendanceWeekRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/register-org': {
@@ -711,6 +770,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
@@ -721,6 +781,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
@@ -742,6 +803,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
   ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
+  ApiAttendanceTodayRoute: ApiAttendanceTodayRoute,
+  ApiAttendanceWeekRoute: ApiAttendanceWeekRoute,
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
   ApiCheckInScanRoute: ApiCheckInScanRoute,
   ApiKioskPairRoute: ApiKioskPairRoute,

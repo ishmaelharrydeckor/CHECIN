@@ -154,6 +154,8 @@ Design:
 4. Late list = `daily_summaries where managerId == X and dayKey == today and late == true`, bounded by team size.
 5. Budget: **under 1k reads per manager-day** instead of about 15k.
 
+**Interim implementation (shipped before the summaries exist).** `/api/attendance/today` and `/api/attendance/week` compute the same numbers on the server straight from today's (or this week's) raw `clock_events`, bounded by the org-timezone day and capped (1,500 / 4,000 events), with the roster and timezone cached for 5 minutes. This fixes correctness (K3) now. It does **not** meet the budget above: a poll costs about one read per event today plus nothing for the cached roster, so it is fine for a pilot-sized organization (tens of people) but must be replaced by the `team_days` rollup (task #23) before an organization passes roughly 100 people. The dashboard polls every 2 minutes while the tab is visible.
+
 ### 5.4 History, timesheets, reports
 
 1. Always **paginated and date-bounded** (`dayKey` range, cursor-based). No query without `limit` in `src/routes/api` (K, section 9).
