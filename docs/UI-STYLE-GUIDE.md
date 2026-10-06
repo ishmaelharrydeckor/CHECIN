@@ -112,12 +112,25 @@ Do not add your own outer padding or max width. Set `<title>` and description in
 - Never colour-code by something other than the status colors in section 2.
 - Don't copy the dashboard's *data logic*; copy only the look.
 
+## 7b. Showing data (rules learned from the Roster page)
+A screen can follow every colour rule and still be unhelpful. These keep data screens useful:
+
+1. **Lead with the answer.** Start with the numbers and lists a manager opens the page for (who is in, who is late, who has not arrived), not a raw log.
+2. **Bound every list.** Show at most **20 rows**, say "Showing the latest 20 of N", and link to the full page ("View full history"). Never render a list that can grow without limit.
+3. **Always show which day.** Times without a date are ambiguous. Put the date in the section subtitle or group rows by day, and show times in the organization's timezone exactly as the server sends them.
+4. **Never calculate in the screen.** Counts, percentages, "late", "today" and totals come from the server. The screen only displays them. If a number looks wrong, fix the server, not the screen.
+5. **Don't show columns that never change.** If every row has the same value (one entrance, "verified" on every row), hide the column. Don't show internal or technical terms such as "HMAC", "token" or "telemetry" to managers.
+6. **Don't show placeholders as data.** If a value is missing, leave it out or write a plain label. Do not fill in a default like "General" and present it as real.
+7. **Charts must be honest.** Only draw days or points that have happened and have data. Never draw the future as zero. With little or no data, say so in a sentence instead of an empty or misleading curve. Prefer bars for counts per day; avoid smooth area lines for a handful of points.
+8. **Say what loading, empty and error mean.** "Loading today's check-ins…", "No check-ins yet today", and "Couldn't load, try again" are three different messages. Never show the empty message while still loading.
+
 ## 8. Reference screens (match these)
 | If you are building... | Look at |
 |---|---|
 | A list with add/edit/remove | `src/routes/_authenticated/holidays.tsx` |
 | A settings-style form | `src/routes/_authenticated/settings.tsx` |
-| Numbers and a live feed | `src/routes/_authenticated/dashboard.tsx` |
+| A row of number tiles | the top four tiles in `src/routes/_authenticated/dashboard.tsx` (**tiles only**) |
+| A list of events or people | the list in `src/routes/_authenticated/holidays.tsx` (compact rows), **not** the wide table at the bottom of `dashboard.tsx` |
 | A feed of posts | `src/routes/_authenticated/announcements.tsx` |
 | A profile / account card | `src/routes/_authenticated/account.tsx`, `src/components/ChangePasswordCard.tsx` |
 
@@ -128,3 +141,4 @@ Do not add your own outer padding or max width. Set `<title>` and description in
 - [ ] Looks right at 375 px and at desktop width
 - [ ] No sideways scroll; long text truncates
 - [ ] Plain-language text, no jargon
+- [ ] Data screens follow section 7b: bounded lists with a date and a link to the full page, nothing calculated in the screen, no constant columns, honest charts, correct loading/empty/error wording
