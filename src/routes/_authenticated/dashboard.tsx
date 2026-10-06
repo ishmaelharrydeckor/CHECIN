@@ -4,6 +4,8 @@ import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestor
 import { firestoreDb, firebaseAuth } from "@/integrations/firebase/config";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { dayKey } from "@/lib/attendance-day";
+import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
 import {
   Users,
   Clock,
@@ -24,8 +26,8 @@ import {
 } from "lucide-react";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip as RechartsTooltip,
@@ -72,8 +74,10 @@ function DashboardPage() {
   const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
   const [activeStaff, setActiveStaff] = useState<any[]>([]);
-  const [liveActivities, setLiveActivities] = useState<ActivityItem[]>([]);
-  const [historyRecords, setHistoryRecords] = useState<AttendanceRecord[]>([]);
+  // Numbers and feed come from the server, computed for TODAY in the organization's timezone.
+  const [today, setToday] = useState<TodaySummaryData | null>(null);
+  const [todayError, setTodayError] = useState<string | null>(null);
+  const [weekDays, setWeekDays] = useState<WeekTrendDay[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "in" | "out">("all");
   const [deptFilter, setDeptFilter] = useState("all");
@@ -88,19 +92,37 @@ function DashboardPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Real-time Attendance Feed Synchronization
-  const fetchLiveAttendance = async () => {
+  // Today's numbers and feed, computed on the server (see /api/attendance/today)
+  const fetchToday = async () => {
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch("/api/attendance/feed", {
+      const res = await fetch("/api/attendance/today", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.events)) {
-        setLiveActivities(data.events);
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok && data.summary) {
+        setToday(data.summary as TodaySummaryData);
+        setTodayError(null);
+      } else {
+        setTodayError(data?.error || "Could not load today's attendance.");
       }
     } catch (e) {
-      console.warn("Could not poll attendance feed:", e);
+      console.warn("Could not load today's attendance:", e);
+      setTodayError("Could not reach the server. Check your connection and try Refresh.");
+    }
+  };
+
+  // Mon-Fri trend for the chart. Reads the whole week, so it is fetched on load and on Refresh only.
+  const fetchWeek = async () => {
+    try {
+      const token = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/attendance/week", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok && Array.isArray(data.days)) setWeekDays(data.days as WeekTrendDay[]);
+    } catch (e) {
+      console.warn("Could not load the weekly trend:", e);
     }
   };
 
@@ -131,14 +153,6 @@ function DashboardPage() {
         }
       }
 
-      // 3. Fetch attendance history for verified trends and shift calculations
-      const historyRes = await fetch("/api/attendance/history", { headers });
-      if (historyRes.ok) {
-        const histData = await historyRes.json();
-        if (histData.ok && Array.isArray(histData.records)) {
-          setHistoryRecords(histData.records);
-        }
-      }
     } catch (e) {
       console.warn("Could not fetch org/staff info:", e);
     }
@@ -147,149 +161,30 @@ function DashboardPage() {
   const handleManualRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchLiveAttendance(), fetchOrgAndStaff()]);
+      await Promise.all([fetchToday(), fetchWeek(), fetchOrgAndStaff()]);
       toast.success("Workforce feed refreshed");
     } finally {
       setRefreshing(false);
     }
   };
 
-  // Safe, quota-protective lifecycle: fetch on mount + throttled 60s background check ONLY when tab is visible
+  // Lifecycle: load everything once, then refresh today's numbers every 2 minutes, and ONLY while
+  // the tab is visible. The weekly trend is not polled (it reads the whole week).
   useEffect(() => {
     if (!user) return;
 
-    fetchLiveAttendance();
+    fetchToday();
+    fetchWeek();
     fetchOrgAndStaff();
 
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        fetchLiveAttendance();
+        fetchToday();
       }
-    }, 60000); // 60s throttle protects the 50k daily Firestore quota
+    }, 120000);
 
     return () => clearInterval(interval);
   }, [user, orgId]);
-
-  // Unified, deduplicated telemetry from live feed and historical database records
-  const allActivities: ActivityItem[] = useMemo(() => {
-    const map = new Map<string, ActivityItem>();
-
-    // 1. Process historical records
-    for (const r of historyRecords) {
-      const name = r.employeeName || r.name || "Employee";
-      const initials =
-        name
-          .split(" ")
-          .map((n: string) => n[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase() || "EM";
-      map.set(r.id, {
-        id: r.id,
-        name,
-        email: r.email || "",
-        initials,
-        department: r.department || "General Operations",
-        location: r.locationName || (r as any).location || "Main Entrance Terminal",
-        type: r.type,
-        late: r.late === true,
-        earlyDeparture: r.earlyDeparture === true,
-        time: new Date(r.timestamp).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-      });
-    }
-
-    // 2. Overlay live activities (already normalized)
-    for (const a of liveActivities) {
-      map.set(a.id, a);
-    }
-
-    return Array.from(map.values());
-  }, [historyRecords, liveActivities]);
-
-  // Combined raw telemetry events for weekly trend & shift calculations
-  const allTelemetryEvents = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const r of historyRecords) {
-      map.set(r.id, r);
-    }
-    for (const a of liveActivities) {
-      if (!map.has(a.id)) {
-        map.set(a.id, a);
-      }
-    }
-    return Array.from(map.values()).sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-    );
-  }, [historyRecords, liveActivities]);
-
-  // 5-Day Weekly Trend Data (Mon-Fri) calculated purely from real events
-  const weeklyTrend = useMemo(() => {
-    const now = new Date();
-    const currentDayOfWeek = now.getDay(); // 0: Sun, 1: Mon, ... 6: Sat
-    const distanceToMonday = (currentDayOfWeek + 6) % 7;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - distanceToMonday);
-    monday.setHours(0, 0, 0, 0);
-
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-
-    return days.map((dayName, idx) => {
-      const dayDate = new Date(monday);
-      dayDate.setDate(monday.getDate() + idx);
-      const dayStart = new Date(dayDate);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayDate);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      const isToday = now.toDateString() === dayDate.toDateString();
-      const isFuture = dayDate.getTime() > now.getTime() && !isToday;
-      const label = isToday ? `${dayName} (Today)` : dayName;
-
-      if (isFuture) {
-        return { day: label, present: 0, late: 0, wfh: 0 };
-      }
-
-      // Filter "in" events that fell on this day
-      const dayInEvents = allTelemetryEvents.filter((e) => {
-        if (e.type !== "in") return false;
-        const t = new Date(e.timestamp).getTime();
-        return t >= dayStart.getTime() && t <= dayEnd.getTime();
-      });
-
-      // Group by unique employee
-      const uniqueEmployees = new Map<string, Date>();
-      for (const ev of dayInEvents) {
-        const key = ev.employeeId || ev.email || ev.name;
-        const evTime = new Date(ev.timestamp);
-        if (!uniqueEmployees.has(key) || evTime < uniqueEmployees.get(key)!) {
-          uniqueEmployees.set(key, evTime);
-        }
-      }
-
-      let present = uniqueEmployees.size;
-      let late = 0;
-
-      // On-time cutoff: 9:15 AM
-      for (const firstInTime of uniqueEmployees.values()) {
-        const hours = firstInTime.getHours();
-        const minutes = firstInTime.getMinutes();
-        if (hours > 9 || (hours === 9 && minutes > 15)) {
-          late++;
-        }
-      }
-
-      return { day: label, present, late, wfh: 0 };
-    });
-  }, [allTelemetryEvents]);
-
-  const yAxisMax = useMemo(() => {
-    const maxVal = Math.max(1, ...weeklyTrend.map((d) => Math.max(d.present, d.late)));
-    return Math.max(3, maxVal, totalHeadcount);
-  }, [weeklyTrend, totalHeadcount]);
 
   // Department Distribution Data dynamically grouped from real active staff & events
   const deptData = useMemo(() => {
@@ -315,166 +210,134 @@ function DashboardPage() {
     }));
   }, [activeStaff, totalHeadcount]);
 
-  // On-time metrics calculated from today's real check-in events
+  // ---- Numbers below come from the server (today), not from browser-side math ----
+
+  const presentCount = today?.counts.present ?? 0;
+  const expectedCount = today?.counts.expected ?? totalHeadcount;
+
   const onTimeMetrics = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-
-    const todayInEvents = allTelemetryEvents.filter((e) => {
-      if (e.type !== "in") return false;
-      return new Date(e.timestamp).getTime() >= todayStart.getTime();
-    });
-
-    if (todayInEvents.length === 0) {
-      return {
-        rateDisplay: "—",
-        subtext: "Awaiting today's first punch",
-        textColor: "text-[#166534]",
-      };
+    if (!today) return { rateDisplay: "—", subtext: "Loading…", textColor: "text-slate-500" };
+    const { percent, onTime, total } = today.onTimeRate;
+    if (percent === null) {
+      return { rateDisplay: "—", subtext: "Awaiting today's first check-in", textColor: "text-[#166534]" };
     }
-
-    // Earliest IN punch per person today
-    const firstInByPerson = new Map<string, Date>();
-    for (const ev of todayInEvents) {
-      const key = ev.employeeId || ev.email || ev.name;
-      const t = new Date(ev.timestamp);
-      if (!firstInByPerson.has(key) || t < firstInByPerson.get(key)!) {
-        firstInByPerson.set(key, t);
-      }
-    }
-
-    const totalEmployeesPunched = firstInByPerson.size;
-    let onTimeCount = 0;
-    for (const firstTime of firstInByPerson.values()) {
-      const hours = firstTime.getHours();
-      const minutes = firstTime.getMinutes();
-      // On-time policy: on or before 9:15 AM
-      if (hours < 9 || (hours === 9 && minutes <= 15)) {
-        onTimeCount++;
-      }
-    }
-
-    const percentage = Math.round((onTimeCount / totalEmployeesPunched) * 100);
     return {
-      rateDisplay: `${percentage}%`,
-      subtext: `${onTimeCount} of ${totalEmployeesPunched} arrived on schedule (≤ 9:15 AM)`,
-      textColor: percentage >= 80 ? "text-[#166534]" : "text-amber-800",
+      rateDisplay: `${percent}%`,
+      subtext: `${onTime} of ${total} arrived on time`,
+      textColor: percent >= 80 ? "text-[#166534]" : "text-amber-800",
     };
-  }, [allTelemetryEvents]);
+  }, [today]);
 
-  // Average shift length calculated from real today's paired IN and OUT events
   const avgShiftMetrics = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-
-    const eventsByPerson = new Map<string, Array<{ type: "in" | "out"; time: number }>>();
-    for (const ev of allTelemetryEvents) {
-      const t = new Date(ev.timestamp).getTime();
-      if (t < todayStart.getTime()) continue;
-      const key = ev.employeeId || ev.email || ev.name;
-      if (!eventsByPerson.has(key)) {
-        eventsByPerson.set(key, []);
-      }
-      eventsByPerson.get(key)!.push({ type: ev.type, time: t });
-    }
-
-    const shiftDurationsHours: number[] = [];
-    let inProgressCount = 0;
-
-    for (const punches of eventsByPerson.values()) {
-      punches.sort((a, b) => a.time - b.time);
-
-      let currentInTime: number | null = null;
-      for (const p of punches) {
-        if (p.type === "in") {
-          currentInTime = p.time;
-        } else if (p.type === "out" && currentInTime !== null) {
-          const durationHours = (p.time - currentInTime) / (1000 * 60 * 60);
-          if (durationHours > 0) {
-            shiftDurationsHours.push(durationHours);
+    if (!today) return { display: "—", subtext: "Loading…" };
+    const { completed, inProgress, avgMinutes } = today.avgShift;
+    if (avgMinutes === null) {
+      return inProgress > 0
+        ? {
+            display: "In progress",
+            subtext: `${inProgress} active shift${inProgress === 1 ? "" : "s"} (calculates after check-out)`,
           }
-          currentInTime = null;
-        }
-      }
-      if (currentInTime !== null) {
-        inProgressCount++;
-      }
+        : { display: "—", subtext: "Calculates after check-out" };
     }
-
-    if (shiftDurationsHours.length === 0) {
-      if (inProgressCount > 0) {
-        return {
-          display: "In Progress",
-          subtext: `${inProgressCount} active shift${inProgressCount === 1 ? "" : "s"} on site (calculates upon OUT punch)`,
-        };
-      }
-      return {
-        display: "—",
-        subtext: "Calculates upon check-out (IN → OUT)",
-      };
-    }
-
-    const sumHours = shiftDurationsHours.reduce((acc, h) => acc + h, 0);
-    const avg = sumHours / shiftDurationsHours.length;
-
     return {
-      display: `${avg.toFixed(1)} hrs`,
-      subtext: `Based on ${shiftDurationsHours.length} completed shift${shiftDurationsHours.length === 1 ? "" : "s"} today`,
+      display: `${(avgMinutes / 60).toFixed(1)} hrs`,
+      subtext: `Based on ${completed} completed shift${completed === 1 ? "" : "s"} today`,
     };
-  }, [allTelemetryEvents]);
+  }, [today]);
 
-  // Dynamic present count based on real events
-  const presentCount = useMemo(() => {
-    const latestByPerson = new Map<string, "in" | "out">();
-    for (const act of allActivities) {
-      const key = act.email || act.name;
-      if (!latestByPerson.has(key)) {
-        latestByPerson.set(key, act.type);
-      }
-    }
-    let inCount = 0;
-    for (const t of latestByPerson.values()) {
-      if (t === "in") inCount++;
-    }
-    return inCount;
-  }, [allActivities]);
+  // Weekly trend: only days that have happened; future days are not drawn as zero
+  const weeklyTrend = useMemo(
+    () =>
+      (weekDays ?? [])
+        .filter((d) => !d.future)
+        .map((d) => ({ day: d.isToday ? `${d.day} (Today)` : d.day, present: d.present, late: d.late })),
+    [weekDays],
+  );
+  const trendHasData = weeklyTrend.some((d) => d.present > 0);
+  const yAxisMax = Math.max(3, ...weeklyTrend.map((d) => d.present));
 
+  const todayLabel = today
+    ? new Date(`${today.dayKey}T12:00:00Z`).toLocaleDateString(undefined, {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      })
+    : "";
+
+  // Today's feed (already newest first, at most 20), filtered by the search box and status buttons
+  const feedRows = today?.events ?? [];
   const filteredActivities = useMemo(() => {
-    return allActivities.filter((item) => {
+    const q = searchQuery.toLowerCase();
+    return feedRows.filter((item) => {
       const matchesSearch =
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.department.toLowerCase().includes(searchQuery.toLowerCase());
-
+        item.name.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q) ||
+        item.department.toLowerCase().includes(q);
       const matchesStatus = statusFilter === "all" || item.type === statusFilter;
       const matchesDept = deptFilter === "all" || item.department.toLowerCase() === deptFilter.toLowerCase();
-
       return matchesSearch && matchesStatus && matchesDept;
     });
-  }, [allActivities, searchQuery, statusFilter, deptFilter]);
+  }, [feedRows, searchQuery, statusFilter, deptFilter]);
 
-  const handleExportCsv = () => {
-    if (filteredActivities.length === 0) {
-      toast.info("No attendance records to export yet.");
-      return;
+  // One entrance? The location column adds nothing, so hide it.
+  const showLocationColumn = useMemo(
+    () => new Set(feedRows.map((r) => r.location).filter(Boolean)).size > 1,
+    [feedRows],
+  );
+
+  // CSV cells: always quoted, quotes doubled, and a leading = + - @ is neutralized so a
+  // name typed as a spreadsheet formula cannot run when the file is opened in Excel.
+  const csvCell = (value: unknown) => {
+    let text = String(value ?? "");
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  // The export reads recent history on demand (not on every page load).
+  const handleExportCsv = async () => {
+    try {
+      const token = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/attendance/history", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json().catch(() => null);
+      const records: any[] = res.ok && data?.ok && Array.isArray(data.records) ? data.records : [];
+      if (records.length === 0) {
+        toast.info("No attendance records to export yet.");
+        return;
+      }
+      const tz = today?.timezone || "UTC";
+      const header = ["Date", "Time", "Employee", "Email", "Department", "Location", "Event", "Late", "Early departure"];
+      const rows = records.map((r) =>
+        [
+          dayKey(r.timestamp, tz) ?? "",
+          formatClock(r.timestamp, tz),
+          r.employeeName || r.name || "Employee",
+          r.email || r.employeeEmail || "",
+          r.department || "",
+          r.locationName || "",
+          r.type === "in" ? "Clocked IN" : "Clocked OUT",
+          r.late ? "Yes" : "",
+          r.earlyDeparture ? "Yes" : "",
+        ]
+          .map(csvCell)
+          .join(","),
+      );
+      const blob = new Blob([header.map(csvCell).join(",") + "\n" + rows.join("\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ChecIN-Attendance-${dayKey(Date.now(), tz) ?? "export"}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded the latest ${records.length} attendance events`);
+    } catch (e) {
+      console.warn("CSV export failed:", e);
+      toast.error("Could not export the attendance report. Please try again.");
     }
-    const headers = "Employee,Email,Department,Location,Event,Time,Verification\n";
-    const rows = filteredActivities
-      .map(
-        (a) =>
-          `"${a.name}","${a.email}","${a.department}","${a.location}","${a.type === "in" ? "Clocked IN" : "Clocked OUT"}","${a.time}","HMAC Hardware Verified"`,
-      )
-      .join("\n");
-    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `ChecIN-Attendance-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded attendance CSV report");
   };
 
   const handleGenerateInvite = async (e: React.FormEvent) => {
@@ -644,10 +507,12 @@ function DashboardPage() {
           </div>
           <div>
             <div className="text-3xl font-extrabold text-[#0E2322]">
-              {presentCount} <span className="text-sm font-normal text-slate-700">/ {displayHeadcount}</span>
+              {today ? presentCount : "—"} <span className="text-sm font-normal text-slate-700">/ {expectedCount}</span>
             </div>
             <div className="text-xs text-[#854D0E] mt-2 font-semibold">
-              {displayHeadcount > 0 ? ((presentCount / displayHeadcount) * 100).toFixed(0) : 0}% workforce present on site
+              {today
+                ? `${today.counts.onSite} on site now · ${today.counts.late} late`
+                : todayError || "Loading…"}
             </div>
           </div>
         </div>
@@ -690,7 +555,7 @@ function DashboardPage() {
       </div>
 
       {/* 3. Interactive Charts or Onboarding Telemetry Card */}
-      {allActivities.length > 0 ? (
+      {trendHasData || (today?.eventsTotal ?? 0) > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Chart: Weekly Attendance Trends (Area Chart) */}
           <div className="lg:col-span-8 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -710,25 +575,21 @@ function DashboardPage() {
             </div>
 
             <div className="h-64 w-full">
+              {trendHasData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="presentGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0E2322" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#0E2322" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="lateGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FFD153" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#FFD153" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                <BarChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barGap={4}>
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, yAxisMax]} allowDecimals={false} />
-                  <RechartsTooltip />
-                  <Area type="monotone" dataKey="present" stroke="#0E2322" strokeWidth={2.5} fillOpacity={1} fill="url(#presentGrad)" />
-                  <Area type="monotone" dataKey="late" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#lateGrad)" />
-                </AreaChart>
+                  <RechartsTooltip cursor={{ fill: "#F1F5F9" }} />
+                  <Bar dataKey="present" name="Present" fill="#0E2322" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="late" name="Late" fill="#FFD153" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                </BarChart>
               </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-center text-xs text-slate-500">
+                  No check-ins recorded yet this week. Days appear here as people check in.
+                </div>
+              )}
             </div>
           </div>
 
@@ -812,10 +673,10 @@ function DashboardPage() {
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-[#0E2322]">
-              Live Entrance Presence Feed
+              Today's check-ins
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Instant cryptographic punch events verified via entrance kiosk device secrets.
+              {today ? `${todayLabel} · times shown in your organization's timezone` : "Loading today's activity…"}
             </p>
           </div>
 
@@ -868,31 +729,36 @@ function DashboardPage() {
               <tr>
                 <th className="px-6 py-3.5">Employee</th>
                 <th className="px-6 py-3.5">Department</th>
-                <th className="px-6 py-3.5">Entrance Location</th>
+                {showLocationColumn && <th className="px-6 py-3.5">Entrance</th>}
                 <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Punch Time</th>
-                <th className="px-6 py-3.5 text-right">Verification</th>
+                <th className="px-6 py-3.5 text-right">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={showLocationColumn ? 5 : 4} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
                         <Clock className="w-5 h-5 text-slate-400" />
                       </div>
                       <div className="font-bold text-slate-800 text-sm">
-                        {searchQuery || statusFilter !== "all" || deptFilter !== "all"
-                          ? "No Matching Attendance Records"
-                          : "No Check-Ins Recorded Today"}
+                        {!today && !todayError
+                          ? "Loading today's check-ins…"
+                          : todayError && !today
+                            ? "Couldn't load today's check-ins"
+                            : searchQuery || statusFilter !== "all" || deptFilter !== "all"
+                              ? "No Matching Attendance Records"
+                              : "No Check-Ins Recorded Today"}
                       </div>
                       <p className="text-xs text-slate-400 mt-1 text-center">
-                        {searchQuery || statusFilter !== "all"
+                        {!today
+                          ? todayError || "One moment."
+                          : searchQuery || statusFilter !== "all"
                           ? "Try adjusting your search query or filter."
                           : `No attendance events recorded today for ${orgName}. When staff scan the rotating QR code on your entrance kiosk, their punch events will appear here in real time.`}
                       </p>
-                      {!searchQuery && (
+                      {today && !searchQuery && (
                         <button
                           onClick={() => {
                             handleResetForAnotherInvite();
@@ -924,7 +790,7 @@ function DashboardPage() {
                         {item.department}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 text-slate-600">{item.location}</td>
+                    {showLocationColumn && <td className="px-6 py-3.5 text-slate-600">{item.location}</td>}
                     <td className="px-6 py-3.5">
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -951,19 +817,27 @@ function DashboardPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-slate-800">{item.time}</td>
-                    <td className="px-6 py-3.5 text-right">
-                      <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>HMAC Signed</span>
-                      </span>
-                    </td>
+                    <td className="px-6 py-3.5 text-right font-mono text-slate-800">{item.time}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        {today && today.eventsTotal > 0 && (
+          <div className="px-6 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span>
+              {today.eventsTotal > feedRows.length
+                ? `Showing the latest ${feedRows.length} of ${today.eventsTotal} events today.`
+                : `${today.eventsTotal} event${today.eventsTotal === 1 ? "" : "s"} today.`}
+              {today.truncated ? " Very busy day: some events may not be counted." : ""}
+            </span>
+            <Link to="/history" className="font-semibold text-[#0E2322] hover:underline">
+              View full history →
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* 5. Upgraded Single-Use Staff Invite Modal */}
