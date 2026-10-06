@@ -117,13 +117,14 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
       // Manager approves/denies within their own team; Org Admin can override. A decision can be
       // made ONCE: only a pending request can change, only to approved or denied, recorded under the
-      // reviewer's own uid and the server time. Nobody can decide their own request.
+      // reviewer's own uid and the server time. A manager cannot decide their own request (it goes to an
+      // org admin); an org admin may decide their own, so a sole admin is never stuck.
       // Only the decision fields may change (not employee, team, dates or type).
       allow update: if inOrg(resource.data) && (
         (isManager() && resource.data.managerId == request.auth.uid) ||
         isOrgAdmin()
       )
-        && resource.data.employeeId != request.auth.uid
+        && (resource.data.employeeId != request.auth.uid || isOrgAdmin())
         && resource.data.status == "pending"
         && request.resource.data.status in ["approved", "denied"]
         && request.resource.data.reviewedBy == request.auth.uid
