@@ -20,8 +20,6 @@ function KioskPage() {
   // Kiosk display state
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
-  const [countdown, setCountdown] = useState(15);
-  const [tokenHash, setTokenHash] = useState("Loading...");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [modeLabel, setModeLabel] = useState<string>("Scan to Check In / Out");
@@ -74,14 +72,6 @@ function KioskPage() {
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Countdown timer decrement
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev <= 1 ? 15 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   // Helper to render QR code across CJS/ESM module bundlers
@@ -150,10 +140,6 @@ function KioskPage() {
       setTokenError(null);
       if (typeof data.pollMs === "number" && Number.isFinite(data.pollMs)) {
         pollMsRef.current = Math.min(12000, Math.max(3000, data.pollMs));
-      }
-      setTokenHash(data.token.slice(0, 8) + "..." + data.token.slice(-6));
-      if (data.secondsRemaining) {
-        setCountdown(data.secondsRemaining);
       }
       if (data.locationName) {
         setLocationName(data.locationName);
@@ -393,7 +379,7 @@ function KioskPage() {
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt="ChecIN Rotating Hardware Token QR"
+              alt="Check-in QR code"
               className="w-full h-full object-contain rounded-lg"
             />
           ) : tokenError ? (
@@ -427,23 +413,6 @@ function KioskPage() {
               <span>Minting Live Token...</span>
             </div>
           )}
-        </div>
-
-        {/* 15-Second Rotating Countdown Progress */}
-        <div className="mt-6 flex items-center justify-between text-xs text-white/70">
-          <span>
-            Rotating HMAC Token:{" "}
-            <strong className="font-mono text-[#C0FD9B]">{tokenHash}</strong>
-          </span>
-          <span className="font-bold text-[#FFD153]">
-            Refreshes in {countdown}s
-          </span>
-        </div>
-        <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
-          <div
-            className="bg-[#C0FD9B] h-1.5 rounded-full transition-all duration-1000 ease-linear"
-            style={{ width: `${(countdown / 15) * 100}%` }}
-          ></div>
         </div>
       </div>
 
