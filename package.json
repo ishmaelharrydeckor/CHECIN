@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "node --test \"scripts/tests/*.test.mjs\"",
+    "loadtest": "node scripts/load-test.mjs",
     "check": "vite build && tsc --noEmit && npm test",
     "format": "prettier --write ."
   },
