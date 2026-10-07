@@ -17,6 +17,7 @@ Set these in your terminal (staging values from your `.env`, not production):
 | `LOADTEST_BASE_URL` | The staging site, e.g. the staging Vercel URL |
 | `FIREBASE_SERVICE_ACCOUNT` | Staging service-account JSON (raw or base64) |
 | `FIREBASE_WEB_API_KEY` | Staging web API key (the same value as `VITE_FIREBASE_API_KEY`) |
+| `VERCEL_BYPASS_SECRET` | Optional. Only if the staging site asks for a Vercel login. Create it in Vercel: project > Settings > Deployment Protection > Protection Bypass for Automation |
 
 ```bash
 npm run loadtest -- --employees 50 --kiosks 2 --ramp 60

@@ -16,6 +16,11 @@
  *   FIREBASE_SERVICE_ACCOUNT  staging service-account JSON (raw or base64)
  *   FIREBASE_WEB_API_KEY      the staging project's web API key (VITE_FIREBASE_API_KEY)
  *
+ * Optional:
+ *   VERCEL_BYPASS_SECRET      only if the staging site sits behind Vercel's login page
+ *                             (Vercel > project > Settings > Deployment Protection >
+ *                             Protection Bypass for Automation). Sent as a header.
+ *
  * Usage:
  *   node scripts/load-test.mjs [--employees 50] [--kiosks 2] [--ramp 60] [--rounds 1] [--keep]
  *
@@ -58,6 +63,7 @@ function fail(msg) {
 const baseUrl = (process.env.LOADTEST_BASE_URL || "").replace(/[/]+$/, "");
 const apiKey = process.env.FIREBASE_WEB_API_KEY;
 const rawSa = process.env.FIREBASE_SERVICE_ACCOUNT;
+const bypass = process.env.VERCEL_BYPASS_SECRET;
 if (!baseUrl || !/^https?:[/][/]/.test(baseUrl)) fail("set LOADTEST_BASE_URL to the staging site URL.");
 if (!apiKey) fail("set FIREBASE_WEB_API_KEY to the staging project's web API key.");
 if (!rawSa) fail("set FIREBASE_SERVICE_ACCOUNT to the staging service-account JSON.");
@@ -109,7 +115,11 @@ async function timedPost(kind, path, headers, payload) {
   try {
     const res = await fetch(baseUrl + path, {
       method: "POST",
-      headers: { "content-type": "application/json", ...headers },
+      headers: {
+        "content-type": "application/json",
+        ...(bypass ? { "x-vercel-protection-bypass": bypass } : {}),
+        ...headers,
+      },
       body: JSON.stringify(payload),
     });
     status = res.status;
@@ -117,6 +127,12 @@ async function timedPost(kind, path, headers, payload) {
   } catch (e) {
     status = 0;
     body = { error: String(e?.message || e) };
+  }
+  if ((status === 401 || status === 403) && body === null) {
+    errorSamples.set(
+      "The site answered with a login page, not the app. Set VERCEL_BYPASS_SECRET (see the top of this file).",
+      (errorSamples.get("login") || 0) + 1,
+    );
   }
   record(kind, performance.now() - t0, status, body);
   return { status, body };
