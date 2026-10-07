@@ -101,6 +101,7 @@ async function backfillDay(day) {
             managerId: e.managerId ?? null,
             employeeId: e.employeeId,
             employeeName: e.employeeName || "Employee",
+            department: e.department || "",
             dayKey: day,
           },
           events: [],
