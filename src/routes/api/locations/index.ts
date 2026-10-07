@@ -18,6 +18,7 @@ export const Route = createFileRoute("/api/locations/")({
           const locsSnap = await firestoreAdmin
             .collection("locations")
             .where("orgId", "==", callerOrgId)
+            .limit(100)
             .get();
 
           const locations = [];

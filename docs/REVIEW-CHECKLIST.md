@@ -35,6 +35,17 @@ Search the diff for each:
 - [ ] New Firestore collection or a rule change: you write the rule, default-deny, scoped by `orgId` then `managerId`
 - [ ] Credential-like collections (invites, device secrets, hashes) readable from the client. **Reject.**
 
+## 2b. Access patterns (the part that decides cost and speed at scale)
+`npm test` already fails on an unbounded Firestore read in `src/routes/api` and `src/lib/*.server.ts`. These are the checks a test cannot make. Rules and reasons: [SCALE-PLAN.md](SCALE-PLAN.md) section 2.
+- [ ] Every query is **bounded** (`.limit()`), **indexed** (new composite indexes are in `firestore.indexes.json`) and starts with `orgId`
+- [ ] No `setInterval` / repeated fetch that reads the database. Use fetch-on-demand, or check one small document for a change
+- [ ] "Today", "this week" and any date shown comes from the server in the **org timezone** (`dayKey`), never the client clock or `toLocaleTimeString()` on the server
+- [ ] Writes are **idempotent** (a retried request cannot create a duplicate) and `clock_events` are never edited or deleted
+- [ ] Reports and dashboards read **summaries**, not raw `clock_events`, once summaries exist
+- [ ] A new unauthenticated route uses `checkRateLimit(..., { failClosed: true })`
+- [ ] A privileged action writes one `logEvent(...)` line (action, outcome, org, verified uid, correlation id) and never logs a secret
+- [ ] Anything touching **time, money or presence** (shifts, WFH, leave balances, payroll, billing) has a short design note in the PR before UI work
+
 ## 3. Behaviour
 - [ ] CI green (build + typecheck)
 - [ ] Test it yourself (teammates can't run it): open the PR's Vercel preview while signed in to Vercel, or run the branch locally with staging `.env`. Follow the PR's "How to test" steps, then try it as an **employee**, a **manager**, and an **org admin**. Preview URLs use email/password logins, because Google sign-in only works on authorized domains

@@ -3,11 +3,14 @@ import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin
 import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
 import { computeScanFlags, type LocationHours } from "@/lib/attendance-windows";
 import { cooldownSecondsLeft, dayKey, nextScanType } from "@/lib/attendance-day";
+import { correlationId, logEvent } from "@/lib/log.server";
 
 export const Route = createFileRoute("/api/check-in/scan")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const cid = correlationId(request);
+        let scanActor: { uid?: string; orgId?: string | null } = {};
         try {
           const authHeader = request.headers.get("authorization");
           const caller = await verifyCallerToken(authHeader);
@@ -26,6 +29,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
             );
           }
 
+          scanActor = { uid: caller.uid, orgId: caller.orgId };
           const body = await request.json();
           const token = (body?.token || "").trim();
           const locationId = (body?.locationId || "").trim();
@@ -171,6 +175,14 @@ export const Route = createFileRoute("/api/check-in/scan")({
             };
           });
 
+          logEvent({
+            action: "scan.record",
+            outcome: "ok",
+            correlationId: cid,
+            ...scanActor,
+            fields: { type: scanResult.type, late: scanResult.late, locationId },
+          });
+
           return Response.json({
             ok: true,
             ...scanResult,
@@ -178,6 +190,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
         } catch (err: any) {
           if (err?.message?.startsWith("COOLDOWN:")) {
             const [, secondsLeft, lastType] = err.message.split(":");
+            logEvent({ action: "scan.record", outcome: "denied", correlationId: cid, ...scanActor, fields: { reason: "cooldown" } });
             return Response.json(
               {
                 error: `Cooldown active: You checked ${lastType} recently. Please wait ${secondsLeft}s to prevent accidental double-clocking.`,
@@ -185,6 +198,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
               { status: 429 },
             );
           }
+          logEvent({ action: "scan.record", outcome: "error", correlationId: cid, ...scanActor });
           console.error("POST /api/check-in/scan error:", err);
           return Response.json({ error: "Failed to record check-in scan" }, { status: 500 });
         }

@@ -2,6 +2,7 @@
 // ChecIN Workforce Attendance SaaS
 import webpush from "web-push";
 import { createHash } from "crypto";
+import { FieldPath } from "firebase-admin/firestore";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import type { CorporateRole } from "@/lib/auth-claims";
 
@@ -302,6 +303,7 @@ export async function sendNotificationToUser(
   const snap = await subscriptionsCol()
     .where("userId", "==", cleanId)
     .where("isActive", "==", true)
+    .limit(25)
     .get();
 
   const subscriptions = snap.docs.map((d) => d.data() as StoredPushSubscription);
@@ -352,6 +354,24 @@ export async function sendNotificationToUsers(
   return { totalUsers: uniqueIds.length, totalDelivered };
 }
 
+/** Most recipients one broadcast request will address. Larger fan-out needs a background queue. */
+const MAX_BROADCAST_RECIPIENTS = 5000;
+
+/** Collect user ids for a query one page at a time, up to MAX_BROADCAST_RECIPIENTS. */
+async function collectUserIds(base: FirebaseFirestore.Query): Promise<string[]> {
+  const ids: string[] = [];
+  let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  while (ids.length < MAX_BROADCAST_RECIPIENTS) {
+    let page = base.orderBy(FieldPath.documentId()).limit(500);
+    if (last) page = page.startAfter(last);
+    const snap = await page.get();
+    for (const d of snap.docs) ids.push(d.id);
+    if (snap.size < 500) break;
+    last = snap.docs[snap.docs.length - 1];
+  }
+  return ids;
+}
+
 /** Send notification to an entire team reporting to a manager */
 export async function sendNotificationToTeam(
   managerId: string,
@@ -359,13 +379,12 @@ export async function sendNotificationToTeam(
   payload: NotificationPayload,
 ): Promise<{ totalUsers: number; totalDelivered: number }> {
   try {
-    const usersSnap = await firestoreAdmin
-      .collection("users")
-      .where("orgId", "==", orgId)
-      .where("managerId", "==", managerId)
-      .get();
-
-    const userIds = usersSnap.docs.map((doc) => doc.id);
+    const userIds = await collectUserIds(
+      firestoreAdmin
+        .collection("users")
+        .where("orgId", "==", orgId)
+        .where("managerId", "==", managerId),
+    );
     return await sendNotificationToUsers(userIds, payload);
   } catch (err) {
     console.error("[WebPush] Error sending to team:", err);
@@ -379,12 +398,9 @@ export async function sendNotificationToOrg(
   payload: NotificationPayload,
 ): Promise<{ totalUsers: number; totalDelivered: number }> {
   try {
-    const usersSnap = await firestoreAdmin
-      .collection("users")
-      .where("orgId", "==", orgId)
-      .get();
-
-    const userIds = usersSnap.docs.map((doc) => doc.id);
+    const userIds = await collectUserIds(
+      firestoreAdmin.collection("users").where("orgId", "==", orgId),
+    );
     return await sendNotificationToUsers(userIds, payload);
   } catch (err) {
     console.error("[WebPush] Error sending to organization:", err);
@@ -402,7 +418,7 @@ export async function sendNotificationToAllActive(
     if (targetRole) {
       query = query.where("userRole", "==", targetRole);
     }
-    const snap = await query.get();
+    const snap = await query.limit(MAX_BROADCAST_RECIPIENTS).get();
     const subscriptions = snap.docs.map((d) => d.data() as StoredPushSubscription);
 
     if (subscriptions.length === 0) {
