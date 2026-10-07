@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  profileFromSummary,
   applyEventToSummary,
   summaryFromEvents,
   summaryDocId,
@@ -10,7 +11,7 @@ import {
 } from "../../src/lib/daily-summary.ts";
 import { formatClock } from "../../src/lib/attendance-day.ts";
 
-const id = { orgId: "o1", managerId: "m1", employeeId: "e1", employeeName: "Ama", dayKey: "2026-03-10" };
+const id = { orgId: "o1", managerId: "m1", employeeId: "e1", employeeName: "Ama", department: "Ops", dayKey: "2026-03-10" };
 const NOW = "2026-03-10T18:00:00.000Z";
 const ev = (type, hhmm, extra = {}) => ({ type, timestamp: `2026-03-10T${hhmm}:00.000Z`, ...extra });
 
@@ -116,4 +117,28 @@ test("formatClock uses the organization timezone, not the server's", () => {
   assert.equal(formatClock(t, "America/New_York"), "04:52:07");
   assert.equal(formatClock(t, "Not/AZone"), "08:52:07"); // falls back to UTC
   assert.equal(formatClock("garbage", "UTC"), "");
+});
+
+test("the summary records the department, so a later scan the same day needs no profile read", () => {
+  let s = applyEventToSummary(null, ev("in", "08:00"), id, NOW);
+  assert.equal(s.department, "Ops");
+  s = applyEventToSummary(s, ev("out", "12:00"), id, NOW);
+  assert.equal(s.department, "Ops");
+  assert.deepEqual(profileFromSummary(s), { name: "Ama", department: "Ops" });
+});
+
+test("profileFromSummary gives nothing when there is no summary, or it has no name or department", () => {
+  assert.equal(profileFromSummary(null), null);
+  assert.equal(profileFromSummary(undefined), null);
+  assert.equal(profileFromSummary({ employeeName: "Ama" }), null); // written before the department field existed
+  assert.equal(profileFromSummary({ employeeName: "Ama", department: "" }), null); // rebuilt from events, unknown
+  assert.equal(profileFromSummary({ employeeName: "  ", department: "Ops" }), null);
+  assert.deepEqual(profileFromSummary({ employeeName: " Ama ", department: " Ops " }), { name: "Ama", department: "Ops" });
+});
+
+test("a summary written before the department field gains it on the next scan", () => {
+  const old = applyEventToSummary(null, ev("in", "08:00"), { ...id, department: "" }, NOW);
+  delete old.department; // as stored before this change
+  const next = applyEventToSummary(old, ev("out", "12:00"), id, NOW);
+  assert.equal(next.department, "Ops");
 });

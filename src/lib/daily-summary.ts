@@ -18,6 +18,8 @@ export interface SummaryIdentity {
   managerId: string | null;
   employeeId: string;
   employeeName: string;
+  /** Kept on the summary so a later scan the same day needs no profile read. Empty when unknown. */
+  department: string;
   /** YYYY-MM-DD in the organization's timezone. */
   dayKey: string;
 }
@@ -56,6 +58,21 @@ export interface DailySummary extends SummaryIdentity {
 
 export function summaryDocId(employeeId: string, dayKey: string): string {
   return `${employeeId}_${dayKey}`;
+}
+
+/**
+ * The person's name and department as already recorded on today's summary, or
+ * null if the summary is missing or predates the `department` field. A scan can
+ * reuse these instead of reading the user's profile document (the profile is only
+ * read on the first scan of the day).
+ */
+export function profileFromSummary(
+  today: Partial<Pick<DailySummary, "employeeName" | "department">> | null | undefined,
+): { name: string; department: string } | null {
+  if (!today) return null;
+  const name = typeof today.employeeName === "string" ? today.employeeName.trim() : "";
+  const department = typeof today.department === "string" ? today.department.trim() : "";
+  return name && department ? { name, department } : null;
 }
 
 /** Direction of the next scan, given today's summary (null if the person has not scanned today). */
@@ -110,6 +127,7 @@ export function applyEventToSummary(
   if (event.type === "in") {
     return {
       ...prev,
+      department: prev.department || identity.department,
       // Keep the day's first check-in and its late flag; a later "in" is a return.
       firstIn: prev.firstIn ?? event.timestamp,
       late: prev.firstIn ? prev.late : event.late === true,
@@ -132,6 +150,7 @@ export function applyEventToSummary(
   }
   return {
     ...prev,
+    department: prev.department || identity.department,
     lastOut: event.timestamp,
     lastEventType: "out",
     lastEventAt: event.timestamp,

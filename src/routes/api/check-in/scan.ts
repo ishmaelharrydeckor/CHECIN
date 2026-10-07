@@ -8,6 +8,7 @@ import {
   applyEventToSummary,
   cooldownFromSummary,
   nextTypeFromSummary,
+  profileFromSummary,
   summaryDocId,
   summaryFromEvents,
   type DailySummary,
@@ -114,29 +115,10 @@ export const Route = createFileRoute("/api/check-in/scan")({
             );
           }
 
-          // 3. Display name for the record (cached)
-          let profile = profileCache.get(caller.uid);
-          if (!profile) {
-            profile = {
-              name: caller.name || caller.email?.split("@")[0] || "Employee",
-              department: "General",
-            };
-            try {
-              const userDoc = await firestoreAdmin.collection("users").doc(caller.uid).get();
-              if (userDoc.exists) {
-                const udata = userDoc.data();
-                if (udata?.displayName) profile.name = udata.displayName;
-                if (udata?.department) profile.department = udata.department;
-              }
-              profileCache.set(caller.uid, profile);
-            } catch (e) {
-              console.warn("Could not fetch user profile for scan event:", e);
-            }
-          }
-          const employeeName = profile.name;
-          const employeeDepartment = profile.department;
-
-          // 4. One transaction: cooldown, direction, event, summary, kiosk greeting.
+          // 3. One transaction: cooldown, direction, event, summary, kiosk greeting.
+          // The person's name and department come from today's summary when it has them
+          // (every scan after the first of the day), then from a short cache, and only
+          // otherwise from their profile document.
           const orgTimezone = kiosk.timezone;
           const now = Date.now();
           const nowIso = new Date(now).toISOString();
@@ -147,13 +129,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
           const summaryRef = firestoreAdmin
             .collection("daily_summaries")
             .doc(summaryDocId(caller.uid, today));
-          const identity = {
-            orgId: caller.orgId,
-            managerId,
-            employeeId: caller.uid,
-            employeeName,
-            dayKey: today,
-          };
+          const userRef = firestoreAdmin.collection("users").doc(caller.uid);
+          const tokenName = caller.name || caller.email?.split("@")[0] || "Employee";
 
           const scanResult = await firestoreAdmin.runTransaction(async (t) => {
             const summarySnap = await t.get(summaryRef);
@@ -180,8 +157,39 @@ export const Route = createFileRoute("/api/check-in/scan")({
                   });
                 }
               }
-              prev = summaryFromEvents(todays, identity, nowIso);
+              // Rebuilt from events: the department is unknown here, so the profile is read below.
+              prev = summaryFromEvents(
+                todays,
+                { orgId: caller.orgId, managerId, employeeId: caller.uid, employeeName: tokenName, department: "", dayKey: today },
+                nowIso,
+              );
             }
+
+            let profile = profileFromSummary(prev) ?? profileCache.get(caller.uid) ?? null;
+            if (!profile) {
+              profile = { name: tokenName, department: "General" };
+              try {
+                const userDoc = await t.get(userRef);
+                if (userDoc.exists) {
+                  const udata = userDoc.data();
+                  if (udata?.displayName) profile.name = udata.displayName;
+                  if (udata?.department) profile.department = udata.department;
+                }
+                profileCache.set(caller.uid, profile);
+              } catch (e) {
+                console.warn("Could not fetch user profile for scan event:", e);
+              }
+            }
+            const employeeName = profile.name;
+            const employeeDepartment = profile.department;
+            const identity = {
+              orgId: caller.orgId,
+              managerId,
+              employeeId: caller.uid,
+              employeeName,
+              department: employeeDepartment,
+              dayKey: today,
+            };
 
             const secondsLeft = cooldownFromSummary(prev, now);
             if (secondsLeft > 0) {
