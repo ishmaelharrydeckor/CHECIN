@@ -74,9 +74,13 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 
 ### 3.5 P4: dashboard on summaries
 
-- "Today" reads `daily_summaries` for the team (bounded by team size), late list from the `late` flag.
-- Interim `/api/attendance/today` and `/week` routes retire once this ships.
-- Reports (2.1) read summaries, never raw events; large exports are generated server-side in chunks.
+- `/api/attendance/today` and `/api/attendance/week` now read `daily_summaries` (one document per person per day) instead of folding raw events. The response shape is unchanged, so the dashboard page needed no change and **teammate task 1.6 is unblocked**: build on those two routes.
+- Cost per refresh: about (people on the team + 20) reads for "today", (people x 5) for the week, regardless of how many scans happened. A 250-person team is about 270 reads per refresh (cached 45 s per team). That is a large drop for big teams but still grows with team size: the `team_days` rollup in P5 is what makes it constant, and it waits for the trigger below.
+- One meaning changed: "average shift" is the mean of each person's total worked minutes for the day (it used to average each separate in-to-out session).
+- New composite indexes for the week range: `daily_summaries (orgId, dayKey)` and `(orgId, managerId, dayKey)`. Deploy `firestore.indexes.json` before the code; a missing index shows up as a failed weekly chart.
+- **Rollout order matters:** deploy rules and indexes, deploy the code, run `scripts/backfill-summaries.mjs` for the days you want history for. Until summaries exist for a day the dashboard shows that day as empty.
+- Not done: `/api/attendance/feed` is no longer called by any page. It can be deleted (it is a route that reads other people's data with no caller left); left in place because removing a route is the integrator's call.
+- Reports (task 2.1) should read summaries too: `loadScopedSummaries` in `attendance-data.server.ts` is the shared loader.
 
 ### 3.6 P5: only when a trigger fires
 

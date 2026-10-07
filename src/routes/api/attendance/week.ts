@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { verifyCallerToken } from "@/integrations/firebase/admin.server";
 import {
-  WEEK_EVENT_CAP,
+  WEEK_SUMMARY_CAP,
   loadOrgContext,
-  loadScopedEvents,
+  loadScopedSummaries,
 } from "@/lib/attendance-data.server";
 import { resolveDashboardScope } from "@/lib/dashboard-scope";
-import { buildWeekTrend, weekBoundsMs } from "@/lib/attendance-today";
+import { addDays, buildWeekTrendFromSummaries, weekdayIndex } from "@/lib/attendance-today";
+import { dayKey } from "@/lib/attendance-day";
 
 /**
  * GET /api/attendance/week
@@ -16,7 +17,8 @@ import { buildWeekTrend, weekBoundsMs } from "@/lib/attendance-today";
  * on their first check-in of the day. Days that have not happened yet are
  * flagged `future` so the chart does not draw them as zero.
  *
- * Fetched once per page load (not polled) because it reads the whole week.
+ * Fetched once per page load (not polled). Reads one summary per person per
+ * day (about people x 5 documents), not every scan of the week.
  * Same authorization as /api/attendance/today (verified claims only).
  */
 export const Route = createFileRoute("/api/attendance/week")({
@@ -38,10 +40,16 @@ export const Route = createFileRoute("/api/attendance/week")({
 
           const { timezone } = await loadOrgContext(scope);
           const now = Date.now();
-          const { startMs, endMs } = weekBoundsMs(now, timezone);
-          const { events, truncated } = await loadScopedEvents(scope, startMs, endMs, WEEK_EVENT_CAP);
+          const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
+          const monday = addDays(today, -weekdayIndex(today));
+          const { summaries, truncated } = await loadScopedSummaries(
+            scope,
+            monday,
+            addDays(monday, 4),
+            WEEK_SUMMARY_CAP,
+          );
 
-          const days = buildWeekTrend({ events, timezone, now });
+          const days = buildWeekTrendFromSummaries({ summaries, timezone, now });
           return Response.json(
             { ok: true, timezone, days, truncated },
             { headers: { "Cache-Control": "private, no-store" } },

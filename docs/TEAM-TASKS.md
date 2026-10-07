@@ -70,7 +70,7 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 
 **Files:** new components under `src/components/dashboard/`. The dashboard route itself is 1100 lines; extract and add, don't rewrite. Keep edits to `dashboard.tsx` to mounting your new components, and tell the integrator in the PR.
 
-**Data:** existing `clock_events` and the late logic in `src/lib/attendance-windows.ts` (pure functions). Reuse them; don't re-implement time rules.
+**Data:** the numbers now come from `GET /api/attendance/today` and `/week`, which read `daily_summaries` (one document per person per day) on the server; the response shape is in `src/lib/attendance-today.ts` (`TodaySummaryData`). Build your components on those routes. Do not query `clock_events` from the page and do not re-implement time rules.
 
 **Done when:** a manager sees only their team (org admin sees all); counts match the event list; "not arrived" excludes people on approved leave once 1.1 lands (fine to skip until then).
 

@@ -2,6 +2,7 @@ import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { createTtlCache } from "./ttl-cache.server.ts";
 import type { DashboardScope } from "./dashboard-scope.ts";
 import type { RawEvent, RosterMember } from "./attendance-today.ts";
+import type { DailySummary } from "./daily-summary.ts";
 
 /**
  * Data access for the manager dashboard routes (/api/attendance/today and /week).
@@ -13,6 +14,11 @@ import type { RawEvent, RosterMember } from "./attendance-today.ts";
 
 export const TODAY_EVENT_CAP = 1500;
 export const WEEK_EVENT_CAP = 4000;
+/** Most summaries one dashboard answer reads: 2,000 people, or a few days of a smaller team. */
+export const SUMMARY_CAP = 2000;
+export const WEEK_SUMMARY_CAP = 6000;
+/** The activity list on the dashboard only ever shows this many events. */
+export const RECENT_EVENT_LIMIT = 20;
 
 interface OrgContext {
   timezone: string;
@@ -97,4 +103,34 @@ export async function loadScopedEvents(
     });
   }
   return { events, truncated: snap.size >= cap };
+}
+
+/**
+ * Daily summaries for the caller's scope for the days fromDay..toDay (inclusive,
+ * "YYYY-MM-DD" in the org timezone). One document per person per day, so this
+ * reads about (people x days) documents, not one per scan.
+ */
+export async function loadScopedSummaries(
+  scope: DashboardScope,
+  fromDay: string,
+  toDay: string,
+  cap: number,
+): Promise<{ summaries: DailySummary[]; truncated: boolean }> {
+  let query: FirebaseFirestore.Query = firestoreAdmin
+    .collection("daily_summaries")
+    .where("orgId", "==", scope.orgId);
+  if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
+
+  // A single day is an equality filter (no extra index); a range needs the
+  // (orgId, dayKey) / (orgId, managerId, dayKey) indexes in firestore.indexes.json.
+  query =
+    fromDay === toDay
+      ? query.where("dayKey", "==", fromDay)
+      : query.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay);
+
+  const snap = await query.limit(cap).get();
+  return {
+    summaries: snap.docs.map((d) => d.data() as DailySummary),
+    truncated: snap.size >= cap,
+  };
 }
