@@ -60,7 +60,7 @@ export async function checkRateLimit(
           count: 1,
           reset_at: now + windowMs,
           updated_at: now,
-          // Firestore TTL policy on this field deletes the document after it passes.
+          // A Firestore TTL policy on this field deletes the document after it passes (needs the Blaze plan; see docs/SCALE-PLAN.md).
           expireAt: new Date(now + windowMs + TTL_GRACE_MS),
         });
         return { allowed: true };
