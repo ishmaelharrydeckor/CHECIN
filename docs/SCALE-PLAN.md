@@ -40,7 +40,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 
 - [ ] Test or lint rule: fail the build on a Firestore `.get()` with no `limit()` in `src/routes/api/**` (allow-list for known single-doc reads).
 - [ ] [REVIEW-CHECKLIST.md](REVIEW-CHECKLIST.md): add an "access patterns" section (bounded, indexed, org-scoped, no polling, org-timezone times, design note for time/money/presence).
-- [ ] [rate-limit.server.ts](../src/lib/rate-limit.server.ts): add an `expireAt` field and a Firestore **TTL policy** on `rate_limits`; **fail closed** for kiosk pairing and invite redemption (keep fail-open for login); key authenticated routes by uid, unauthenticated by IP.
+- [ ] [rate-limit.server.ts](../src/lib/rate-limit.server.ts): add an `expireAt` field on `rate_limits` documents (the Firestore **TTL policy** that deletes them needs the Blaze plan: when production moves to Blaze, enable it with `gcloud firestore fields ttls update expireAt --collection-group=rate_limits --enable-ttl --project <project>`; until then old counters simply stay); **fail closed** for kiosk pairing and invite redemption (keep fail-open for login); key authenticated routes by uid, unauthenticated by IP.
 - [ ] Add `limit()` to the unbounded reads found in `staff-invites.ts`, `attendance-data.server.ts` and `push-service.server.ts` (page where a limit would hide data).
 - [ ] Add `region` (value `nam5`) and `schemaVersion` to new and existing `organizations` documents.
 - [ ] Structured log line plus a **correlation id** on scan, pair, invite and approve routes; define the `audit_logs` schema.
