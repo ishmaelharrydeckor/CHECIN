@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { firebaseAuth, googleProvider } from "@/integrations/firebase/config";
 import { signInWithPopup } from "firebase/auth";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { toast } from "sonner";
 import { getDeviceId } from "@/lib/device-manager";
 
@@ -12,6 +12,42 @@ export const Route = createFileRoute("/scan")({
   head: () => ({ meta: [{ title: "Employee Check-In Scanner — ChecIN" }] }),
   component: ScanPage,
 });
+
+// A ChecIN code is JSON `{ token, locationId }` or the plain "locationId::token" form.
+// Anything else (a menu QR, a website link) is not ours and is ignored quietly.
+function parseChecinPayload(raw: string): { token: string; locationId: string } | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.token === "string" && typeof parsed?.locationId === "string") {
+      return { token: parsed.token, locationId: parsed.locationId };
+    }
+    return null;
+  } catch {
+    const parts = raw.split("::");
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      return { locationId: parts[0], token: parts[1] };
+    }
+    return null;
+  }
+}
+
+function describeCameraError(err: any): string {
+  switch (err?.name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "Camera access is blocked. Allow the camera for this site in your browser settings, then tap Restart Camera.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "No camera was found on this device.";
+    case "NotReadableError":
+    case "AbortError":
+      return "The camera is in use by another app. Close it, then tap Restart Camera.";
+    default:
+      return typeof err === "string" && /permission/i.test(err)
+        ? "Camera access is blocked. Allow the camera for this site in your browser settings, then tap Restart Camera."
+        : "Camera not available. Make sure the page is on HTTPS and camera permission is granted.";
+  }
+}
 
 function ScanPage() {
   const { user, loading } = useAuth();
@@ -25,8 +61,22 @@ function ScanPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [processingScan, setProcessingScan] = useState(false);
 
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [offline, setOffline] = useState(false);
+  const [justScanned, setJustScanned] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const cooldownRef = useRef(false);
+  const processingRef = useRef(false);
+  const startingRef = useRef(false);
+  const userPausedRef = useRef(false);
+  const lastScanSucceededRef = useRef(false);
+  const lastPayloadRef = useRef<{ raw: string; at: number } | null>(null);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeUser = user;
 
@@ -52,56 +102,137 @@ function ScanPage() {
   };
 
   // Start Camera QR Scanner
+  const showHint = (text: string) => {
+    setHint(text);
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => setHint(null), 2500);
+  };
+
   const startCamera = async () => {
+    if (startingRef.current || scannerRef.current) return;
+    startingRef.current = true;
     try {
       setCameraError(null);
-      const html5QrCode = new Html5Qrcode("qr-reader");
+      setJustScanned(false);
+      // Use the phone's built-in QR detector when it has one; the library decoder is the fallback.
+      const html5QrCode = new Html5Qrcode("qr-reader", {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        useBarCodeDetectorIfSupported: true,
+        verbose: false,
+      });
       scannerRef.current = html5QrCode;
 
       await html5QrCode.start(
         { facingMode: "environment" },
         {
           // No qrbox: decode the entire camera frame, not a small centre square.
-          fps: 15,
+          fps: 20,
         },
-        async (decodedText) => {
-          if (cooldownRef.current || processingScan) return;
-          await handleScanDecoded(decodedText);
+        (decodedText) => {
+          void onDecoded(decodedText);
         },
         () => {
           // ignore scan frame errors
         },
       );
       setCameraActive(true);
+
+      // Torch and zoom only exist on some phones; offer them only where the camera reports them.
+      try {
+        const caps = html5QrCode.getRunningTrackCameraCapabilities();
+        setTorchSupported(caps.torchFeature().isSupported());
+        const z = caps.zoomFeature();
+        if (z.isSupported() && z.max() > z.min()) {
+          setZoomRange({ min: z.min(), max: z.max(), step: z.step() || 0.1 });
+          setZoom(z.value() ?? z.min());
+        } else {
+          setZoomRange(null);
+        }
+      } catch {
+        setTorchSupported(false);
+        setZoomRange(null);
+      }
     } catch (err: any) {
       console.warn("Camera start failed:", err);
+      scannerRef.current = null;
       setCameraActive(false);
-      setCameraError(
-        "Camera stream not available. Ensure HTTPS is active and camera permissions are granted.",
-      );
+      setCameraError(describeCameraError(err));
+    } finally {
+      startingRef.current = false;
     }
   };
 
   const stopCamera = async () => {
-    if (scannerRef.current && cameraActive) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-      } catch (err) {
-        console.error("Error stopping scanner:", err);
-      }
-      setCameraActive(false);
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    scannerRef.current = null;
+    try {
+      await scanner.stop();
+      scanner.clear();
+    } catch (err) {
+      console.error("Error stopping scanner:", err);
+    }
+    setCameraActive(false);
+    setTorchOn(false);
+    setTorchSupported(false);
+    setZoomRange(null);
+  };
+
+  const toggleTorch = async () => {
+    try {
+      const next = !torchOn;
+      await scannerRef.current?.getRunningTrackCameraCapabilities().torchFeature().apply(next);
+      setTorchOn(next);
+    } catch {
+      showHint("Flash isn't available on this camera");
+    }
+  };
+
+  const changeZoom = async (value: number) => {
+    setZoom(value);
+    try {
+      await scannerRef.current?.getRunningTrackCameraCapabilities().zoomFeature().apply(value);
+    } catch {
+      // zoom is a convenience; ignore failures
     }
   };
 
   useEffect(() => {
     if (activeUser) {
+      userPausedRef.current = false;
       startCamera();
     }
     return () => {
       stopCamera();
     };
   }, [activeUser]);
+
+  // Run the camera only while the app is on screen: stop it in the background, restart on return
+  // (unless the employee paused it, or a scan just finished and they haven't asked for another).
+  useEffect(() => {
+    if (!activeUser) return;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        stopCamera();
+      } else if (!userPausedRef.current && !lastScanSucceededRef.current) {
+        startCamera();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [activeUser]);
+
+  useEffect(() => {
+    setOffline(!navigator.onLine);
+    const goOffline = () => setOffline(true);
+    const goOnline = () => setOffline(false);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => {
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+  }, []);
 
   // Load the real status from the server on open, and again whenever the app
   // returns to the foreground (another phone or the kiosk may have changed it).
@@ -138,47 +269,48 @@ function ScanPage() {
     };
   }, [activeUser]);
 
-  // Process a scanned QR payload
-  const handleScanDecoded = async (rawPayload: string) => {
+  // Gate every camera hit: ignore non-ChecIN codes, repeats of the same frame, and anything
+  // while a scan is in flight or cooling down.
+  const onDecoded = async (raw: string) => {
+    if (cooldownRef.current || processingRef.current) return;
+
+    const payload = parseChecinPayload(raw);
+    if (!payload) {
+      const last = lastPayloadRef.current;
+      if (!last || last.raw !== raw || Date.now() - last.at > 4000) {
+        showHint("That's not a ChecIN code. Point at the entrance screen.");
+      }
+      lastPayloadRef.current = { raw, at: Date.now() };
+      return;
+    }
+
+    if (!navigator.onLine) {
+      showHint("You're offline. Check-in needs a connection.");
+      return;
+    }
+
+    await handleScanDecoded(payload);
+  };
+
+  // Process a scanned ChecIN payload
+  const handleScanDecoded = async ({ token, locationId }: { token: string; locationId: string }) => {
     if (!user) {
       toast.error("Please sign in before scanning");
       return;
     }
 
     setProcessingScan(true);
+    processingRef.current = true;
     cooldownRef.current = true;
 
     try {
-      let locationId = "";
-      let token = "";
-
-      try {
-        const parsed = JSON.parse(rawPayload);
-        locationId = parsed.locationId;
-        token = parsed.token;
-      } catch {
-        // Plain string fallback format "token:locationId"
-        const parts = rawPayload.split("::");
-        if (parts.length === 2) {
-          locationId = parts[0];
-          token = parts[1];
-        }
-      }
-
-      if (!token || !locationId) {
-        setScanMessage({ text: "Invalid ChecIN QR code format", isError: true });
-        setProcessingScan(false);
-        setTimeout(() => {
-          cooldownRef.current = false;
-        }, 3000);
-        return;
-      }
-
       // Get fresh Firebase ID token
       const idToken = await firebaseAuth.currentUser?.getIdToken();
       if (!idToken) {
         setScanMessage({ text: "Authentication session expired. Please re-login.", isError: true });
         setProcessingScan(false);
+        processingRef.current = false;
+        cooldownRef.current = false;
         return;
       }
 
@@ -225,13 +357,24 @@ function ScanPage() {
       // Tactile haptic confirmation
       navigator.vibrate?.([80, 50, 80]);
 
+      // One scan is the whole job: release the camera until they ask for another.
+      lastScanSucceededRef.current = true;
+      setJustScanned(true);
+      stopCamera();
+
       setTimeout(() => {
         setScanMessage(null);
       }, 5000);
     } catch (err: any) {
       console.error("Scan error:", err);
-      setScanMessage({ text: "Connection error verifying scan", isError: true });
+      setScanMessage({
+        text: navigator.onLine
+          ? "Couldn't reach the server. Try again in a moment."
+          : "You're offline. Check-in needs a connection.",
+        isError: true,
+      });
     } finally {
+      processingRef.current = false;
       setProcessingScan(false);
       setTimeout(() => {
         cooldownRef.current = false;
@@ -346,17 +489,87 @@ function ScanPage() {
           )}
 
           {/* Fallback Viewfinder Overlay if camera is loading or permission pending */}
-          {!cameraActive && (
+          {!cameraActive && !justScanned && (
             <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4">
-              <div className="w-10 h-10 border-2 border-[#C0FD9B] border-t-transparent rounded-full animate-spin mb-3"></div>
+              {!cameraError && (
+                <div className="w-10 h-10 border-2 border-[#C0FD9B] border-t-transparent rounded-full animate-spin mb-3"></div>
+              )}
               <p className="text-xs text-white/80 font-medium mb-1">
-                {cameraError ? "Camera Guard Active" : "Initializing Camera Scanner..."}
+                {cameraError ? "Camera unavailable" : userPausedRef.current ? "Camera paused" : "Initializing Camera Scanner..."}
               </p>
               {cameraError && (
                 <p className="text-[10px] text-amber-300/80 max-w-xs">
                   {cameraError}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Smart prompt: tells the employee what the next scan will do */}
+          {cameraActive && !scanMessage && !processingScan && (
+            <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 flex flex-col items-center gap-2">
+              {hint && (
+                <div className="text-[11px] font-medium bg-amber-400 text-black px-3 py-1.5 rounded-full">
+                  {hint}
+                </div>
+              )}
+              <div className="text-xs font-bold bg-black/70 backdrop-blur-sm text-white px-3.5 py-1.5 rounded-full border border-white/20">
+                {status === "in" ? "Scan to clock OUT" : "Scan to clock IN"}
+              </div>
+            </div>
+          )}
+
+          {offline && (
+            <div className="absolute top-3 left-3 right-3 z-20 text-[11px] font-bold py-2 px-3 rounded-xl bg-amber-400 text-black text-center">
+              You're offline. Check-in needs a connection.
+            </div>
+          )}
+
+          {/* Torch and zoom, only where the camera supports them */}
+          {cameraActive && (torchSupported || zoomRange) && (
+            <div className="absolute right-3 top-14 z-20 flex flex-col items-center gap-2">
+              {torchSupported && (
+                <button
+                  onClick={toggleTorch}
+                  aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
+                  className={`w-9 h-9 rounded-full text-sm border ${
+                    torchOn ? "bg-[#C0FD9B] text-[#122300] border-[#C0FD9B]" : "bg-black/60 text-white border-white/30"
+                  }`}
+                >
+                  ⚡
+                </button>
+              )}
+              {zoomRange && (
+                <input
+                  type="range"
+                  aria-label="Zoom"
+                  min={zoomRange.min}
+                  max={zoomRange.max}
+                  step={zoomRange.step}
+                  value={zoom}
+                  onChange={(e) => changeZoom(Number(e.target.value))}
+                  className="w-24 accent-[#C0FD9B]"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Scan finished: camera is off until they ask again */}
+          {justScanned && !cameraActive && (
+            <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4 z-10">
+              <p className="text-sm font-semibold text-white mb-3">
+                {status === "in" ? "You're clocked IN" : "You're clocked OUT"}
+              </p>
+              <button
+                onClick={() => {
+                  lastScanSucceededRef.current = false;
+                  userPausedRef.current = false;
+                  startCamera();
+                }}
+                className="py-2 px-4 rounded-xl bg-[#C0FD9B] text-[#122300] text-xs font-bold"
+              >
+                Scan again
+              </button>
             </div>
           )}
 
@@ -389,8 +602,14 @@ function ScanPage() {
           <div className="flex gap-2">
             <button
               onClick={() => {
-                if (cameraActive) stopCamera();
-                else startCamera();
+                if (cameraActive) {
+                  userPausedRef.current = true;
+                  stopCamera();
+                } else {
+                  userPausedRef.current = false;
+                  lastScanSucceededRef.current = false;
+                  startCamera();
+                }
               }}
               className="flex-1 py-2 px-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[11px] transition text-center"
             >
