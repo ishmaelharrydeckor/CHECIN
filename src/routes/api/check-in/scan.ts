@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
 import { computeScanFlags, type LocationHours } from "@/lib/attendance-windows";
+import { cooldownSecondsLeft, dayKey, nextScanType } from "@/lib/attendance-day";
 
 export const Route = createFileRoute("/api/check-in/scan")({
   server: {
@@ -91,36 +92,34 @@ export const Route = createFileRoute("/api/check-in/scan")({
           }
 
           // 4. Atomic Cooldown Verification, Direction Toggle, & Write Transaction
-          const clockEventsQuery = firestoreAdmin
+          //
+          // The person's most recent event, newest first. This MUST be ordered: an
+          // unordered query with a limit returns arbitrary documents, so the "last
+          // event" (and with it the direction and cooldown) was wrong after about 10
+          // events. Uses the existing (orgId, employeeId, timestamp desc) index.
+          const lastEventQuery = firestoreAdmin
             .collection("clock_events")
+            .where("orgId", "==", caller.orgId)
             .where("employeeId", "==", caller.uid)
-            .limit(10);
+            .orderBy("timestamp", "desc")
+            .limit(1);
 
           const eventRef = firestoreAdmin.collection("clock_events").doc();
           const timestampIso = new Date().toISOString();
           const now = Date.now();
 
           const scanResult = await firestoreAdmin.runTransaction(async (t) => {
-            const recentEventsSnap = await t.get(clockEventsQuery);
+            const lastSnap = await t.get(lastEventQuery);
+            const lastEvent = lastSnap.empty ? null : lastSnap.docs[0].data();
 
-            let lastEvent: any = null;
-            if (!recentEventsSnap.empty) {
-              const sortedDocs = recentEventsSnap.docs
-                .map((d) => d.data())
-                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-              lastEvent = sortedDocs[0] || null;
-              if (lastEvent) {
-                const lastTime = new Date(lastEvent.timestamp).getTime();
-                if (now - lastTime < 60 * 1000) {
-                  const secondsLeft = Math.ceil((60 * 1000 - (now - lastTime)) / 1000);
-                  throw new Error(`COOLDOWN:${secondsLeft}:${lastEvent.type.toUpperCase()}`);
-                }
-              }
+            const secondsLeft = cooldownSecondsLeft(lastEvent, now);
+            if (secondsLeft > 0) {
+              throw new Error(`COOLDOWN:${secondsLeft}:${String(lastEvent?.type ?? "").toUpperCase()}`);
             }
 
-            // Determine Direction (IN vs OUT) based on last event
-            const nextType: "in" | "out" = lastEvent && lastEvent.type === "in" ? "out" : "in";
+            // Direction is based on the last event TODAY in the org's timezone: a
+            // forgotten check-out yesterday must not turn today's first scan into an "out".
+            const nextType = nextScanType(lastEvent, now, orgTimezone);
 
             const flags = computeScanFlags(nextType, hours, new Date(now), orgTimezone);
 
@@ -136,6 +135,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
               late: flags.late,
               earlyDeparture: flags.earlyDeparture,
               timestamp: timestampIso,
+              dayKey: dayKey(now, orgTimezone),
               locationId,
               locationName: kiosk.locationName || "Main Entrance",
               deviceFingerprint: deviceFingerprint || "browser-client",

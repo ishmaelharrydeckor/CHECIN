@@ -47,21 +47,6 @@ interface KioskLocation {
   checkoutWindowMinutes?: number;
 }
 
-const INITIAL_LOCATIONS: KioskLocation[] = [
-  {
-    id: "loc-01",
-    name: "Main Lobby Entrance",
-    isPaired: true,
-    pairedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-  },
-  {
-    id: "loc-02",
-    name: "South Gate Entrance",
-    isPaired: true,
-    pairedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-  },
-];
-
 function SettingsPage() {
   const { user, orgId, isOrgAdmin, isManager, loading } = useAuth();
   const navigate = useNavigate();

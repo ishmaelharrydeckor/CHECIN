@@ -21,7 +21,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Typecheck
-        run: npx tsc --noEmit
+      # Build first: it regenerates src/routeTree.gen.ts, which the typecheck needs
+      # whenever a PR adds a new route file.
       - name: Build
         run: npm run build
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm test

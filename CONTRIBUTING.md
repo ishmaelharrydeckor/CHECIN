@@ -13,22 +13,29 @@ feature branch  ->  PR into `staging`  ->  test on staging  ->  integrator opens
 - One task per PR. Small PRs get reviewed fast.
 - CI (typecheck + build) must be green before review.
 
-## Local setup
+## Two ways to work
+
+**Browser path (default for non-developers).** No installs. Build with a normal Claude chat, paste the code into GitHub's web editor (press `.` on the repo page), open a draft PR, and write "How to test" steps for the integrator, who tests it on staging. Full steps: [docs/TEAMMATE-GUIDE.md](docs/TEAMMATE-GUIDE.md). Paste [docs/CLAUDE-PROJECT-INSTRUCTIONS.md](docs/CLAUDE-PROJECT-INSTRUCTIONS.md) into your Claude Project first. Nobody runs your code before review, so the green CI checks are your safety net and the integrator does the hands-on testing.
+
+**Local path (developers).**
 
 ```bash
 git clone https://github.com/ishmaelharrydeckor/CHECIN.git
 cd CHECIN
 git checkout staging
 npm ci
-cp .env.example .env     # then fill in with the STAGING values the integrator sends you privately
+cp .env.example .env     # fill in with the STAGING values the integrator sends you privately
 npm run dev              # http://localhost:3000
+npm run check            # build + typecheck, run before every PR
 ```
 
-Rules for `.env`:
+Rules for `.env` (both paths):
 
 - Use **staging** Firebase values only. Never ask for, paste, or use production values.
-- Never commit `.env`, a service-account JSON, or any key. `.gitignore` covers `.env`, but check `git status` before every commit.
+- Never commit `.env`, a service-account JSON, or any key. Check `git status` before every commit.
 - Secrets are shared through a password manager or a private message, never in a PR, issue, or chat channel the whole company can read.
+
+Reviews are done by the integrator using Claude Code (`/review-pr <number>`). Expect plain-language feedback you can paste straight into your Claude chat.
 
 ## What you can and can't edit
 
@@ -48,22 +55,10 @@ If your feature needs a menu entry, a Firestore rule, or a custom-claim change, 
 6. **No GPS, ever.** The kiosk QR is the only check-in method. Do not add location permission, geofencing, or distance code.
 7. Anything unauthenticated must be rate-limited with the Firestore-backed limiter, not in-memory.
 
-## Working with Claude on your task
-
-Claude is a good pair, but it only knows what you tell it. Start each session with:
-
-> Read AGENTS.md, CONTRIBUTING.md and docs/V2-TASK-PLAN.md. I'm working on task X.Y. I may only create new files and must not edit the shared files listed in CONTRIBUTING.md. Tell me before touching anything else.
-
-Then review what it wrote before you open the PR. You are responsible for the diff, not the tool.
-
 ## Before you open the PR
 
-```bash
-npx tsc --noEmit
-npm run build
-git status        # nothing you didn't mean to commit
-git diff staging  # read your own diff once
-```
+- Developers: `npm run check`, then read your own diff once.
+- Browser path: wait for the green checks on the PR and fill in "How to test".
 
 The PR template has the full checklist.
 

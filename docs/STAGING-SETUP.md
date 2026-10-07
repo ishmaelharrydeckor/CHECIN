@@ -91,6 +91,10 @@ Wipe and re-seed staging whenever it gets messy; it is meant to be disposable.
 - [ ] Open the Firebase console for **checin-d172e** and confirm none of the above data appeared there
 - [ ] A test PR shows CI running and a Preview deployment pointing at staging
 
+## Testing a teammate's PR (you)
+
+Teammates can't run the app, so you test their work. Each PR gets its own Vercel preview URL (PR page > Vercel check > Visit Preview). Because Preview variables point at the staging Firebase project, you can sign in with the staging test accounts and click through the PR's "How to test" steps without touching production. Keep Deployment Protection on; you're signed in to Vercel, teammates don't need to be. Use email/password logins on preview URLs (Google sign-in only works on the authorized staging domain).
+
 ## Promotion flow
 
 1. Teammate opens PR `feat/*` -> `staging`. CI runs, integrator reviews.
