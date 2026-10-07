@@ -6,6 +6,7 @@ import {
   Settings,
   Megaphone,
   CalendarDays,
+  Umbrella,
   Home,
   Clock,
   ExternalLink,
@@ -84,12 +85,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/history", label: "History", icon: Clock },
         { to: "/reports", label: "Reports", icon: FileBarChart },
         { to: "/announcements", label: "Notices", icon: Megaphone },
+        { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },
         { to: "/settings", label: "Settings", icon: Settings },
       ]
     : [
         { to: "/history", label: "My History", icon: Clock },
         { to: "/announcements", label: "Notices", icon: Megaphone },
+        { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },
       ];
 
