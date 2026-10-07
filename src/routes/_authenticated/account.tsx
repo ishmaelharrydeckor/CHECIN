@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ChangePasswordCard } from "@/components/ChangePasswordCard";
+import { ReportProblemCard } from "@/components/ReportProblemDialog";
 import { toast } from "sonner";
 import {
   User,
@@ -132,6 +134,12 @@ function AccountPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Change password (email/password accounts only) */}
+      <ChangePasswordCard />
+
+      {/* Report a problem */}
+      <ReportProblemCard />
 
       {/* Quick Access Client Portals */}
       <Card className="border-border/80 shadow-sm">

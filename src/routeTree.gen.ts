@@ -21,18 +21,19 @@ import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authen
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
+import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
 import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-link'
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
-import { Route as ApiAdminSeedDemoRouteImport } from './routes/api/admin/seed-demo'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
 import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
-import { Route as ApiAuthDemoLoginRouteImport } from './routes/api/auth/demo-login'
-import { Route as ApiAuthLoginDirectRouteImport } from './routes/api/auth/login-direct'
+import { Route as ApiAttendanceTodayRouteImport } from './routes/api/attendance/today'
+import { Route as ApiAttendanceWeekRouteImport } from './routes/api/attendance/week'
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
 import { Route as ApiCheckInScanRouteImport } from './routes/api/check-in/scan'
 import { Route as ApiKioskPairRouteImport } from './routes/api/kiosk/pair'
@@ -46,6 +47,7 @@ import { Route as ApiPushPreferencesRouteImport } from './routes/api/push/prefer
 import { Route as ApiPushSendRouteImport } from './routes/api/push/send'
 import { Route as ApiPushSubscribeRouteImport } from './routes/api/push/subscribe'
 import { Route as ApiPushVapidKeyRouteImport } from './routes/api/push/vapid-key'
+import { Route as ApiReportsIndexRouteImport } from './routes/api/reports/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -108,6 +110,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHolidaysRoute = AuthenticatedHolidaysRouteImport.update({
+  id: '/holidays',
+  path: '/holidays',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -123,6 +130,12 @@ const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
   path: '/accept-invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOwnerReportsRoute =
+  AuthenticatedOwnerReportsRouteImport.update({
+    id: '/owner/reports',
+    path: '/owner/reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiAdminResetLinkRoute = ApiAdminResetLinkRouteImport.update({
   id: '/api/admin/reset-link',
   path: '/api/admin/reset-link',
@@ -131,11 +144,6 @@ const ApiAdminResetLinkRoute = ApiAdminResetLinkRouteImport.update({
 const ApiAdminRolesRoute = ApiAdminRolesRouteImport.update({
   id: '/api/admin/roles',
   path: '/api/admin/roles',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminSeedDemoRoute = ApiAdminSeedDemoRouteImport.update({
-  id: '/api/admin/seed-demo',
-  path: '/api/admin/seed-demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminStaffInvitesRoute = ApiAdminStaffInvitesRouteImport.update({
@@ -158,14 +166,14 @@ const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   path: '/api/attendance/history',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthDemoLoginRoute = ApiAuthDemoLoginRouteImport.update({
-  id: '/api/auth/demo-login',
-  path: '/api/auth/demo-login',
+const ApiAttendanceTodayRoute = ApiAttendanceTodayRouteImport.update({
+  id: '/api/attendance/today',
+  path: '/api/attendance/today',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthLoginDirectRoute = ApiAuthLoginDirectRouteImport.update({
-  id: '/api/auth/login-direct',
-  path: '/api/auth/login-direct',
+const ApiAttendanceWeekRoute = ApiAttendanceWeekRouteImport.update({
+  id: '/api/attendance/week',
+  path: '/api/attendance/week',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthRegisterOrgRoute = ApiAuthRegisterOrgRouteImport.update({
@@ -233,6 +241,11 @@ const ApiPushVapidKeyRoute = ApiPushVapidKeyRouteImport.update({
   path: '/api/push/vapid-key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReportsIndexRoute = ApiReportsIndexRouteImport.update({
+  id: '/api/reports/',
+  path: '/api/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -246,17 +259,18 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/holidays': typeof AuthenticatedHolidaysRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
-  '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
-  '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
-  '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
+  '/api/attendance/today': typeof ApiAttendanceTodayRoute
+  '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -271,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
+  '/api/reports/': typeof ApiReportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -284,17 +299,18 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/holidays': typeof AuthenticatedHolidaysRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
-  '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
-  '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
-  '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
+  '/api/attendance/today': typeof ApiAttendanceTodayRoute
+  '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -309,6 +325,7 @@ export interface FileRoutesByTo {
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
   '/api/locations': typeof ApiLocationsIndexRoute
   '/api/organization': typeof ApiOrganizationIndexRoute
+  '/api/reports': typeof ApiReportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -324,17 +341,18 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
-  '/api/admin/seed-demo': typeof ApiAdminSeedDemoRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
-  '/api/auth/demo-login': typeof ApiAuthDemoLoginRoute
-  '/api/auth/login-direct': typeof ApiAuthLoginDirectRoute
+  '/api/attendance/today': typeof ApiAttendanceTodayRoute
+  '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
@@ -349,6 +367,7 @@ export interface FileRoutesById {
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
+  '/api/reports/': typeof ApiReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -364,17 +383,18 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/departments'
     | '/history'
+    | '/holidays'
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
+    | '/owner/reports'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
-    | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
-    | '/api/auth/demo-login'
-    | '/api/auth/login-direct'
+    | '/api/attendance/today'
+    | '/api/attendance/week'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -389,6 +409,7 @@ export interface FileRouteTypes {
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
+    | '/api/reports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -402,17 +423,18 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/departments'
     | '/history'
+    | '/holidays'
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
+    | '/owner/reports'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
-    | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
-    | '/api/auth/demo-login'
-    | '/api/auth/login-direct'
+    | '/api/attendance/today'
+    | '/api/attendance/week'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -427,6 +449,7 @@ export interface FileRouteTypes {
     | '/api/announcements'
     | '/api/locations'
     | '/api/organization'
+    | '/api/reports'
   id:
     | '__root__'
     | '/'
@@ -441,17 +464,18 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/departments'
     | '/_authenticated/history'
+    | '/_authenticated/holidays'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
+    | '/_authenticated/owner/reports'
     | '/api/admin/reset-link'
     | '/api/admin/roles'
-    | '/api/admin/seed-demo'
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
-    | '/api/auth/demo-login'
-    | '/api/auth/login-direct'
+    | '/api/attendance/today'
+    | '/api/attendance/week'
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/kiosk/pair'
@@ -466,6 +490,7 @@ export interface FileRouteTypes {
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
+    | '/api/reports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -479,12 +504,11 @@ export interface RootRouteChildren {
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
   ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
-  ApiAdminSeedDemoRoute: typeof ApiAdminSeedDemoRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
   ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
-  ApiAuthDemoLoginRoute: typeof ApiAuthDemoLoginRoute
-  ApiAuthLoginDirectRoute: typeof ApiAuthLoginDirectRoute
+  ApiAttendanceTodayRoute: typeof ApiAttendanceTodayRoute
+  ApiAttendanceWeekRoute: typeof ApiAttendanceWeekRoute
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
   ApiCheckInScanRoute: typeof ApiCheckInScanRoute
   ApiKioskPairRoute: typeof ApiKioskPairRoute
@@ -499,6 +523,7 @@ export interface RootRouteChildren {
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
   ApiLocationsIndexRoute: typeof ApiLocationsIndexRoute
   ApiOrganizationIndexRoute: typeof ApiOrganizationIndexRoute
+  ApiReportsIndexRoute: typeof ApiReportsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -587,6 +612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/holidays': {
+      id: '/_authenticated/holidays'
+      path: '/holidays'
+      fullPath: '/holidays'
+      preLoaderRoute: typeof AuthenticatedHolidaysRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -608,6 +640,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/owner/reports': {
+      id: '/_authenticated/owner/reports'
+      path: '/owner/reports'
+      fullPath: '/owner/reports'
+      preLoaderRoute: typeof AuthenticatedOwnerReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/admin/reset-link': {
       id: '/api/admin/reset-link'
       path: '/api/admin/reset-link'
@@ -620,13 +659,6 @@ declare module '@tanstack/react-router' {
       path: '/api/admin/roles'
       fullPath: '/api/admin/roles'
       preLoaderRoute: typeof ApiAdminRolesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/seed-demo': {
-      id: '/api/admin/seed-demo'
-      path: '/api/admin/seed-demo'
-      fullPath: '/api/admin/seed-demo'
-      preLoaderRoute: typeof ApiAdminSeedDemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/staff-invites': {
@@ -657,18 +689,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAttendanceHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/demo-login': {
-      id: '/api/auth/demo-login'
-      path: '/api/auth/demo-login'
-      fullPath: '/api/auth/demo-login'
-      preLoaderRoute: typeof ApiAuthDemoLoginRouteImport
+    '/api/attendance/today': {
+      id: '/api/attendance/today'
+      path: '/api/attendance/today'
+      fullPath: '/api/attendance/today'
+      preLoaderRoute: typeof ApiAttendanceTodayRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/login-direct': {
-      id: '/api/auth/login-direct'
-      path: '/api/auth/login-direct'
-      fullPath: '/api/auth/login-direct'
-      preLoaderRoute: typeof ApiAuthLoginDirectRouteImport
+    '/api/attendance/week': {
+      id: '/api/attendance/week'
+      path: '/api/attendance/week'
+      fullPath: '/api/attendance/week'
+      preLoaderRoute: typeof ApiAttendanceWeekRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/register-org': {
@@ -762,6 +794,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPushVapidKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reports/': {
+      id: '/api/reports/'
+      path: '/api/reports'
+      fullPath: '/api/reports/'
+      preLoaderRoute: typeof ApiReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -771,8 +810,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -781,8 +822,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -799,12 +842,11 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
   ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
-  ApiAdminSeedDemoRoute: ApiAdminSeedDemoRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
   ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
-  ApiAuthDemoLoginRoute: ApiAuthDemoLoginRoute,
-  ApiAuthLoginDirectRoute: ApiAuthLoginDirectRoute,
+  ApiAttendanceTodayRoute: ApiAttendanceTodayRoute,
+  ApiAttendanceWeekRoute: ApiAttendanceWeekRoute,
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
   ApiCheckInScanRoute: ApiCheckInScanRoute,
   ApiKioskPairRoute: ApiKioskPairRoute,
@@ -819,6 +861,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
   ApiLocationsIndexRoute: ApiLocationsIndexRoute,
   ApiOrganizationIndexRoute: ApiOrganizationIndexRoute,
+  ApiReportsIndexRoute: ApiReportsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

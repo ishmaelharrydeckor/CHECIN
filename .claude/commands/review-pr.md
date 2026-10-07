@@ -12,6 +12,7 @@ Review pull request #$ARGUMENTS in this repo. The author is a non-technical team
 5. **Security pass** over the diff, using the checklist: identity/role/orgId/managerId from request input, role fields on Firestore docs, secrets, unauthenticated or unauthorized routes, missing rate limits, GPS code, rule changes. A violation is a blocker.
 6. **Scope pass:** files outside the task, shared files touched (see CODEOWNERS), unexpected dependency changes, files that look pasted into the wrong path, leftover debug code or placeholder text, `console.log` of user data.
 7. **Behaviour pass:** does it satisfy each "Done when" bullet? Empty/loading/error states, phone width for employee-facing screens, wrong-role access.
+7b. **Style pass:** compare the diff with `docs/UI-STYLE-GUIDE.md`: only guide colors (grep for hex values and `bg-|text-` colors not in the guide), the standard page header/card/button/form/status-pill patterns, components from `src/components/ui/` (no hand-rolled buttons or cards), no inline `style=`, no new libraries, all four states present. Flag deviations as "Should fix" and name the reference screen to copy.
 8. **Report** to the integrator in plain language, in this shape:
    - **Verdict:** ready to merge / fix needed / blocked.
    - **Blockers** (must fix), **Should fix**, **Nice to have**. Each with file:line.

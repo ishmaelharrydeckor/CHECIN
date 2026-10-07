@@ -21,7 +21,7 @@ If anything here doesn't match your screen, stop and message the owner. Don't gu
 1. **Accept the GitHub invite** (you've done this) and sign in to GitHub in your browser.
 2. **Create a Claude Project.** In Claude (claude.ai), create a Project called **ChecIN v2**.
    - Paste the instructions from [docs/CLAUDE-PROJECT-INSTRUCTIONS.md](CLAUDE-PROJECT-INSTRUCTIONS.md) (the part between the lines) into the Project's instructions.
-   - Download these three files from GitHub (open the file, click the download icon) and add them to the Project's knowledge: `AGENTS.md`, `CONTRIBUTING.md`, `docs/TEAM-TASKS.md`.
+   - Download these four files from GitHub (open the file, click the download icon) and add them to the Project's knowledge: `AGENTS.md`, `CONTRIBUTING.md`, `docs/TEAM-TASKS.md`, `docs/UI-STYLE-GUIDE.md`.
    - Can't make a Project? Paste the instructions at the start of every new chat instead.
 3. That's it. You don't run the app yourself. The owner tests your work on a private test site, so you never need logins or settings.
 
@@ -41,7 +41,10 @@ Open your issue (https://github.com/ishmaelharrydeckor/CHECIN/issues), read it f
 ### 2. Get a plan from Claude
 Open a **new chat inside your Project**. Paste the whole issue text and say: *"This is my task. Tell me which existing files you need to see."* Open those files on GitHub, copy their contents, and paste them into the chat. Claude will propose a plan; check it makes sense, then say "go ahead".
 
-### 3. Get complete files
+### 3. Make it look like the rest of the app
+Before asking for code for a **screen**, open the existing page most like yours in the staging site, take a **screenshot**, and paste it into your chat with: *"Match this look, following the UI style guide."* Ask Claude to finish with its "Style check". This is how all screens end up looking like one app.
+
+### 3b. Get complete files
 Ask for **complete files, one code block per file, with the full path**. If Claude gives you a piece ("add this somewhere in the file"), say: *"Give me the entire file."*
 
 ### 4. Put the code into GitHub (the browser editor)
