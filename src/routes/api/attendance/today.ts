@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { verifyCallerToken } from "@/integrations/firebase/admin.server";
 import {
-  TODAY_EVENT_CAP,
+  RECENT_EVENT_LIMIT,
+  SUMMARY_CAP,
   loadOrgContext,
   loadScopedEvents,
+  loadScopedSummaries,
 } from "@/lib/attendance-data.server";
 import { dashboardCacheKey, resolveDashboardScope } from "@/lib/dashboard-scope";
 import { createCachedLoader } from "@/lib/ttl-cache.server";
 import type { TodaySummaryData } from "@/lib/attendance-today";
-import { buildTodaySummary, dayBoundsMs } from "@/lib/attendance-today";
+import { buildTodayFromSummaries, dayBoundsMs } from "@/lib/attendance-today";
 import { dayKey } from "@/lib/attendance-day";
 
 // Keep each answer for 45 s so several viewers, or one person refreshing, share one calculation.
@@ -19,8 +21,9 @@ const loadToday = createCachedLoader<TodaySummaryData>(45_000, 200, 5_000);
  * GET /api/attendance/today
  *
  * Today's numbers for the manager dashboard, computed on the server in the
- * ORGANIZATION's timezone from today's check-in events only. Replaces the
- * browser-side math that used capped, multi-day lists.
+ * ORGANIZATION's timezone from today's daily summaries (one document per
+ * person) plus the newest 20 events for the activity list. A poll reads about
+ * (people on the team + 20) documents however many scans happened.
  *
  * Authorization: caller identity, role and organization come only from the
  * verified ID token. Org admins see the whole organization, managers see
@@ -51,8 +54,11 @@ export const Route = createFileRoute("/api/attendance/today")({
               const now = Date.now();
               const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
               const { startMs, endMs } = dayBoundsMs(today, timezone);
-              const { events, truncated } = await loadScopedEvents(scope, startMs, endMs, TODAY_EVENT_CAP);
-              return buildTodaySummary({ events, roster, timezone, now, truncated });
+              const [{ summaries, truncated }, { events: recentEvents }] = await Promise.all([
+                loadScopedSummaries(scope, today, today, SUMMARY_CAP),
+                loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),
+              ]);
+              return buildTodayFromSummaries({ summaries, recentEvents, roster, timezone, now, truncated });
             },
             { fresh },
           );
