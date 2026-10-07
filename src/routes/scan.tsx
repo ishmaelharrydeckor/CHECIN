@@ -6,6 +6,15 @@ import { signInWithPopup } from "firebase/auth";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { toast } from "sonner";
 import { getDeviceId } from "@/lib/device-manager";
+import { ScanResultOverlay, type ScanOverlayState } from "@/components/scan/ScanResultOverlay";
+import { scanFeedback } from "@/components/scan/feedback";
+import {
+  chooseScanId,
+  describeLastRecorded,
+  describeScanFailure,
+  isRetrySafeFailure,
+  type PendingScan,
+} from "@/lib/scan-result";
 
 export const Route = createFileRoute("/scan")({
   ssr: false,
@@ -55,7 +64,6 @@ function ScanPage() {
 
   const [status, setStatus] = useState<"in" | "out">("out");
   const [lastScanTime, setLastScanTime] = useState<string | null>(null);
-  const [scanMessage, setScanMessage] = useState<{ text: string; isError?: boolean } | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -67,6 +75,7 @@ function ScanPage() {
   const [zoom, setZoom] = useState(1);
   const [offline, setOffline] = useState(false);
   const [justScanned, setJustScanned] = useState(false);
+  const [overlay, setOverlay] = useState<ScanOverlayState | null>(null);
   const [hint, setHint] = useState<string | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -75,6 +84,8 @@ function ScanPage() {
   const startingRef = useRef(false);
   const userPausedRef = useRef(false);
   const lastScanSucceededRef = useRef(false);
+  // The attempt whose outcome we may not know (network drop, 5xx): a retry reuses its id so it records once.
+  const pendingScanRef = useRef<PendingScan | null>(null);
   const lastPayloadRef = useRef<{ raw: string; at: number } | null>(null);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -251,6 +262,7 @@ function ScanPage() {
         const data = await res.json();
         if (!cancelled && (data.status === "in" || data.status === "out")) {
           setStatus(data.status);
+          setLastScanTime(typeof data.lastTime === "string" ? data.lastTime : null);
         }
       } catch {
         // Leave the current tag; a failed read must not change what is shown.
@@ -307,12 +319,16 @@ function ScanPage() {
       // Get fresh Firebase ID token
       const idToken = await firebaseAuth.currentUser?.getIdToken();
       if (!idToken) {
-        setScanMessage({ text: "Authentication session expired. Please re-login.", isError: true });
+        const failure = describeScanFailure(401, undefined, navigator.onLine);
+        setOverlay({ kind: "failure", title: failure.title, detail: failure.detail });
         setProcessingScan(false);
         processingRef.current = false;
         cooldownRef.current = false;
         return;
       }
+
+      const scanId = chooseScanId(pendingScanRef.current, locationId, Date.now(), () => crypto.randomUUID());
+      pendingScanRef.current = { scanId, key: locationId, at: Date.now() };
 
       const res = await fetch("/api/check-in/scan", {
         method: "POST",
@@ -324,55 +340,48 @@ function ScanPage() {
           token,
           locationId,
           deviceFingerprint: getDeviceId(),
-          // Lets the server recognise a retry of this same scan and record it once.
-          scanId: crypto.randomUUID(),
+          scanId,
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setScanMessage({ text: data.error || "Check-in failed", isError: true });
-        toast.error(data.error || "Check-in failed");
-        navigator.vibrate?.([200, 100, 200]);
+        // A definite answer from the server (not a dropped connection): this attempt is over.
+        if (!isRetrySafeFailure(res.status)) pendingScanRef.current = null;
+        const failure = describeScanFailure(res.status, data?.error, navigator.onLine);
+        setOverlay({ kind: "failure", title: failure.title, detail: failure.detail });
+        scanFeedback(false);
         setProcessingScan(false);
-        setTimeout(() => {
-          cooldownRef.current = false;
-        }, 3000);
         return;
       }
 
-      // SUCCESS!
+      // SUCCESS: this response comes from the transaction that recorded the scan.
+      pendingScanRef.current = null;
       const isCheckIn = data.type === "in";
       setStatus(isCheckIn ? "in" : "out");
-      setLastScanTime(data.timeDisplay || new Date().toLocaleTimeString());
-
-      const successText = isCheckIn
-        ? `Successfully Clocked IN at ${data.timeDisplay || "Now"} • ${data.locationName}`
-        : `Successfully Clocked OUT at ${data.timeDisplay || "Now"} • ${data.locationName}`;
-
-      setScanMessage({ text: successText, isError: false });
-      toast.success(successText);
-
-      // Tactile haptic confirmation
-      navigator.vibrate?.([80, 50, 80]);
+      setLastScanTime(data.timeDisplay || null);
+      setOverlay({
+        kind: "success",
+        type: isCheckIn ? "in" : "out",
+        time: data.timeDisplay || "",
+        location: data.locationName || "",
+        late: data.late === true,
+        earlyDeparture: data.earlyDeparture === true,
+      });
+      scanFeedback(true);
 
       // One scan is the whole job: release the camera until they ask for another.
       lastScanSucceededRef.current = true;
       setJustScanned(true);
       stopCamera();
-
-      setTimeout(() => {
-        setScanMessage(null);
-      }, 5000);
     } catch (err: any) {
+      // No response at all: the scan may or may not have reached the server. The retry
+      // reuses the same scanId, so if it did, it is recorded once, not twice.
       console.error("Scan error:", err);
-      setScanMessage({
-        text: navigator.onLine
-          ? "Couldn't reach the server. Try again in a moment."
-          : "You're offline. Check-in needs a connection.",
-        isError: true,
-      });
+      const failure = describeScanFailure(0, undefined, navigator.onLine);
+      setOverlay({ kind: "failure", title: failure.title, detail: failure.detail });
+      scanFeedback(false);
     } finally {
       processingRef.current = false;
       setProcessingScan(false);
@@ -476,6 +485,9 @@ function ScanPage() {
               {status === "in" ? "Clocked IN" : "Not Clocked In"}
             </span>
           </div>
+          {describeLastRecorded(status, lastScanTime) && (
+            <p className="text-[11px] text-white/60 mt-2">{describeLastRecorded(status, lastScanTime)}</p>
+          )}
         </div>
 
         {/* Camera Viewfinder / HTML5 QR Scanner */}
@@ -506,7 +518,7 @@ function ScanPage() {
           )}
 
           {/* Smart prompt: tells the employee what the next scan will do */}
-          {cameraActive && !scanMessage && !processingScan && (
+          {cameraActive && !overlay && !processingScan && (
             <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 flex flex-col items-center gap-2">
               {hint && (
                 <div className="text-[11px] font-medium bg-amber-400 text-black px-3 py-1.5 rounded-full">
@@ -554,36 +566,21 @@ function ScanPage() {
             </div>
           )}
 
-          {/* Scan finished: camera is off until they ask again */}
-          {justScanned && !cameraActive && (
-            <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4 z-10">
-              <p className="text-sm font-semibold text-white mb-3">
-                {status === "in" ? "You're clocked IN" : "You're clocked OUT"}
-              </p>
-              <button
-                onClick={() => {
+          {/* The result of the scan: this is the employee's confirmation (or the reason there is none) */}
+          {overlay && (
+            <ScanResultOverlay
+              state={overlay}
+              onPrimary={() => {
+                const wasSuccess = overlay.kind === "success";
+                setOverlay(null);
+                cooldownRef.current = false;
+                if (wasSuccess) {
                   lastScanSucceededRef.current = false;
                   userPausedRef.current = false;
                   startCamera();
-                }}
-                className="py-2 px-4 rounded-xl bg-[#C0FD9B] text-[#122300] text-xs font-bold"
-              >
-                Scan again
-              </button>
-            </div>
-          )}
-
-          {/* In-Viewfinder Status Banner */}
-          {scanMessage && (
-            <div
-              className={`absolute top-3 left-3 right-3 text-[11px] font-bold py-2.5 px-3 rounded-xl shadow-xl z-20 animate-in fade-in slide-in-from-top-2 duration-200 ${
-                scanMessage.isError
-                  ? "bg-rose-500 text-white border border-rose-400"
-                  : "bg-[#C0FD9B] text-[#122300] border border-emerald-400"
-              }`}
-            >
-              {scanMessage.isError ? "⚠️ " : "✓ "} {scanMessage.text}
-            </div>
+                }
+              }}
+            />
           )}
 
           {/* Processing Spinner Overlay */}

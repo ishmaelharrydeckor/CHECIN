@@ -15,13 +15,17 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
 
   let hours: LocationHours = {};
   let timezone = "UTC";
+  let greeting = false;
   try {
     const [locSnap, orgSnap] = await Promise.all([
       firestoreAdmin.collection("locations").doc(locationId).get(),
       firestoreAdmin.collection("organizations").doc(kiosk.orgId).get(),
     ]);
     // Only trust hours from a location that belongs to the kiosk's own org.
-    if (locSnap.exists && locSnap.data()?.orgId === kiosk.orgId) hours = locSnap.data()!;
+    if (locSnap.exists && locSnap.data()?.orgId === kiosk.orgId) {
+      hours = locSnap.data()!;
+      greeting = locSnap.data()?.kioskGreeting === true;
+    }
     timezone = orgSnap.data()?.timezone || "UTC";
   } catch (modeErr) {
     console.warn("Could not load location hours for kiosk mode:", modeErr);
@@ -34,6 +38,7 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
     locationName: kiosk.locationName || "Main Entrance",
     hours,
     timezone,
+    greeting,
   };
   setCachedKiosk(locationId, entry);
   return entry;

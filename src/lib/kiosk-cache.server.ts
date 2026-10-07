@@ -22,6 +22,12 @@ export interface KioskCacheEntry {
   locationName: string;
   hours: LocationHours;
   timezone: string;
+  /**
+   * Show "Welcome, {name}" on the tablet after a scan. Off by default: the phone is the
+   * confirmation, and the greeting costs a database read on every kiosk poll
+   * (docs/SCALE-PLAN.md, S3/S4).
+   */
+  greeting: boolean;
 }
 
 const cache = new Map<string, KioskCacheEntry>();
@@ -60,6 +66,8 @@ export function clearKioskCache(): void {
 export const POLL_MS_ACTIVE = 4000; // around reporting / closing time: fast greeting
 export const POLL_MS_IDLE = 12000; // never slower: the QR token must be refreshed in time
 
-export function pollIntervalFor(mode: "check_in" | "check_out" | "idle"): number {
+export function pollIntervalFor(mode: "check_in" | "check_out" | "idle", greeting = false): number {
+  // Without the greeting there is nothing to be quick about: only the QR needs refreshing.
+  if (!greeting) return POLL_MS_IDLE;
   return mode === "idle" ? POLL_MS_IDLE : POLL_MS_ACTIVE;
 }

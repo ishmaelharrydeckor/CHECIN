@@ -66,9 +66,11 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 
 ### 3.4 P3: confirmation and greeting
 
-- Phone: full-screen result (green in, amber out) with time and late/early flag; vibration; clear **failure** states (expired token, cooldown, offline, wrong organization); idle screen shows "Last recorded: IN at 08:52" from the existing status endpoint.
-- Kiosk: data-free "scan received" cue driven by the existing token refresh. Greeting with names only where the location setting is on.
-- Adaptive interval stays: 4 s around reporting/closing time, 12 s otherwise, 12 s is the ceiling because the QR token lives about 30-45 s.
+- Phone ([ScanResultOverlay.tsx](../src/components/scan/ScanResultOverlay.tsx)): full-screen result (mint for in, butter for out) with the time, location and "Marked late" / "Left early"; vibration and a short tone where the phone allows; every **failure** is a full-screen message that says the check-in was **not recorded**, in plain language ([scan-result.ts](../src/lib/scan-result.ts), tested). The idle screen shows "Last recorded: IN at 08:52" from the status endpoint.
+- A retry after a dropped connection reuses the same `scanId` (per entrance, for 60 s), so it records once; a cooldown answer says the earlier scan counts.
+- Kiosk greeting is a per-location setting (Settings > location hours), **off by default** (`kioskGreeting` on the location document). With it off the token route skips the `recent_scans` read, the scan route skips the write, and the tablet polls every 12 s (the QR-refresh ceiling) and shows "Your phone shows your check-in result".
+- **Not built:** the data-free "scan received" cue on the tablet. Any signal that a scan happened has to be read from the database on each poll, which is the cost the toggle removes. The phone is the confirmation.
+- Adaptive interval stays for locations with the greeting on: 4 s around reporting/closing time, 12 s otherwise.
 
 ### 3.5 P4: dashboard on summaries
 

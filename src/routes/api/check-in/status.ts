@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
-import { dayKey, nextScanType } from "@/lib/attendance-day";
+import { dayKey, formatClock, nextScanType } from "@/lib/attendance-day";
 import { summaryDocId, type DailySummary } from "@/lib/daily-summary";
 import { createTtlCache } from "@/lib/ttl-cache.server";
 
@@ -47,8 +47,11 @@ export const Route = createFileRoute("/api/check-in/status")({
             .get();
 
           let status: "in" | "out";
+          let lastTime: string | null = null; // when the latest scan today was recorded, in the org timezone
           if (summarySnap.exists) {
-            status = (summarySnap.data() as DailySummary).state === "in" ? "in" : "out";
+            const summary = summarySnap.data() as DailySummary;
+            status = summary.state === "in" ? "in" : "out";
+            lastTime = formatClock(summary.lastEventAt, tz) || null;
           } else if (LEGACY_FALLBACK) {
             const lastSnap = await firestoreAdmin
               .collection("clock_events")
@@ -59,11 +62,12 @@ export const Route = createFileRoute("/api/check-in/status")({
               .get();
             const last = lastSnap.empty ? null : lastSnap.docs[0].data();
             status = nextScanType(last, now, tz) === "out" ? "in" : "out";
+            lastTime = last && dayKey(last.timestamp, tz) === today ? formatClock(last.timestamp, tz) || null : null;
           } else {
             status = "out"; // no scan yet today
           }
 
-          return Response.json({ status });
+          return Response.json({ status, lastTime });
         } catch (error: any) {
           console.error("check-in status error:", error);
           return Response.json({ error: "Could not load status" }, { status: 500 });

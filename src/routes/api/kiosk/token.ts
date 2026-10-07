@@ -53,23 +53,27 @@ export const Route = createFileRoute("/api/kiosk/token")({
           const token = generateKioskToken(locationId, timeBucket);
 
           // Check if there is an active scan notification for this kiosk (within last 12 seconds)
+          // Only when this location shows the greeting: that check is one database read on
+          // EVERY poll, and the phone already confirms the scan to the employee.
           let recentScan = null;
-          try {
-            const scanSnap = await firestoreAdmin.collection("recent_scans").doc(locationId).get();
-            if (scanSnap.exists) {
-              const scanData = scanSnap.data()!;
-              const scanTs = Number(scanData.timestamp) || 0;
-              if (now - scanTs < 12000) {
-                recentScan = {
-                  employeeName: scanData.employeeName,
-                  type: scanData.type, // "in" | "out"
-                  time: scanData.time,
-                  timestamp: scanTs,
-                };
+          if (entry.greeting) {
+            try {
+              const scanSnap = await firestoreAdmin.collection("recent_scans").doc(locationId).get();
+              if (scanSnap.exists) {
+                const scanData = scanSnap.data()!;
+                const scanTs = Number(scanData.timestamp) || 0;
+                if (now - scanTs < 12000) {
+                  recentScan = {
+                    employeeName: scanData.employeeName,
+                    type: scanData.type, // "in" | "out"
+                    time: scanData.time,
+                    timestamp: scanTs,
+                  };
+                }
               }
+            } catch (scanErr) {
+              console.warn("Could not check recent_scans for kiosk:", scanErr);
             }
-          } catch (scanErr) {
-            console.warn("Could not check recent_scans for kiosk:", scanErr);
           }
 
           // Display label from the location's hours in the ORG's timezone (server clock only).
@@ -90,9 +94,10 @@ export const Route = createFileRoute("/api/kiosk/token")({
             label: KIOSK_MODE_LABEL[mode],
             locationName: entry.locationName,
             recentScan,
+            greeting: entry.greeting,
             // How soon to ask again. Fast around reporting/closing time (greeting),
             // never slower than 12 s (the QR token must be refreshed in time).
-            pollMs: pollIntervalFor(mode),
+            pollMs: pollIntervalFor(mode, entry.greeting),
           });
         } catch (err: any) {
           console.error("POST /api/kiosk/token error:", err);

@@ -224,13 +224,15 @@ export const Route = createFileRoute("/api/check-in/scan")({
             t.create(eventRef, eventData); // fails with ALREADY_EXISTS if this scanId was used
             t.set(summaryRef, next);
 
-            // Scan confirmation for the kiosk terminal's greeting
-            t.set(firestoreAdmin.collection("recent_scans").doc(locationId), {
-              employeeName,
-              type: nextType,
-              time: timeDisplay,
-              timestamp: now,
-            });
+            // Greeting for the kiosk tablet, only where the location has it switched on.
+            if (kiosk.greeting) {
+              t.set(firestoreAdmin.collection("recent_scans").doc(locationId), {
+                employeeName,
+                type: nextType,
+                time: timeDisplay,
+                timestamp: now,
+              });
+            }
 
             return {
               eventId: eventRef.id,
