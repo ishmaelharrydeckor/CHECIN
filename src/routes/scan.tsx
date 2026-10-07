@@ -103,6 +103,41 @@ function ScanPage() {
     };
   }, [activeUser]);
 
+  // Load the real status from the server on open, and again whenever the app
+  // returns to the foreground (another phone or the kiosk may have changed it).
+  useEffect(() => {
+    if (!activeUser) return;
+    let cancelled = false;
+
+    const syncStatus = async () => {
+      try {
+        const idToken = await firebaseAuth.currentUser?.getIdToken();
+        if (!idToken) return;
+        const res = await fetch("/api/check-in/status", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && (data.status === "in" || data.status === "out")) {
+          setStatus(data.status);
+        }
+      } catch {
+        // Leave the current tag; a failed read must not change what is shown.
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") syncStatus();
+    };
+
+    syncStatus();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [activeUser]);
+
   // Process a scanned QR payload
   const handleScanDecoded = async (rawPayload: string) => {
     if (!user) {
