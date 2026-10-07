@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { firestoreDb, firebaseAuth } from "@/integrations/firebase/config";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { dayKey } from "@/lib/attendance-day";
+import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
 import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
 import {
   Users,
@@ -77,6 +78,11 @@ function DashboardPage() {
   // Numbers and feed come from the server, computed for TODAY in the organization's timezone.
   const [today, setToday] = useState<TodaySummaryData | null>(null);
   const [todayError, setTodayError] = useState<string | null>(null);
+  // Self-refresh pauses when the manager has walked away (see src/lib/idle-refresh.ts).
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  const lastActivityRef = useRef(Date.now());
+  const lastFetchRef = useRef(0);
   const [weekDays, setWeekDays] = useState<WeekTrendDay[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "in" | "out">("all");
@@ -93,10 +99,12 @@ function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Today's numbers and feed, computed on the server (see /api/attendance/today)
-  const fetchToday = async () => {
+  const fetchToday = async (fresh = false) => {
+    lastFetchRef.current = Date.now();
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch("/api/attendance/today", {
+      // `fresh` is only for the Refresh button: it skips the server's short-lived saved answer.
+      const res = await fetch(`/api/attendance/today${fresh ? "?fresh=1" : ""}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json().catch(() => null);
@@ -161,29 +169,60 @@ function DashboardPage() {
   const handleManualRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchToday(), fetchWeek(), fetchOrgAndStaff()]);
+      await Promise.all([fetchToday(true), fetchWeek(), fetchOrgAndStaff()]);
       toast.success("Workforce feed refreshed");
     } finally {
       setRefreshing(false);
     }
   };
 
-  // Lifecycle: load everything once, then refresh today's numbers every 2 minutes, and ONLY while
-  // the tab is visible. The weekly trend is not polled (it reads the whole week).
+  // Lifecycle: load everything once, then refresh today's numbers every 2 minutes, but ONLY while
+  // the tab is visible AND the person has touched the page in the last 10 minutes. A tab left
+  // open and unattended stops reading the database; coming back refreshes at once.
   useEffect(() => {
     if (!user) return;
 
     fetchToday();
     fetchWeek();
     fetchOrgAndStaff();
+    lastActivityRef.current = Date.now();
 
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+    const visible = () => typeof document === "undefined" || document.visibilityState === "visible";
+
+    const onActivity = () => {
+      if (!visible()) return;
+      const now = Date.now();
+      const wasPaused = pausedRef.current;
+      lastActivityRef.current = now;
+      if (wasPaused) {
+        pausedRef.current = false;
+        setPaused(false);
+        fetchToday();
+      } else if (shouldRefreshOnReturn(lastFetchRef.current, now) && !isIdle(lastActivityRef.current, now)) {
+        // Back on a tab that was hidden for a while: its numbers are old.
         fetchToday();
       }
-    }, 120000);
+    };
 
-    return () => clearInterval(interval);
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "wheel"] as const;
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    document.addEventListener("visibilitychange", onActivity);
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (shouldPoll({ visible: visible(), lastActivityMs: lastActivityRef.current, nowMs: now })) {
+        fetchToday();
+      } else if (visible() && isIdle(lastActivityRef.current, now) && !pausedRef.current) {
+        pausedRef.current = true;
+        setPaused(true);
+      }
+    }, POLL_EVERY_MS);
+
+    return () => {
+      clearInterval(interval);
+      events.forEach((e) => window.removeEventListener(e, onActivity));
+      document.removeEventListener("visibilitychange", onActivity);
+    };
   }, [user, orgId]);
 
   // Department Distribution Data dynamically grouped from real active staff & events
@@ -676,7 +715,14 @@ function DashboardPage() {
               Today's check-ins
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              {today ? `${todayLabel} · times shown in your organization's timezone` : "Loading today's activity…"}
+              {today
+                ? `${todayLabel} · times in your organization's timezone · updated ${formatClock(today.generatedAt, today.timezone)}`
+                : "Loading today's activity…"}
+              {paused && (
+                <span className="ml-1 font-semibold text-amber-800">
+                  Paused while you were away. Move the mouse to refresh.
+                </span>
+              )}
             </p>
           </div>
 

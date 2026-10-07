@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChangePasswordCard } from "@/components/ChangePasswordCard";
+import { ReportProblemCard } from "@/components/ReportProblemDialog";
 import { toast } from "sonner";
 import {
   User,
@@ -136,6 +137,9 @@ function AccountPage() {
 
       {/* Change password (email/password accounts only) */}
       <ChangePasswordCard />
+
+      {/* Report a problem */}
+      <ReportProblemCard />
 
       {/* Quick Access Client Portals */}
       <Card className="border-border/80 shadow-sm">

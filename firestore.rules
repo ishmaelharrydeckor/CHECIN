@@ -214,6 +214,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Problem reports and their screenshots: written and read only by the server (/api/reports),
+    // and only the platform owner can read them there. No client access, ever.
+    match /problem_reports/{reportId} {
+      allow read, write: if false;
+    }
+    match /problem_report_files/{reportId} {
+      allow read, write: if false;
+    }
+
     // Recent Scans: Ephemeral scan notifications read exclusively by Admin SDK in /api/kiosk/token
     match /recent_scans/{locationId} {
       allow read, write: if false;

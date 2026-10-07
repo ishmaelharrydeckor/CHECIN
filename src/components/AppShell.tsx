@@ -13,6 +13,7 @@ import {
   User,
   Menu,
   X,
+  Inbox,
 } from "lucide-react";
 import { firebaseAuth, fbSignOut } from "@/integrations/firebase/config";
 import { useAuth } from "@/lib/auth";
@@ -23,6 +24,8 @@ import {
   listenToDeviceStatus,
 } from "@/lib/device-manager";
 import { InAppNotificationCenter } from "@/components/PushNotificationManager";
+import { ReportProblemButton } from "@/components/ReportProblemDialog";
+import { useIsPlatformOwner } from "@/lib/platform-owner-client";
 import { toast } from "sonner";
 import { clearUserAppCache } from "@/lib/query-client";
 
@@ -31,6 +34,8 @@ const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, isOrgAdmin, isManager, loading } = useAuth();
+  // Only decides whether to SHOW the inbox link; the server checks every request itself.
+  const isPlatformOwner = useIsPlatformOwner(user?.id);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -166,6 +171,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Notifications */}
           {user?.id && <InAppNotificationCenter userId={user.id} />}
+
+          {isPlatformOwner && (
+            <Link
+              to="/owner/reports"
+              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition"
+              title="Reports inbox"
+              aria-label="Reports inbox"
+            >
+              <Inbox className="w-4 h-4" />
+            </Link>
+          )}
+          <ReportProblemButton variant="icon" />
 
           {/* User Account / Sign Out */}
           <Link

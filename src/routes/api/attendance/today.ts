@@ -5,9 +5,15 @@ import {
   loadOrgContext,
   loadScopedEvents,
 } from "@/lib/attendance-data.server";
-import { resolveDashboardScope } from "@/lib/dashboard-scope";
+import { dashboardCacheKey, resolveDashboardScope } from "@/lib/dashboard-scope";
+import { createCachedLoader } from "@/lib/ttl-cache.server";
+import type { TodaySummaryData } from "@/lib/attendance-today";
 import { buildTodaySummary, dayBoundsMs } from "@/lib/attendance-today";
 import { dayKey } from "@/lib/attendance-day";
+
+// Keep each answer for 45 s so several viewers, or one person refreshing, share one calculation.
+// The Refresh button asks for ?fresh=1, which recomputes (but not more than once every 5 s).
+const loadToday = createCachedLoader<TodaySummaryData>(45_000, 200, 5_000);
 
 /**
  * GET /api/attendance/today
@@ -37,13 +43,19 @@ export const Route = createFileRoute("/api/attendance/today")({
             );
           }
 
-          const { timezone, roster } = await loadOrgContext(scope);
-          const now = Date.now();
-          const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
-          const { startMs, endMs } = dayBoundsMs(today, timezone);
-          const { events, truncated } = await loadScopedEvents(scope, startMs, endMs, TODAY_EVENT_CAP);
-
-          const summary = buildTodaySummary({ events, roster, timezone, now, truncated });
+          const fresh = new URL(request.url).searchParams.get("fresh") === "1";
+          const summary = await loadToday(
+            dashboardCacheKey(scope),
+            async () => {
+              const { timezone, roster } = await loadOrgContext(scope);
+              const now = Date.now();
+              const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
+              const { startMs, endMs } = dayBoundsMs(today, timezone);
+              const { events, truncated } = await loadScopedEvents(scope, startMs, endMs, TODAY_EVENT_CAP);
+              return buildTodaySummary({ events, roster, timezone, now, truncated });
+            },
+            { fresh },
+          );
           return Response.json({ ok: true, summary }, { headers: { "Cache-Control": "private, no-store" } });
         } catch (err: any) {
           console.error("GET /api/attendance/today error:", err);
