@@ -85,3 +85,20 @@ export function cooldownSecondsLeft(
   if (elapsed < 0 || elapsed >= cooldownMs) return 0;
   return Math.ceil((cooldownMs - elapsed) / 1000);
 }
+
+/**
+ * A clock time such as "08:52:07" in the given IANA timezone (24-hour).
+ * Used wherever the server writes a time for people to read, so it is never
+ * the server's own locale or timezone (which is UTC on Vercel).
+ */
+export function formatClock(instant: Date | number | string, timezone: string): string {
+  const date = instant instanceof Date ? instant : new Date(instant);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: safeTimezone(timezone),
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}

@@ -192,6 +192,8 @@ function ScanPage() {
           token,
           locationId,
           deviceFingerprint: getDeviceId(),
+          // Lets the server recognise a retry of this same scan and record it once.
+          scanId: crypto.randomUUID(),
         }),
       });
 

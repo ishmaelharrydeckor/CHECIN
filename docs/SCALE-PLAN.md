@@ -57,12 +57,12 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 - `daily_summaries/{employeeId}_{dayKey}`: firstIn, lastOut, minutesWorked, late, earlyDeparture, state, eventCount, `lastEventType`, `lastEventAt`, `schemaVersion`. Server-written only.
 - Client sends a generated `scanId`; it becomes the `clock_events` doc id (`create`, not `set`), so a retried POST cannot double-record.
 - One transaction writes the event, the summary and `recent_scans`. Direction and cooldown come from one `get` of the summary, replacing the last-event query.
-- Times formatted with the org timezone (fixes K8); `department` stops being copied from the client-writable profile (K6).
-- Cache user display name and location/org lookups (kiosk-cache pattern) so a scan is about 3 reads.
-- **Migration:** if no summary exists for today, fall back to the last-event query once and create it; add a backfill script (rebuilds summaries from events, safe to re-run).
-- Shared-file changes (integrator): rule for `daily_summaries` (employee reads own, manager reads team, org-scoped, no client writes), composite indexes, `firestore.indexes.json`; deploy to staging first.
-- Tests: `dayKey` (DST, midnight, month ends, UTC+/-13), direction, cooldown, idempotent retry, scoping.
-- Missed check-out job (Vercel Cron, per org after local midnight): close yesterday's open summary as `incomplete`.
+- Times formatted with the org timezone (fixes K8: `formatClock` in `attendance-day.ts`).
+- Cache the kiosk/location/org lookup (shared with the token route through `kiosk-loader.server.ts`) and the person's display name (5 minutes), so a scan's only Firestore read is today's summary: **1 read, 3 writes**, down from about 6 reads.
+- **Missed check-out is derived, not scheduled.** A summary still `state: "in"` on a day that has ended is "incomplete" (`isIncomplete()` in `daily-summary.ts`), decided when read. This replaces the nightly Vercel Cron job in the earlier draft: nothing to schedule, nothing to fail silently.
+- **Not in P2:** K6 (`department` is still copied from the client-writable profile). Making it admin-set needs a rules change and a screen; it is its own small task.
+- **Rollout order:** deploy `firestore.rules` (staging first) -> deploy the code -> run `node scripts/backfill-summaries.mjs --from <first day> --to <today>` once (or set `SUMMARY_LEGACY_FALLBACK=1` for the first day, then remove it). Summaries are derived, so the backfill is safe to re-run.
+- Tests: `daily-summary.test.mjs` (summary maths, direction, cooldown, forgotten check-out, rebuild-equals-live) and `formatClock`; `dayKey` boundary tests already exist in `attendance-day.test.mjs`.
 
 ### 3.4 P3: confirmation and greeting
 
