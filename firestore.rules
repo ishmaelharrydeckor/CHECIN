@@ -106,7 +106,8 @@ service cloud.firestore {
         && request.resource.data.employeeId == request.auth.uid
         && request.resource.data.managerId == managerId()
         && request.resource.data.status == "pending"
-        && request.resource.data.keys().hasOnly(["orgId", "managerId", "employeeId", "type", "startDate", "endDate", "note", "status", "createdAt"])
+        && request.resource.data.keys().hasOnly(["orgId", "managerId", "employeeId", "employeeName", "type", "startDate", "endDate", "note", "status", "createdAt"])
+        && (!("employeeName" in request.resource.data) || (request.resource.data.employeeName is string && request.resource.data.employeeName.size() <= 100))
         && request.resource.data.type in ["annual", "sick", "personal", "unpaid", "other"]
         && request.resource.data.startDate is string
         && request.resource.data.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
