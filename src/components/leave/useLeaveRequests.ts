@@ -12,9 +12,10 @@ import {
   type QueryDocumentSnapshot,
   type QueryConstraint,
 } from "firebase/firestore";
-import { firestoreDb } from "@/integrations/firebase/config";
+import { firebaseAuth, firestoreDb } from "@/integrations/firebase/config";
 import {
   isLeaveType,
+  NAME_MAX_LENGTH,
   type LeaveFormInput,
   type LeaveRequest,
   type LeaveStatus,
@@ -40,6 +41,7 @@ function fromSnapshot(snap: QueryDocumentSnapshot<DocumentData>): LeaveRequest |
     orgId: d.orgId,
     managerId: d.managerId,
     employeeId: d.employeeId,
+    employeeName: typeof d.employeeName === "string" && d.employeeName ? d.employeeName : undefined,
     type: d.type as LeaveType,
     startDate: d.startDate,
     endDate: d.endDate,
@@ -133,11 +135,16 @@ export function useLeaveRequests(identity: ReadyIdentity) {
         throw new Error("Only employees assigned to a manager can request leave.");
       }
       const note = input.note.trim();
+      // A label for the manager's list only. It is typed by the employee's own account, so it is
+      // never used to decide anything.
+      const me = firebaseAuth.currentUser;
+      const employeeName = (me?.displayName || me?.email || "").trim().slice(0, NAME_MAX_LENGTH);
       try {
         await addDoc(collection(firestoreDb, COLLECTION), {
           orgId,
           managerId,
           employeeId: uid,
+          ...(employeeName ? { employeeName } : {}),
           type: input.type,
           startDate: input.startDate,
           endDate: input.endDate,

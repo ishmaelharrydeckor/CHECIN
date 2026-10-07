@@ -176,6 +176,7 @@ function LeaveContent({
               error={error}
               emptyMessage="You haven't requested any leave yet"
               emptyHint="Use the form above to send your first request."
+              limited
               onRetry={() => window.location.reload()}
             />
           </CardContent>
@@ -252,6 +253,7 @@ function LeaveContent({
             }
             canReview
             showEmployee
+            limited={isAdmin}
             onReview={review}
             onRetry={() => window.location.reload()}
           />

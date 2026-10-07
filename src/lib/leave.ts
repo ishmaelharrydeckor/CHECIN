@@ -14,12 +14,17 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
 export type LeaveStatus = "pending" | "approved" | "denied";
 
 export const NOTE_MAX_LENGTH = 500;
+export const NAME_MAX_LENGTH = 100;
+/** Longest list shown at once; the page says how many more there are. */
+export const LIST_LIMIT = 20;
 
 export interface LeaveRequest {
   id: string;
   orgId: string;
   managerId: string;
   employeeId: string;
+  /** Display name saved when the request was made. Older requests don't have one. */
+  employeeName?: string;
   type: LeaveType;
   startDate: string; // "YYYY-MM-DD"
   endDate: string; // "YYYY-MM-DD"

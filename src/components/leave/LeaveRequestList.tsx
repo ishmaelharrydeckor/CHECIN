@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   LEAVE_TYPE_LABELS,
+  LIST_LIMIT,
   countDays,
   formatRange,
   type LeaveRequest,
@@ -22,6 +23,8 @@ interface Props {
   canReview?: boolean;
   /** Show who the request belongs to (manager and org admin views). */
   showEmployee?: boolean;
+  /** Show only the latest {LIST_LIMIT} and say how many more there are. */
+  limited?: boolean;
   onReview?: (id: string, decision: Decision) => Promise<void>;
   onRetry?: () => void;
 }
@@ -51,6 +54,7 @@ export function LeaveRequestList({
   emptyHint,
   canReview = false,
   showEmployee = false,
+  limited = false,
   onReview,
   onRetry,
 }: Props) {
@@ -103,6 +107,8 @@ export function LeaveRequestList({
     );
   }
 
+  const shown = limited ? requests.slice(0, LIST_LIMIT) : requests;
+
   return (
     <div className="space-y-3">
       {actionError && (
@@ -112,7 +118,7 @@ export function LeaveRequestList({
       )}
 
       <ul className="divide-y divide-border/70">
-        {requests.map((r) => {
+        {shown.map((r) => {
           const days = countDays(r.startDate, r.endDate);
           const rowBusy = busy?.id === r.id;
           return (
@@ -127,7 +133,7 @@ export function LeaveRequestList({
                 </p>
                 {showEmployee && (
                   <p className="truncate text-xs text-muted-foreground">
-                    Employee ID: {r.employeeId.slice(0, 8)}…
+                    {r.employeeName ?? "Employee (name not saved)"}
                   </p>
                 )}
                 {r.note && <p className="truncate text-xs text-slate-500">{r.note}</p>}
@@ -165,6 +171,12 @@ export function LeaveRequestList({
           );
         })}
       </ul>
+
+      {shown.length < requests.length && (
+        <p className="text-xs text-muted-foreground">
+          Showing the latest {shown.length} of {requests.length}.
+        </p>
+      )}
     </div>
   );
 }
