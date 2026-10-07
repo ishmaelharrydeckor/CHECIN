@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { parseHoursInput, DEFAULT_CHECKOUT_WINDOW_MINUTES } from "@/lib/attendance-windows";
+import { invalidateKiosk } from "@/lib/kiosk-cache.server";
 
 export const Route = createFileRoute("/api/locations/")({
   server: {
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/api/locations/")({
               reportingTime: data.reportingTime ?? null,
               closingTime: data.closingTime ?? null,
               checkoutWindowMinutes: data.checkoutWindowMinutes ?? DEFAULT_CHECKOUT_WINDOW_MINUTES,
+              kioskGreeting: data.kioskGreeting === true,
               isPaired,
               pairedAt,
             });
@@ -121,7 +123,14 @@ export const Route = createFileRoute("/api/locations/")({
 
           const { value, error } = parseHoursInput(body);
           if (error) return Response.json({ error }, { status: 400 });
-          if (Object.keys(value).length === 0) {
+          let kioskGreeting: boolean | undefined;
+          if (body?.kioskGreeting !== undefined) {
+            if (typeof body.kioskGreeting !== "boolean") {
+              return Response.json({ error: "kioskGreeting must be true or false" }, { status: 400 });
+            }
+            kioskGreeting = body.kioskGreeting;
+          }
+          if (Object.keys(value).length === 0 && kioskGreeting === undefined) {
             return Response.json({ error: "No hours supplied" }, { status: 400 });
           }
 
@@ -138,12 +147,21 @@ export const Route = createFileRoute("/api/locations/")({
             return Response.json({ error: "Closing time must be after reporting time" }, { status: 400 });
           }
 
-          await ref.set({ ...value, updatedAt: new Date().toISOString() }, { merge: true });
+          await ref.set(
+            {
+              ...value,
+              ...(kioskGreeting !== undefined ? { kioskGreeting } : {}),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+          invalidateKiosk(locationId); // this instance picks the change up now; others within a minute
 
           return Response.json({
             ok: true,
             reportingTime: reporting ?? null,
             closingTime: closing ?? null,
+            kioskGreeting: kioskGreeting ?? existing.kioskGreeting === true,
             checkoutWindowMinutes:
               value.checkoutWindowMinutes ??
               existing.checkoutWindowMinutes ??
