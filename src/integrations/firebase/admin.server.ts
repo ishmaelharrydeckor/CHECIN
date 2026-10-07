@@ -13,6 +13,7 @@ import { getApps, initializeApp, getApp, cert, type App } from "firebase-admin/a
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth, type DecodedIdToken } from "firebase-admin/auth";
 import type { AppRole } from "@/lib/auth-claims";
+import { assertEnvironmentSafe } from "@/lib/env-guard";
 
 let adminApp: App | undefined;
 let firestoreAdminInstance: Firestore | undefined;
@@ -85,6 +86,10 @@ function getAdminApp(): App {
         process.env.FIREBASE_PROJECT_ID ||
         process.env.VITE_FIREBASE_PROJECT_ID ||
         "checin-d172e";
+
+      // Stop a Preview deployment from touching production data.
+      assertEnvironmentSafe({ vercelEnv: process.env.VERCEL_ENV, projectId });
+      console.log(JSON.stringify({ action: "admin.init", firebaseProjectId: projectId, vercelEnv: process.env.VERCEL_ENV ?? "local" }));
 
       adminApp = initializeApp({
         projectId,

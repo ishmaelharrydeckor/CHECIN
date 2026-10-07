@@ -8,6 +8,7 @@ import {
   getAuthAdmin,
 } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
+import { correlationId, logEvent } from "@/lib/log.server";
 import type { CorporateRole } from "@/lib/auth-claims";
 
 const INVITE_TTL_DAYS = 14;
@@ -74,6 +75,17 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
 
         // Public Token Lookup (Unauthenticated is explicitly allowed for invited recipients)
         if (token) {
+          // Unauthenticated, so throttled like every other public route.
+          const lookupRate = await checkRateLimit(`staff_lookup_${clientIpFrom(request)}`, {
+            limit: 60,
+            failClosed: true,
+          });
+          if (!lookupRate.allowed) {
+            return Response.json(
+              { error: `Too many attempts. Please wait ${lookupRate.retryAfterMinutes} minute(s).` },
+              { status: 429 },
+            );
+          }
           try {
             const inviteRef = firestoreAdmin.collection("staff_invites").doc(token);
             const snap = await inviteRef.get();
@@ -140,7 +152,8 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             query = query.where("managerId", "==", ctx.uid);
           }
 
-          const invitesSnap = await query.get();
+          // Listing cap: an org with more invites than this sees the first page only (paging comes with the team screen).
+          const invitesSnap = await query.limit(500).get();
           const now = Date.now();
           const invites = invitesSnap.docs
             .map((d) => {
@@ -166,7 +179,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             usersQuery = usersQuery.where("managerId", "==", ctx.uid);
           }
 
-          const usersSnap = await usersQuery.get();
+          const usersSnap = await usersQuery.limit(2000).get();
 
           const members = usersSnap.docs.map((d) => {
             const data = d.data();
@@ -249,6 +262,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             .where("orgId", "==", ctx.orgId)
             .where("email", "==", email)
             .where("status", "==", "pending")
+            .limit(20)
             .get();
 
           const nowMs = Date.now();
@@ -342,7 +356,10 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
       /** Redeem an invite token (single-use, bound to email, atomic transaction). */
       PUT: async ({ request }) => {
         try {
-          const rate = await checkRateLimit(`staff_redeem_${clientIpFrom(request)}`, { limit: 15 });
+          const rate = await checkRateLimit(`staff_redeem_${clientIpFrom(request)}`, {
+            limit: 15,
+            failClosed: true,
+          });
           if (!rate.allowed) {
             return Response.json(
               { error: `Too many attempts. Please wait ${rate.retryAfterMinutes} minute(s).` },
@@ -482,6 +499,15 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             role: inviteRole,
             orgId: inviteOrgId,
             managerId: finalManagerId,
+          });
+
+          logEvent({
+            action: "invite.redeem",
+            outcome: "ok",
+            correlationId: correlationId(request),
+            orgId: inviteOrgId,
+            uid: targetUid,
+            fields: { role: inviteRole },
           });
 
           return Response.json({

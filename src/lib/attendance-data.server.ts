@@ -40,7 +40,8 @@ export async function loadOrgContext(scope: DashboardScope): Promise<OrgContext>
 
   const [orgSnap, usersSnap] = await Promise.all([
     firestoreAdmin.collection("organizations").doc(scope.orgId).get(),
-    usersQuery.get(),
+    // Ceiling above the design maximum (1,000 per org); the P4 dashboard work replaces this read with summaries.
+    usersQuery.limit(2000).get(),
   ]);
 
   const timezone = (orgSnap.exists && (orgSnap.data()?.timezone as string)) || "UTC";
