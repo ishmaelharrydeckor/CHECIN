@@ -50,10 +50,11 @@ interface KioskLocation {
 }
 
 function SettingsPage() {
-  const { user, orgId, isOrgAdmin, isManager, loading } = useAuth();
+  const { user, orgId, isOrgAdmin, isManager, canManageKiosks, loading } = useAuth();
   const navigate = useNavigate();
   const canAccessSettings = isOrgAdmin || isManager;
-  const canManageKiosks = isOrgAdmin || isManager;
+  // Work hours: any admin or manager. Pairing and revoking tablets need canManageKiosks.
+  const canEditHours = isOrgAdmin || isManager;
 
   useEffect(() => {
     if (!loading && user && !canAccessSettings) {
@@ -80,6 +81,13 @@ function SettingsPage() {
     null,
   );
   const [copiedResetLink, setCopiedResetLink] = useState(false);
+
+  // Which managers may pair and revoke tablets (org admin only)
+  const [managerAccess, setManagerAccess] = useState<
+    { uid: string; displayName: string; email: string; kioskAdmin: boolean }[]
+  >([]);
+  const [loadingManagerAccess, setLoadingManagerAccess] = useState(true);
+  const [savingAccessUid, setSavingAccessUid] = useState<string | null>(null);
 
   // Organization Profile State
   const [orgDetails, setOrgDetails] = useState<{
@@ -345,6 +353,86 @@ function SettingsPage() {
     }
   };
 
+  const fetchManagerAccess = async () => {
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/kiosk-access", {
+        headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+      });
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.managers)) setManagerAccess(data.managers);
+    } catch (err) {
+      console.error("Error fetching manager tablet access:", err);
+    } finally {
+      setLoadingManagerAccess(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user && isOrgAdmin) void fetchManagerAccess();
+    else setLoadingManagerAccess(false);
+  }, [user, isOrgAdmin]);
+
+  const handleSetAllKioskAccess = async (allowed: boolean) => {
+    setSavingAccessUid("all");
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/kiosk-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ all: true, allowed }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setManagerAccess((prev) => prev.map((m) => ({ ...m, kioskAdmin: allowed })));
+        toast.success(
+          allowed
+            ? "All managers can now manage locations and tablets. They'll be asked to sign in again."
+            : "No manager can manage locations and tablets now.",
+        );
+      } else {
+        toast.error(data.error || "Failed to update permissions");
+      }
+    } catch {
+      toast.error("Error updating permissions");
+    } finally {
+      setSavingAccessUid(null);
+    }
+  };
+
+  const handleToggleKioskAccess = async (uid: string, allowed: boolean) => {
+    setSavingAccessUid(uid);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/admin/kiosk-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ targetUid: uid, allowed }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setManagerAccess((prev) => prev.map((m) => (m.uid === uid ? { ...m, kioskAdmin: allowed } : m)));
+        toast.success(
+          allowed
+            ? "Manager can now pair and revoke tablets. They'll be asked to sign in again."
+            : "Manager can no longer pair or revoke tablets.",
+        );
+      } else {
+        toast.error(data.error || "Failed to update permission");
+      }
+    } catch {
+      toast.error("Error updating permission");
+    } finally {
+      setSavingAccessUid(null);
+    }
+  };
+
   const fetchMembers = async () => {
     try {
       const idToken = await firebaseAuth.currentUser?.getIdToken();
@@ -567,14 +655,14 @@ function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Adding locations is an org-admin action (the server enforces this too) */}
-          {!isOrgAdmin && (
+          {/* Adding locations, pairing and revoking need canManageKiosks (the server enforces this too) */}
+          {!canManageKiosks && (
             <p className="text-xs text-muted-foreground rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-              Your organization admin adds new entrance locations and revokes tablets. You can pair a tablet
-              and set work hours below.
+              Your organization admin decides who can add locations and pair or revoke tablets. You can
+              set work hours below.
             </p>
           )}
-          {isOrgAdmin && (
+          {canManageKiosks && (
             <form onSubmit={handleCreateLocation} className="flex gap-3 items-end">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="locName" className="text-xs font-medium">
@@ -705,7 +793,7 @@ function SettingsPage() {
                             ) : (
                               <span className="text-muted-foreground">Not set</span>
                             )}
-                            {canManageKiosks && (
+                            {canEditHours && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -735,7 +823,7 @@ function SettingsPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         {loc.isPaired ? (
-                          isOrgAdmin ? (
+                          canManageKiosks ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -747,7 +835,7 @@ function SettingsPage() {
                           ) : (
                             <span className="text-xs text-muted-foreground">Admin can revoke</span>
                           )
-                        ) : (
+                        ) : canManageKiosks ? (
                           <Button
                             variant="outline"
                             size="sm"
@@ -756,6 +844,8 @@ function SettingsPage() {
                           >
                             <KeyRound className="size-3 mr-1" /> Pair Tablet
                           </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Admin can pair</span>
                         )}
                       </td>
                     </tr>
@@ -766,6 +856,88 @@ function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* TABLET PERMISSIONS — org admin decides which managers can pair/revoke tablets */}
+      {isOrgAdmin && (
+        <Card className="border-border/80 shadow-sm">
+          <CardHeader>
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Tablet className="size-5 text-[#0E2322]" /> Who can manage locations &amp; tablets
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Managers you switch on can add entrance locations, and pair and revoke tablets. Managers
+                you leave off can still set work hours. A manager is asked to sign in again when you
+                change this.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                disabled={savingAccessUid !== null || managerAccess.length === 0}
+                onClick={() => handleSetAllKioskAccess(true)}
+                className="text-xs bg-[#0E2322] hover:bg-[#163331] text-white"
+              >
+                {savingAccessUid === "all" ? "Saving..." : "Turn on for all managers"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={savingAccessUid !== null || managerAccess.length === 0}
+                onClick={() => handleSetAllKioskAccess(false)}
+                className="text-xs border-slate-300"
+              >
+                Turn off for all
+              </Button>
+            </div>
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs text-muted-foreground uppercase border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-4 font-semibold">Manager</th>
+                    <th className="py-3 px-4 font-semibold text-right">Can manage locations &amp; tablets</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loadingManagerAccess ? (
+                    <tr>
+                      <td colSpan={2} className="py-6 text-center text-xs text-muted-foreground">
+                        <RefreshCw className="size-4 animate-spin inline mr-2 text-[#0E2322]" />
+                        Loading managers...
+                      </td>
+                    </tr>
+                  ) : managerAccess.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="py-6 text-center text-xs text-muted-foreground">
+                        No managers yet. Invite a manager from the dashboard.
+                      </td>
+                    </tr>
+                  ) : (
+                    managerAccess.map((m) => (
+                      <tr key={m.uid} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-[#0E2322]">{m.displayName}</div>
+                          <div className="text-xs text-muted-foreground">{m.email}</div>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Switch
+                            aria-label={`Allow ${m.displayName} to manage locations and tablets`}
+                            checked={m.kioskAdmin}
+                            disabled={savingAccessUid !== null}
+                            onCheckedChange={(v) => handleToggleKioskAccess(m.uid, v)}
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* TEAM MEMBERS — admin-generated password reset links */}
       <Card className="border-border/80 shadow-sm">
