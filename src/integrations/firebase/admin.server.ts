@@ -170,6 +170,27 @@ export async function setStaffRoleClaims(
 }
 
 /**
+ * Adding locations and pairing/revoking tablets (kiosks): org admins always; managers only when an
+ * admin has switched on the `kioskAdmin` claim for them (see /api/admin/kiosk-access).
+ * Takes the verified token, never a client-supplied value.
+ */
+export function canManageKiosks(caller: { [claim: string]: unknown }): boolean {
+  return caller.role === "org_admin" || (caller.role === "manager" && caller.kioskAdmin === true);
+}
+
+/**
+ * Grants or removes a manager's tablet permission by merging one claim into
+ * their existing claims (role/orgId/managerId stay as they are).
+ */
+export async function setKioskAdminClaim(targetUid: string, allowed: boolean): Promise<void> {
+  const user = await getAuthAdmin().getUser(targetUid);
+  const claims: Record<string, unknown> = { ...(user.customClaims ?? {}) };
+  if (allowed) claims.kioskAdmin = true;
+  else delete claims.kioskAdmin;
+  await getAuthAdmin().setCustomUserClaims(targetUid, claims);
+}
+
+/**
  * Authorizes a caller to act on another user. Reads the target's claims from
  * Firebase Auth (the source of truth — never the client-writable `users` doc).
  * Returns the target's claims, or null when the target is out of scope:
