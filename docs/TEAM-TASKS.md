@@ -16,10 +16,10 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 2.5 | Public holiday calendar | S | Augustine | live | none |
 | 1.6 | Manager dashboard: Today panel (real data now available) | M | Augustine (#13) | todo | none |
 | 1.2 | Employee self-service page | M | Cobberson (#14) | todo | 1.1 (done) |
-| 2.1 | On-demand reports (CSV/PDF) | M | _unassigned_ (#16) | todo | 1.1 (done) |
+| 2.1 | On-demand reports: screens and downloads with sample data (integrator adds the data routes) | M | Cobberson (#16) | todo, starts after #14 | 1.1 (done) |
 | 2.3 | Work-from-home status | M | _unassigned_ (#17) | blocked: needs a design note first | 1.1, integrator review |
 
-Next assignments: **1.2** (Cobberson) and **1.6** (Augustine) are ready now. **2.1** goes to whoever finishes first. **2.3** waits for a short design note.
+Next assignments: **1.2** (Cobberson) and **1.6** (Augustine) are ready now. **2.1** goes to Cobberson after 1.2 (screens first; the integrator builds the data routes). **2.3** waits for a short design note.
 
 Update the Status column in your PR (`todo` > `in progress` > `in review` > `on staging` > `done`).
 
