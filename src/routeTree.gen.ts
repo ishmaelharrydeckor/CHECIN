@@ -23,6 +23,7 @@ import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
+import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
@@ -34,6 +35,7 @@ import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/sta
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
 import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
+import { Route as ApiAttendanceMeRouteImport } from './routes/api/attendance/me'
 import { Route as ApiAttendanceTodayRouteImport } from './routes/api/attendance/today'
 import { Route as ApiAttendanceWeekRouteImport } from './routes/api/attendance/week'
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
@@ -123,6 +125,11 @@ const AuthenticatedLeaveRoute = AuthenticatedLeaveRouteImport.update({
   path: '/leave',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -177,6 +184,11 @@ const ApiAttendanceFeedRoute = ApiAttendanceFeedRouteImport.update({
 const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   id: '/api/attendance/history',
   path: '/api/attendance/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceMeRoute = ApiAttendanceMeRouteImport.update({
+  id: '/api/attendance/me',
+  path: '/api/attendance/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAttendanceTodayRoute = ApiAttendanceTodayRouteImport.update({
@@ -279,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leave': typeof AuthenticatedLeaveRoute
+  '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
@@ -289,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
   '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
@@ -322,6 +336,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leave': typeof AuthenticatedLeaveRoute
+  '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
@@ -332,6 +347,7 @@ export interface FileRoutesByTo {
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
   '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
@@ -367,6 +383,7 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
+  '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
@@ -377,6 +394,7 @@ export interface FileRoutesById {
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
   '/api/attendance/week': typeof ApiAttendanceWeekRoute
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
@@ -412,6 +430,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/holidays'
     | '/leave'
+    | '/me'
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
@@ -422,6 +441,7 @@ export interface FileRouteTypes {
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
+    | '/api/attendance/me'
     | '/api/attendance/today'
     | '/api/attendance/week'
     | '/api/auth/register-org'
@@ -455,6 +475,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/holidays'
     | '/leave'
+    | '/me'
     | '/reports'
     | '/settings'
     | '/accept-invite/$token'
@@ -465,6 +486,7 @@ export interface FileRouteTypes {
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
+    | '/api/attendance/me'
     | '/api/attendance/today'
     | '/api/attendance/week'
     | '/api/auth/register-org'
@@ -499,6 +521,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/holidays'
     | '/_authenticated/leave'
+    | '/_authenticated/me'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
@@ -509,6 +532,7 @@ export interface FileRouteTypes {
     | '/api/admin/staff-invites'
     | '/api/attendance/feed'
     | '/api/attendance/history'
+    | '/api/attendance/me'
     | '/api/attendance/today'
     | '/api/attendance/week'
     | '/api/auth/register-org'
@@ -544,6 +568,7 @@ export interface RootRouteChildren {
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
   ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
+  ApiAttendanceMeRoute: typeof ApiAttendanceMeRoute
   ApiAttendanceTodayRoute: typeof ApiAttendanceTodayRoute
   ApiAttendanceWeekRoute: typeof ApiAttendanceWeekRoute
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
@@ -664,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeaveRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/me': {
+      id: '/_authenticated/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof AuthenticatedMeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -739,6 +771,13 @@ declare module '@tanstack/react-router' {
       path: '/api/attendance/history'
       fullPath: '/api/attendance/history'
       preLoaderRoute: typeof ApiAttendanceHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/me': {
+      id: '/api/attendance/me'
+      path: '/api/attendance/me'
+      fullPath: '/api/attendance/me'
+      preLoaderRoute: typeof ApiAttendanceMeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/attendance/today': {
@@ -871,6 +910,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
+  AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
@@ -884,6 +924,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
+  AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
@@ -907,6 +948,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
   ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
+  ApiAttendanceMeRoute: ApiAttendanceMeRoute,
   ApiAttendanceTodayRoute: ApiAttendanceTodayRoute,
   ApiAttendanceWeekRoute: ApiAttendanceWeekRoute,
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
