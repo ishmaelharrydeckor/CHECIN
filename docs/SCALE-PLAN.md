@@ -95,6 +95,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 | Any report over about 10 s | Background generation, BigQuery export |
 | More than about 100 kiosks | Replace greeting polling (push channel or drop it) |
 | First customer with residency needs | Regional database, tenant pinning by `region` |
+| First customer with offices in several timezones | Per-location timezone (design note above) |
 | First enterprise questionnaire | Penetration test, SOC 2 readiness |
 | Cost per seat above target | Re-examine access patterns before anything else |
 
@@ -107,6 +108,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 | **Payroll integrations** | How do exports stay exact and repeatable? | Rebuildable summaries plus a "lock this pay period" state after approval. |
 | **Scheduled reports (3.3)** | How do cron jobs avoid sending twice? | Idempotent per `(scheduleId, periodKey)` on Vercel Cron. |
 | **Per-seat pricing** | What does one employee cost per month? | Take reads/writes per employee from the P1 harness before setting a price. |
+| **Per-location timezone (future)** | A company with offices in several timezones (for example two countries) can only pick one timezone for the whole organization today. Should each location have its own? | Not built; decide when the first customer with offices in different timezones appears. The likely design: an optional `timezone` on each location, falling back to the organization's. The kiosk record already loads a timezone, so scans, late flags and the day a scan belongs to would follow the location. Questions to settle first: an employee who works at two locations in different timezones on the same day (two day labels), what a manager sees as "today" when their team spans timezones, and how reports group days. The timezone picker built for the organization can be reused for locations. |
 
 ## 5. Roadmap features against this plan
 

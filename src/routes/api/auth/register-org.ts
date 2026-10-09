@@ -7,6 +7,7 @@ import {
 } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
+import { isValidZone } from "@/lib/timezone-options";
 
 export const Route = createFileRoute("/api/auth/register-org")({
   server: {
@@ -28,11 +29,14 @@ export const Route = createFileRoute("/api/auth/register-org")({
 
           const body = await request.json();
           const orgName = (body?.orgName || "").trim();
-          let timezone = String(body?.timezone || "UTC").trim();
-          try {
-            new Intl.DateTimeFormat("en-US", { timeZone: timezone });
-          } catch {
-            timezone = "UTC"; // unknown zone names fall back to UTC; admins can change it in Settings
+          // No timezone sent means UTC. One that is sent but not recognised is refused, not quietly
+          // replaced: a wrong timezone makes late flags and daily totals wrong without anyone noticing.
+          const timezone = String(body?.timezone || "UTC").trim();
+          if (!isValidZone(timezone)) {
+            return Response.json(
+              { error: "Please choose your timezone from the list." },
+              { status: 400 },
+            );
           }
           const email = (body?.email || "").trim().toLowerCase();
           const password = body?.password || "";
