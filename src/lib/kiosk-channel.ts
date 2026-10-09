@@ -24,7 +24,17 @@ export interface ChannelNote {
 }
 
 /** The ONLY fields a channel note may contain. Adding one needs a deliberate change here and in the test. */
-export const CHANNEL_NOTE_FIELDS = ["at", "type"] as const;
+export const CHANNEL_NOTE_FIELDS = ["at", "expireAt", "type"] as const;
+
+/**
+ * How long a note may stay in the database before Firestore's time-to-live setting deletes it.
+ * Deletion is housekeeping only and may happen well after this time; what keeps an old note from
+ * ever being shown is the freshness check (NOTE_FRESH_MS), which does not depend on deletion.
+ * `expireAt` is just the write time plus this, so it adds nothing a reader did not already have.
+ */
+export const NOTE_TTL_MS = 10 * 60_000;
+/** A tablet's channel address is replaced this often, so a leaked address stops working. */
+export const CHANNEL_ROTATE_MS = 24 * 60 * 60_000;
 
 /** A note older than this (by the server's clock) is never shown as a greeting. */
 export const NOTE_FRESH_MS = 15_000;
@@ -37,8 +47,14 @@ export const FALLBACK_NOTE_WINDOW_MS = 60_000;
 /** If the live connection has not confirmed itself this soon after starting, treat it as down. */
 export const LIVE_CONNECT_TIMEOUT_MS = 10_000;
 
-export function buildChannelNote(type: ChannelNoteType, nowMs: number): ChannelNote {
-  return { type, at: nowMs };
+export function buildChannelNote(type: ChannelNoteType, nowMs: number): ChannelNote & { expireAt: number } {
+  return { type, at: nowMs, expireAt: nowMs + NOTE_TTL_MS };
+}
+
+/** Is it time to give this tablet a new channel address? A missing or unreadable time counts as due. */
+export function isChannelDue(rotatedAtMs: unknown, nowMs: number): boolean {
+  if (typeof rotatedAtMs !== "number" || !Number.isFinite(rotatedAtMs) || rotatedAtMs <= 0) return true;
+  return nowMs - rotatedAtMs >= CHANNEL_ROTATE_MS;
 }
 
 /** Validate a document read from the channel. Anything unexpected is rejected; extra fields are dropped. */

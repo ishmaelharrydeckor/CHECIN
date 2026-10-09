@@ -30,6 +30,8 @@ export interface KioskCacheEntry {
   greeting: boolean;
   /** The tablet's private live-greeting channel address, if it has one yet (see kiosk-channel.ts). */
   channelId?: string;
+  /** When that address was created (ms). Used to replace it daily; see kiosk-channel.ts. */
+  channelRotatedAt?: number;
 }
 
 const cache = new Map<string, KioskCacheEntry>();
