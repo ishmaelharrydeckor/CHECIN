@@ -1,55 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { timingSafeHashMatch, generateKioskToken } from "@/lib/kiosk-crypto.server";
-import {
-  getKioskMode,
-  KIOSK_MODE_LABEL,
-  type KioskMode,
-  type LocationHours,
-} from "@/lib/attendance-windows";
-import {
-  getCachedKiosk,
-  setCachedKiosk,
-  pollIntervalFor,
-  type KioskCacheEntry,
-} from "@/lib/kiosk-cache.server";
-
-/**
- * Loads everything the token route needs about a kiosk in one go (kiosk doc,
- * location hours, org timezone) and caches it. Returns null if the kiosk is
- * not paired / was revoked. The kiosk document holds the secret HASH and is
- * Admin-SDK only; it never leaves the server.
- */
-async function loadKiosk(locationId: string): Promise<KioskCacheEntry | null> {
-  const kioskDoc = await firestoreAdmin.collection("kiosks").doc(locationId).get();
-  if (!kioskDoc.exists) return null;
-  const kiosk = kioskDoc.data()!;
-
-  let hours: LocationHours = {};
-  let timezone = "UTC";
-  try {
-    const [locSnap, orgSnap] = await Promise.all([
-      firestoreAdmin.collection("locations").doc(locationId).get(),
-      firestoreAdmin.collection("organizations").doc(kiosk.orgId).get(),
-    ]);
-    // Only trust hours from a location that belongs to the kiosk's own org.
-    if (locSnap.exists && locSnap.data()?.orgId === kiosk.orgId) hours = locSnap.data()!;
-    timezone = orgSnap.data()?.timezone || "UTC";
-  } catch (modeErr) {
-    console.warn("Could not load location hours for kiosk mode:", modeErr);
-  }
-
-  const entry: KioskCacheEntry = {
-    loadedAt: Date.now(),
-    orgId: kiosk.orgId,
-    secretHash: kiosk.kiosk_secret_hash,
-    locationName: kiosk.locationName || "Main Entrance",
-    hours,
-    timezone,
-  };
-  setCachedKiosk(locationId, entry);
-  return entry;
-}
+import { getKioskMode, KIOSK_MODE_LABEL, type KioskMode } from "@/lib/attendance-windows";
+import { getCachedKiosk, pollIntervalFor, setCachedKiosk } from "@/lib/kiosk-cache.server";
+import { ensureChannelId, readChannelNote } from "@/lib/kiosk-channel.server";
+import { noteForFallback } from "@/lib/kiosk-channel";
+import { loadKiosk } from "@/lib/kiosk-loader.server";
 
 export const Route = createFileRoute("/api/kiosk/token")({
   server: {
@@ -98,24 +54,26 @@ export const Route = createFileRoute("/api/kiosk/token")({
           // Mint fresh rotating HMAC token
           const token = generateKioskToken(locationId, timeBucket);
 
-          // Check if there is an active scan notification for this kiosk (within last 12 seconds)
-          let recentScan = null;
-          try {
-            const scanSnap = await firestoreAdmin.collection("recent_scans").doc(locationId).get();
-            if (scanSnap.exists) {
-              const scanData = scanSnap.data()!;
-              const scanTs = Number(scanData.timestamp) || 0;
-              if (now - scanTs < 12000) {
-                recentScan = {
-                  employeeName: scanData.employeeName,
-                  type: scanData.type, // "in" | "out"
-                  time: scanData.time,
-                  timestamp: scanTs,
-                };
-              }
+          // Live greeting (only where the location has it switched on). The tablet watches its
+          // private channel directly, so this route no longer reads anything per poll. The channel
+          // address is created on first use, so tablets paired earlier need no re-pairing.
+          let channelId = entry.channelId;
+          if (entry.greeting && !channelId) {
+            try {
+              channelId = (await ensureChannelId(locationId)) ?? undefined;
+              if (channelId) setCachedKiosk(locationId, { ...entry, channelId });
+            } catch (chErr) {
+              console.warn("Could not create the greeting channel:", chErr);
             }
-          } catch (scanErr) {
-            console.warn("Could not check recent_scans for kiosk:", scanErr);
+          }
+
+          // Fallback: the tablet's live connection is down, so it asks for the latest scan here
+          // (one read, only while it is down). It says which scan it last saw, so none is missed.
+          const inFallback = entry.greeting && body?.fallback === true && Boolean(channelId);
+          let note = null;
+          if (inFallback) {
+            const since = Number(body?.since);
+            note = noteForFallback(await readChannelNote(channelId), Number.isFinite(since) ? since : 0, now);
           }
 
           // Display label from the location's hours in the ORG's timezone (server clock only).
@@ -135,10 +93,16 @@ export const Route = createFileRoute("/api/kiosk/token")({
             mode,
             label: KIOSK_MODE_LABEL[mode],
             locationName: entry.locationName,
-            recentScan,
-            // How soon to ask again. Fast around reporting/closing time (greeting),
-            // never slower than 12 s (the QR token must be refreshed in time).
-            pollMs: pollIntervalFor(mode),
+            greeting: entry.greeting,
+            // The private address the tablet watches (null when the greeting is off), the server's
+            // clock (so the tablet can judge how old a note is), and the org timezone for display.
+            channelId: entry.greeting ? (channelId ?? null) : null,
+            serverNow: now,
+            timezone: entry.timezone,
+            note,
+            // How soon to ask again: 12 s normally (the QR token must be refreshed in time),
+            // 4 s only while the tablet is in fallback and asking for scans.
+            pollMs: pollIntervalFor(inFallback),
           });
         } catch (err: any) {
           console.error("POST /api/kiosk/token error:", err);

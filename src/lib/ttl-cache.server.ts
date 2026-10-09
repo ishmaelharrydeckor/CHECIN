@@ -43,3 +43,46 @@ export function createTtlCache<T>(ttlMs: number, maxEntries = 500): TtlCache<T> 
     },
   };
 }
+
+/**
+ * A cache for an expensive answer, keyed by who is asking.
+ *
+ *  - Within `ttlMs` the saved answer is returned and `compute` is NOT called
+ *    (so no database reads).
+ *  - `fresh: true` (the Refresh button) recomputes, but only if the saved answer is
+ *    at least `freshMinAgeMs` old, so a button cannot be hammered to force reads.
+ *  - Requests for the same key that arrive while a computation is running share it.
+ *  - A failed computation is never cached.
+ *
+ * The caller chooses the key. For anything role-scoped the key MUST include who the
+ * answer is for (see dashboardCacheKey), or one person could be handed another's data.
+ */
+export function createCachedLoader<T>(ttlMs: number, maxEntries = 200, freshMinAgeMs = 5000) {
+  const cache = createTtlCache<{ at: number; value: T }>(ttlMs, maxEntries);
+  const inFlight = new Map<string, Promise<T>>();
+
+  return async function load(
+    key: string,
+    compute: () => Promise<T>,
+    opts: { fresh?: boolean; now?: number } = {},
+  ): Promise<T> {
+    const now = opts.now ?? Date.now();
+    const hit = cache.get(key, now);
+    if (hit && !(opts.fresh && now - hit.at >= freshMinAgeMs)) return hit.value;
+
+    const running = inFlight.get(key);
+    if (running) return running;
+
+    const p = (async () => {
+      try {
+        const value = await compute();
+        cache.set(key, { at: now, value }, now);
+        return value;
+      } finally {
+        inFlight.delete(key);
+      }
+    })();
+    inFlight.set(key, p);
+    return p;
+  };
+}

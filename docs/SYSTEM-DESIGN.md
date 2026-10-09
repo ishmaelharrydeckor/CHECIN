@@ -154,7 +154,7 @@ Design:
 4. Late list = `daily_summaries where managerId == X and dayKey == today and late == true`, bounded by team size.
 5. Budget: **under 1k reads per manager-day** instead of about 15k.
 
-**Interim implementation (shipped before the summaries exist).** `/api/attendance/today` and `/api/attendance/week` compute the same numbers on the server straight from today's (or this week's) raw `clock_events`, bounded by the org-timezone day and capped (1,500 / 4,000 events), with the roster and timezone cached for 5 minutes. This fixes correctness (K3) now. It does **not** meet the budget above: a poll costs about one read per event today plus nothing for the cached roster, so it is fine for a pilot-sized organization (tens of people) but must be replaced by the `team_days` rollup (task #23) before an organization passes roughly 100 people. The dashboard polls every 2 minutes while the tab is visible.
+**Interim implementation (shipped before the summaries exist).** `/api/attendance/today` and `/api/attendance/week` compute the same numbers on the server straight from today's (or this week's) raw `clock_events`, bounded by the org-timezone day and capped (1,500 / 4,000 events), with the roster and timezone cached for 5 minutes. This fixes correctness (K3) now. It does **not** meet the budget above: a poll costs about one read per event today plus nothing for the cached roster, so it is fine for a pilot-sized organization (tens of people) but must be replaced by the `team_days` rollup (task #23) before an organization passes roughly 100 people. The dashboard polls every 2 minutes while the tab is visible **and the person has touched the page in the last 10 minutes** (idle pause, `src/lib/idle-refresh.ts`), and the server keeps each answer for 45 seconds per organization (admin) or per team (manager) so several viewers share one calculation; the Refresh button bypasses it (not more than once every 5 seconds).
 
 ### 5.4 History, timesheets, reports
 
@@ -258,6 +258,7 @@ Each has a recommendation; none is irreversible except where noted.
 | D6 | WFH approval | Self-declared / manager-approved | **Self-declared in v2**, as the roadmap says; revisit with a customer. |
 | D7 | Greeting latency vs cost | 4 s poll (about 900 reads/h) / adaptive by location hours / 12 s with the token / push channel / drop the greeting | **Now: caching plus adaptive polling (4 s around reporting/closing time, 12 s otherwise). 12 s is a hard ceiling: the QR token is only valid for about 30-45 s, so the kiosk must refresh it at least that often.** At scale (section 12) polling cannot be the mechanism; decide push channel vs dropping the kiosk greeting before about 100 kiosks. A push channel is not available on serverless without extra infrastructure. |
 | D8 | Org timezone | Keep browser-detected default / make it an explicit required choice / warn when on UTC | **Keep the default, add a visible warning while an org is on UTC and verify the pilot org's value.** Everything in section 6 depends on it being right. |
+| D9 | Add a SQL database (Supabase / Postgres) | Switch everything / never / **hybrid later for reporting only** | **Hybrid, later, and only when a trigger fires** (section 12.6). Not now: it would not fix the polling cost, and a switch means redoing sign-in, rules and the security review while the pilot is live. |
 
 ---
 
@@ -352,3 +353,27 @@ These cost almost nothing today and are painful to retrofit. Each is already in 
 - **No rewrite, no microservices, no Kubernetes.** A modular Vercel + Firestore monolith comfortably handles scenario C and a long way into A. The risk at scale is a bad access pattern, not the wrong platform.
 - **Do not build sharding, BigQuery, regional deployments or a push gateway before the trigger fires.** They are real work and each has its own failure modes. Prepare the data model (12.3), measure, then build.
 - **Do not claim a scale number you haven't load-tested.** "Millions" is a target; the load-test harness is how it becomes a fact.
+
+### 12.6 Planned for later: Supabase (Postgres) for reporting, alongside Firebase
+
+**Decision (D9): the owner agreed to use both, later.** Firebase stays the system of record and the identity provider. A SQL database is added **only for reporting and analytics** when one of the triggers below fires. Nothing is switched, and nothing is built for this before then.
+
+**Why not now.** The database pressure comes from how often screens ask for data (kiosk polling, dashboard refresh), and those habits would follow us to any database. The fixes for that are #32 (kiosk and scan), the quick dashboard savings, and daily summaries (#23). Switching would also mean migrating sign-in, rewriting every access rule as row-level security, and repeating the security review, for no immediate benefit.
+
+**Triggers (any one):**
+1. Reports or insights need joins and aggregates that are painful in Firestore (for example "late arrivals by team by month", leave balances against attendance).
+2. Firestore cost per customer becomes a number worth cutting.
+3. A customer asks for a SQL export or direct read access to their data.
+4. Phase 4 period views (week, month, quarter, year to date) become slow or expensive over raw summaries.
+
+**Shape of the hybrid (guardrails, so adding it does not weaken what we have):**
+- **Firebase Auth stays the only identity.** The server verifies the Firebase ID token and derives role, organization and manager from its claims, exactly as today. Supabase Auth is not used.
+- **Server-only access.** The browser never talks to the SQL database. Only our server routes do, with a key held in environment variables (never in the repository, never `NEXT_PUBLIC`-style exposed). Every query is scoped by `orgId` (and `managerId` for managers) from the verified claims. Row-level security is turned on as a second layer, default-deny.
+- **Firestore is the source of truth.** `clock_events` and the daily summaries keep being written first, in the same transaction as today. The SQL tables are a **derived copy** (loaded by a job or a write-behind step) that can be dropped and rebuilt from Firestore at any time. If the two ever disagree, Firestore wins.
+- **Same design rules apply:** `orgId` on every row, `dayKey` computed in the organization's timezone, no polling that reads it, every query bounded.
+- **Separate projects per environment:** a staging Supabase project and a production one, with different keys, like the Firebase split.
+- **Plan tier:** a free Supabase project pauses after a quiet period, so production would use a paid plan with predictable cost (check current pricing at that time).
+
+**First step when a trigger fires (a time-boxed experiment, about a day, nothing live changes):** load a copy of staging `clock_events` and summaries into a test Supabase project, run the real dashboard and report queries, and compare speed, cost and code simplicity against Firestore. Decide with those results.
+
+**Risks to track:** two stores to keep consistent, one more secret to protect, a second place where tenant isolation must be right, and extra cost to run. If a trigger can be met cheaply inside Firestore (more summaries, BigQuery export), prefer that and keep the hybrid on hold.

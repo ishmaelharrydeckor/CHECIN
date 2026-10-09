@@ -7,6 +7,7 @@ import {
   getOrgId,
   getManagerId,
   getRole,
+  canManageKiosksRole,
   waitForClaims,
   refreshUserClaims,
 } from "./auth-claims";
@@ -53,6 +54,7 @@ export function useAuth() {
   const [role, setRole] = useState<CorporateRole | null>(() => getRole());
   const [orgId, setOrgId] = useState<string | undefined>(() => getOrgId());
   const [managerId, setManagerId] = useState<string | undefined>(() => getManagerId());
+  const [canManageKiosks, setCanManageKiosks] = useState(() => canManageKiosksRole());
   const [loading, setLoading] = useState(() => {
     const fbUser = firebaseAuth.currentUser;
     if (!fbUser) return true;
@@ -71,6 +73,7 @@ export function useAuth() {
         setRole(getRole());
         setOrgId(getOrgId());
         setManagerId(getManagerId());
+        setCanManageKiosks(canManageKiosksRole());
         setLoading(false);
       } else {
         clearUserAppCache();
@@ -78,6 +81,7 @@ export function useAuth() {
         setRole(null);
         setOrgId(undefined);
         setManagerId(undefined);
+        setCanManageKiosks(false);
         setLoading(false);
       }
     });
@@ -104,6 +108,7 @@ export function useAuth() {
     isManager,
     isEmployee,
     isMember,
+    canManageKiosks,
     refreshClaims: refreshUserClaims,
   };
 }

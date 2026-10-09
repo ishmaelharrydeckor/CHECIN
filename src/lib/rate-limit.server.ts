@@ -18,13 +18,29 @@ export interface RateLimitResult {
   retryAfterMinutes?: number;
 }
 
+export interface RateLimitOptions {
+  limit?: number;
+  windowMs?: number;
+  /**
+   * What to do when the limiter itself cannot reach Firestore.
+   * - false (default): let the request through. Right for login, where locking
+   *   everyone out of their account is worse than a brief gap in throttling.
+   * - true: refuse. Right for kiosk pairing and invite redemption, where the
+   *   limiter is the only thing slowing down guessing of a code or token.
+   */
+  failClosed?: boolean;
+}
+
+/** Keep expired counters this long before the Firestore TTL policy deletes them. */
+const TTL_GRACE_MS = 24 * 60 * 60 * 1000;
+
 export function sanitizeRateLimitKey(str: string): string {
   return str.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 400);
 }
 
 export async function checkRateLimit(
   rawKey: string,
-  opts?: { limit?: number; windowMs?: number },
+  opts?: RateLimitOptions,
 ): Promise<RateLimitResult> {
   const limit = opts?.limit ?? 8;
   const windowMs = opts?.windowMs ?? 15 * 60 * 1000;
@@ -40,7 +56,13 @@ export async function checkRateLimit(
 
       // No entry, or the previous window has expired — start a fresh window.
       if (!data || now > data.reset_at) {
-        tx.set(ref, { count: 1, reset_at: now + windowMs, updated_at: now });
+        tx.set(ref, {
+          count: 1,
+          reset_at: now + windowMs,
+          updated_at: now,
+          // A Firestore TTL policy on this field deletes the document after it passes (needs the Blaze plan; see docs/SCALE-PLAN.md).
+          expireAt: new Date(now + windowMs + TTL_GRACE_MS),
+        });
         return { allowed: true };
       }
 
@@ -53,6 +75,10 @@ export async function checkRateLimit(
       return { allowed: true };
     });
   } catch (err) {
+    if (opts?.failClosed) {
+      console.error("Rate limit check failed, refusing request (fail-closed route):", err);
+      return { allowed: false, retryAfterMinutes: 1 };
+    }
     // Fail open: a rate-limiter outage should not lock every user out of
     // their account. The error is surfaced so it shows up in monitoring
     // rather than failing silently.

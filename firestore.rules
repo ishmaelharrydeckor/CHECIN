@@ -90,6 +90,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- 4b. Daily Summaries (derived from clock_events, one document per person per day) ----
+    // Written ONLY by the verified-scan server route (and the backfill script) with the
+    // Admin SDK. Same read scope as clock_events; no client may write.
+    match /daily_summaries/{summaryId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // ---- 5. Leave Requests ----
     match /leave_requests/{requestId} {
       // Employee reads own; Manager reads team; Admin reads org
@@ -98,18 +110,39 @@ service cloud.firestore {
         (isManager() && resource.data.managerId == request.auth.uid) ||
         resource.data.employeeId == request.auth.uid
       );
-      // Employee creates their own leave request within their org & team
-      // Always starts as pending — an employee cannot self-approve
+      // Employee creates their own leave request within their org & team.
+      // Always starts as pending (an employee cannot self-approve). Only the known fields
+      // are allowed, the type must be one of the listed kinds, dates must be YYYY-MM-DD with
+      // the end on or after the start, the note is capped, and createdAt must be the server time.
       allow create: if inOrg(request.resource.data)
         && request.resource.data.employeeId == request.auth.uid
         && request.resource.data.managerId == managerId()
-        && request.resource.data.status == "pending";
-      // Manager approves/rejects within their own team; Org Admin can override.
+        && request.resource.data.status == "pending"
+        && request.resource.data.keys().hasOnly(["orgId", "managerId", "employeeId", "employeeName", "type", "startDate", "endDate", "note", "status", "createdAt"])
+        && (!("employeeName" in request.resource.data) || (request.resource.data.employeeName is string && request.resource.data.employeeName.size() <= 100))
+        && request.resource.data.type in ["annual", "sick", "personal", "unpaid", "other"]
+        && request.resource.data.startDate is string
+        && request.resource.data.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.endDate is string
+        && request.resource.data.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.endDate >= request.resource.data.startDate
+        && (!("note" in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 500))
+        && request.resource.data.createdAt == request.time;
+      // Manager approves/denies within their own team; Org Admin can override. A decision can be
+      // made ONCE: only a pending request can change, only to approved or denied, recorded under the
+      // reviewer's own uid and the server time. A manager cannot decide their own request (it goes to an
+      // org admin); an org admin may decide their own, so a sole admin is never stuck.
       // Only the decision fields may change (not employee, team, dates or type).
       allow update: if inOrg(resource.data) && (
         (isManager() && resource.data.managerId == request.auth.uid) ||
         isOrgAdmin()
-      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewedBy", "reviewedAt"]);
+      )
+        && (resource.data.employeeId != request.auth.uid || isOrgAdmin())
+        && resource.data.status == "pending"
+        && request.resource.data.status in ["approved", "denied"]
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.reviewedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "reviewedBy", "reviewedAt"]);
       allow delete: if false;
     }
 
@@ -194,9 +227,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Recent Scans: Ephemeral scan notifications read exclusively by Admin SDK in /api/kiosk/token
+    // Problem reports and their screenshots: written and read only by the server (/api/reports),
+    // and only the platform owner can read them there. No client access, ever.
+    match /problem_reports/{reportId} {
+      allow read, write: if false;
+    }
+    match /problem_report_files/{reportId} {
+      allow read, write: if false;
+    }
+
+    // Recent Scans: the old greeting note (carried a name). No longer written; kept locked.
     match /recent_scans/{locationId} {
       allow read, write: if false;
+    }
+
+    // Kiosk channels: the live greeting. ONE deliberate exception to default-deny.
+    // Anyone who knows a channel's address (32 random bytes, known only to the server and that
+    // tablet) may READ that single document. They can never list the collection or write to it
+    // (the scan route writes with the Admin SDK). The document holds only { type, at }: no name,
+    // no employee, no organization, no location. A test fails the build if its fields change.
+    match /kiosk_channels/{channelId} {
+      allow get: if true;
+      allow list, create, update, delete: if false;
     }
 
     // Default Deny: Catch-all for any collection not explicitly matched above

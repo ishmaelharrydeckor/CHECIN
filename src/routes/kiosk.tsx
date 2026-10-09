@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
+import { kioskStatus, retryDelayMs } from "@/lib/kiosk-health";
+import {
+  formatNoteTime,
+  inFallback,
+  isShowable,
+  serverClockOffset,
+  type ChannelNote,
+  type LiveState,
+} from "@/lib/kiosk-channel";
 
 export const Route = createFileRoute("/kiosk")({
   ssr: false,
@@ -20,21 +29,37 @@ function KioskPage() {
   // Kiosk display state
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
-  const [countdown, setCountdown] = useState(15);
-  const [tokenHash, setTokenHash] = useState("Loading...");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  // Connection health: when the last code was successfully refreshed, how many tries in a row have
+  // failed, and whether the server rejected this tablet's secret (see src/lib/kiosk-health.ts).
+  const [lastSuccessAt, setLastSuccessAt] = useState<number | null>(null);
+  const [failures, setFailures] = useState(0);
+  const [credentialError, setCredentialError] = useState(false);
+  const failuresRef = useRef(0);
+  // What to show right now. Recomputed on every render; the clock below re-renders every second,
+  // so a code that has gone stale is hidden within a second of becoming too old.
+  const status = kioskStatus({ lastSuccessMs: lastSuccessAt, nowMs: Date.now(), failures, credentialError });
   const [modeLabel, setModeLabel] = useState<string>("Scan to Check In / Out");
-  const [lastSeenScanTimestamp, setLastSeenScanTimestamp] = useState<number>(() => Date.now());
+  const [greetingOn, setGreetingOn] = useState(false);
+
+  // Live greeting. The tablet watches its own private channel and shows a nameless card when a scan
+  // is saved. If that live link is down it falls back to asking the server every few seconds.
+  const [channelId, setChannelId] = useState<string | null>(null);
+  const [liveState, setLiveState] = useState<LiveState>("off");
+  const liveStateRef = useRef<LiveState>("off");
+  const channelIdRef = useRef<string | null>(null);
+  const greetingOnRef = useRef(false);
+  const lastSeenAtRef = useRef(0); // the newest note already handled (server time, ms)
+  const clockOffsetRef = useRef(0); // server clock minus this tablet's clock
+  const timezoneRef = useRef("UTC");
 
   const [toastData, setToastData] = useState<{
     show: boolean;
-    name: string;
     status: string;
     time: string;
   }>({
     show: false,
-    name: "",
     status: "",
     time: "",
   });
@@ -76,14 +101,6 @@ function KioskPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Countdown timer decrement
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev <= 1 ? 15 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Helper to render QR code across CJS/ESM module bundlers
   const renderQrCodeDataUrl = async (payload: string): Promise<string> => {
     const qrLib: any = (QRCode as any)?.default || QRCode;
@@ -101,14 +118,23 @@ function KioskPage() {
     });
   };
 
-  // Poll /api/kiosk/token when paired. The server tells us how soon to ask again
-  // (fast around reporting/closing time so the greeting feels instant, slower
-  // otherwise). We clamp it: never faster than 3 s (database cost) and never
-  // slower than 12 s (the QR token must be refreshed before it goes stale).
-  const pollMsRef = useRef<number>(4000);
-  const fetchTokenRef = useRef<() => void | Promise<void>>(() => {});
+  // Poll /api/kiosk/token when paired to refresh the QR code. The server tells us how soon to ask
+  // again: 12 s normally, 4 s only while the live greeting link is down. We clamp it: never faster
+  // than 3 s (database cost) and never slower than 12 s (the QR token must be refreshed before it
+  // goes stale).
+  const pollMsRef = useRef<number>(12000);
+  type FetchOutcome = "ok" | "fail" | "credentials" | "skip";
+  const fetchTokenRef = useRef<() => Promise<FetchOutcome>>(async () => "skip");
+
+  // A connection or server problem: remember it (the code on screen is hidden once it is too old).
+  const noteFailure = (): FetchOutcome => {
+    failuresRef.current += 1;
+    setFailures(failuresRef.current);
+    return "fail";
+  };
+
   fetchTokenRef.current = async () => {
-    if (!deviceSecret || !locationId) return;
+    if (!deviceSecret || !locationId) return "skip";
 
     try {
       const res = await fetch("/api/kiosk/token", {
@@ -117,10 +143,16 @@ function KioskPage() {
           "Content-Type": "application/json",
           "x-kiosk-secret": deviceSecret,
         },
-        body: JSON.stringify({ locationId }),
+        body: JSON.stringify({
+          locationId,
+          // Only while the live link is down: ask for the newest scan since the last one we showed.
+          fallback: inFallback(greetingOnRef.current, Boolean(channelIdRef.current), liveStateRef.current),
+          since: lastSeenAtRef.current,
+        }),
       });
 
       if (res.status === 401) {
+        setCredentialError(true);
         const errData = await res.json().catch(() => null);
         const errMsg = errData?.error || "Invalid kiosk credentials";
         setTokenError(
@@ -128,38 +160,46 @@ function KioskPage() {
             ? "Terminal credentials expired or invalid. This kiosk may have been re-paired or revoked in Manager Settings. Please click 'Re-pair' below to enter a fresh pairing code."
             : errMsg,
         );
-        return;
+        return "credentials";
       }
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        setTokenError(
-          errData?.detail
-            ? `Server error: ${errData.detail}`
-            : errData?.error || `Failed to fetch live token (HTTP ${res.status})`,
-        );
-        return;
+        // Server trouble (not a rejected secret): treat like a lost connection and keep trying.
+        return noteFailure();
       }
 
       const data = await res.json();
       if (!data.ok || !data.token) {
-        setTokenError(data.error || "Invalid response received from token endpoint");
-        return;
+        return noteFailure();
       }
 
+      // Success: the code is fresh and the connection is healthy.
+      failuresRef.current = 0;
+      setFailures(0);
+      setCredentialError(false);
+      setLastSuccessAt(Date.now());
       setTokenError(null);
       if (typeof data.pollMs === "number" && Number.isFinite(data.pollMs)) {
         pollMsRef.current = Math.min(12000, Math.max(3000, data.pollMs));
-      }
-      setTokenHash(data.token.slice(0, 8) + "..." + data.token.slice(-6));
-      if (data.secondsRemaining) {
-        setCountdown(data.secondsRemaining);
       }
       if (data.locationName) {
         setLocationName(data.locationName);
       }
       // Label is decided server-side (org timezone); the kiosk only displays it.
       if (typeof data.label === "string") setModeLabel(data.label);
+      greetingOnRef.current = data.greeting === true;
+      setGreetingOn(data.greeting === true);
+      if (typeof data.timezone === "string") timezoneRef.current = data.timezone;
+      if (typeof data.serverNow === "number") {
+        clockOffsetRef.current = serverClockOffset(data.serverNow, Date.now());
+      }
+      const nextChannel = data.greeting === true && typeof data.channelId === "string" ? data.channelId : null;
+      if (nextChannel !== channelIdRef.current) {
+        channelIdRef.current = nextChannel;
+        setChannelId(nextChannel);
+      }
+      // A note handed back by the server because our live link is down.
+      if (data.note) handleNote(data.note as ChannelNote);
 
       // Generate real QR code image
       const qrPayload = JSON.stringify({
@@ -171,21 +211,11 @@ function KioskPage() {
       const url = await renderQrCodeDataUrl(qrPayload);
       setQrDataUrl(url);
 
-      // Check for recent scan confirmation
-      if (data.recentScan) {
-        const scanTs = Number(data.recentScan.timestamp) || Date.now();
-        if (scanTs > lastSeenScanTimestamp) {
-          setLastSeenScanTimestamp(scanTs);
-          triggerToast(
-            data.recentScan.employeeName,
-            data.recentScan.type === "in" ? "Clocked IN" : "Clocked OUT",
-            data.recentScan.time,
-          );
-        }
-      }
+      return "ok";
     } catch (err: any) {
-      console.error("Error fetching kiosk token:", err);
-      setTokenError(err?.message || "Failed to generate QR code");
+      // No network, or the request failed part-way (for example during a power or internet cut).
+      console.warn("Kiosk could not refresh its code:", err?.message || err);
+      return noteFailure();
     }
   };
 
@@ -195,20 +225,91 @@ function KioskPage() {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    // Self-scheduling loop so the interval can change with the server's hint.
-    // A failed request keeps the last interval (default 4 s), so a flaky
-    // network does not slow the QR refresh below its safe floor.
+    // Self-scheduling loop. After a success it follows the server's hint (fast around check-in
+    // times, never slower than 12 s). After a failure it retries quickly, then backs off to 15 s,
+    // so a brief blip heals fast and a long outage is not hammered.
     const tick = async () => {
-      await fetchTokenRef.current();
-      if (!cancelled) timer = setTimeout(tick, pollMsRef.current);
+      const outcome = await fetchTokenRef.current();
+      if (cancelled) return;
+      const delay = outcome === "fail" ? retryDelayMs(failuresRef.current) : pollMsRef.current;
+      timer = setTimeout(tick, delay);
     };
     tick();
+
+    // The moment the browser says the internet is back, try straight away.
+    const onOnline = () => {
+      if (timer) clearTimeout(timer);
+      tick();
+    };
+    window.addEventListener("online", onOnline);
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      window.removeEventListener("online", onOnline);
     };
   }, [deviceSecret, locationId]);
+
+  // The live greeting link. Loaded on demand and separately from the QR code: if it cannot load or
+  // connect, the QR code keeps working and the tablet falls back to asking the server (see the token
+  // request above). Only runs where the location has the greeting switched on.
+  useEffect(() => {
+    if (!channelId) {
+      liveStateRef.current = "off";
+      setLiveState("off");
+      return;
+    }
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    const apply = (state: LiveState) => {
+      if (cancelled) return;
+      const wasDown = liveStateRef.current === "down";
+      liveStateRef.current = state;
+      setLiveState(state);
+      // The moment it goes down, ask the server straight away so a scan is not missed.
+      if (state === "down" && !wasDown) fetchTokenRef.current();
+    };
+    import("@/lib/kiosk-live")
+      .then(({ watchChannel }) => {
+        if (cancelled) return;
+        stop = watchChannel(channelId, (note) => handleNote(note), apply);
+      })
+      .catch((err) => {
+        console.warn("Kiosk live greeting could not start:", err?.message || err);
+        apply("down");
+      });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+    // handleNote only reads refs and the clock, so it is safe to leave out of the dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId]);
+
+  // Keep the screen awake so the tablet does not go dark while it is the check-in point.
+  // (Where the browser supports it; quietly skipped otherwise.)
+  useEffect(() => {
+    if (!deviceSecret) return;
+    let lock: { release?: () => Promise<void> } | null = null;
+    const acquire = async () => {
+      try {
+        const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<any> } };
+        if (!nav.wakeLock || document.visibilityState !== "visible") return;
+        lock = await nav.wakeLock.request("screen");
+      } catch {
+        // Not allowed (battery saver, no permission): nothing to do.
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") acquire();
+    };
+    acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      lock?.release?.().catch(() => {});
+    };
+  }, [deviceSecret]);
 
   const handlePair = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,18 +358,22 @@ function KioskPage() {
     setPairingCodeInput("");
   };
 
-  const triggerToast = (name: string, status: string, customTime?: string) => {
-    const timeStr =
-      customTime ||
-      new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-    setToastData({ show: true, name, status, time: timeStr });
+  const triggerToast = (status: string, timeStr: string) => {
+    setToastData({ show: true, status, time: timeStr });
     setTimeout(() => {
       setToastData((prev) => ({ ...prev, show: false }));
     }, 4500);
+  };
+
+  // A note arrived (from the live link, or handed back by the server in fallback). Show a nameless
+  // greeting only if it is new and recent by the SERVER's clock, so a reconnect or reboot never
+  // replays an old one and a wrong tablet clock cannot make one linger.
+  const handleNote = (note: ChannelNote) => {
+    const serverNow = Date.now() + clockOffsetRef.current;
+    const show = isShowable(note, lastSeenAtRef.current, serverNow);
+    lastSeenAtRef.current = Math.max(lastSeenAtRef.current, note.at);
+    if (!show) return;
+    triggerToast(note.type === "in" ? "Clocked IN" : "Clocked OUT", formatNoteTime(note.at, timezoneRef.current));
   };
 
   // -------------------------------------------------------------
@@ -370,7 +475,7 @@ function KioskPage() {
               ✓
             </div>
             <h3 className="text-2xl font-bold text-white mb-1">
-              {toastData.status.includes("OUT") ? "Goodbye" : "Welcome"}, {toastData.name}
+              {toastData.status.includes("OUT") ? "Goodbye" : "Welcome"}
             </h3>
             <p className="text-sm text-[#C0FD9B] font-semibold">
               {toastData.status} • {toastData.time}
@@ -385,18 +490,35 @@ function KioskPage() {
 
         {/* Scan Instruction Pill */}
         <div className="inline-block bg-[#C0FD9B]/10 border border-[#C0FD9B]/30 px-3.5 py-1 rounded-full text-xs font-medium text-[#C0FD9B] mb-4">
-          {modeLabel} · Use Phone Camera
+          {status === "live" || status === "starting" ? `${modeLabel} · Use Phone Camera` : "Check-in paused"}
         </div>
+        {!greetingOn && status === "live" && (
+          <p className="text-xs text-white/50 -mt-2 mb-4">Your phone shows your check-in result</p>
+        )}
 
         {/* Real Dynamic QR Code SVG / Canvas */}
         <div className="w-72 h-72 mx-auto bg-white rounded-2xl p-4 shadow-inner flex items-center justify-center">
-          {qrDataUrl ? (
+          {status === "live" && qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt="ChecIN Rotating Hardware Token QR"
+              alt="Check-in QR code"
               className="w-full h-full object-contain rounded-lg"
             />
-          ) : tokenError ? (
+          ) : status === "offline" ? (
+            <div className="text-[#0E2322] flex flex-col items-center justify-center text-center p-4" role="status">
+              <span className="text-4xl mb-3">📡</span>
+              <span className="font-bold text-lg mb-1">Waiting for internet</span>
+              <span className="text-sm text-slate-600 leading-relaxed">
+                Check-in is paused. It will resume on its own as soon as the connection is back.
+              </span>
+              {lastSuccessAt && (
+                <span className="text-xs text-slate-500 mt-3">
+                  Last connected at{" "}
+                  {new Date(lastSuccessAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+          ) : status === "credentials" && tokenError ? (
             <div className="text-rose-600 text-xs flex flex-col items-center justify-center text-center p-3">
               <span className="text-3xl mb-2">⚠️</span>
               <span className="font-bold text-sm mb-1 text-rose-700">Token Minting Paused</span>
@@ -428,30 +550,19 @@ function KioskPage() {
             </div>
           )}
         </div>
-
-        {/* 15-Second Rotating Countdown Progress */}
-        <div className="mt-6 flex items-center justify-between text-xs text-white/70">
-          <span>
-            Rotating HMAC Token:{" "}
-            <strong className="font-mono text-[#C0FD9B]">{tokenHash}</strong>
-          </span>
-          <span className="font-bold text-[#FFD153]">
-            Refreshes in {countdown}s
-          </span>
-        </div>
-        <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
-          <div
-            className="bg-[#C0FD9B] h-1.5 rounded-full transition-all duration-1000 ease-linear"
-            style={{ width: `${(countdown / 15) * 100}%` }}
-          ></div>
-        </div>
       </div>
 
       {/* Terminal Footer & Controls */}
       <div className="w-full max-w-md bg-black/30 border border-white/10 rounded-2xl p-3 flex items-center justify-between text-xs text-white/60">
         <div className="flex items-center space-x-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className={`w-2 h-2 rounded-full ${status === "live" ? "bg-emerald-400" : "bg-amber-400"}`} />
           <span>Active Terminal ID: {locationId.slice(0, 8)}</span>
+          {greetingOn && (
+            <span className="text-white/40">
+              {"\u00b7 Greeting: "}
+              {liveState === "live" ? "live" : liveState === "connecting" ? "connecting" : "reconnecting"}
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <button

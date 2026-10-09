@@ -3,20 +3,25 @@ import crypto from "node:crypto";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { hashDeviceSecret } from "@/lib/kiosk-crypto.server";
+import { generateChannelId } from "@/lib/kiosk-channel.server";
+import { correlationId, logEvent } from "@/lib/log.server";
 
 export const Route = createFileRoute("/api/kiosk/pair")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const cid = correlationId(request);
         try {
           // Rate-limit by client IP to prevent brute-forcing pairing codes
           const ip = clientIpFrom(request);
           const rate = await checkRateLimit(`kiosk_pair_${ip}`, {
             limit: 6,
             windowMs: 10 * 60 * 1000,
+            failClosed: true,
           });
 
           if (!rate.allowed) {
+            logEvent({ action: "kiosk.pair", outcome: "rate_limited", correlationId: cid });
             return Response.json(
               { error: `Too many pairing attempts. Please try again in ${rate.retryAfterMinutes} minutes.` },
               { status: 429 },
@@ -65,7 +70,16 @@ export const Route = createFileRoute("/api/kiosk/pair")({
             locationId: pairing.locationId,
             locationName: pairing.locationName,
             kiosk_secret_hash: secretHash,
+            channelId: generateChannelId(), // re-pairing rotates the live-greeting address
             kiosk_paired_at: new Date().toISOString(),
+          });
+
+          logEvent({
+            action: "kiosk.pair",
+            outcome: "ok",
+            correlationId: cid,
+            orgId: pairing.orgId,
+            fields: { locationId: pairing.locationId },
           });
 
           // Return raw secret to the tablet ONCE
@@ -79,8 +93,10 @@ export const Route = createFileRoute("/api/kiosk/pair")({
         } catch (err: any) {
           const msg = err?.message || "";
           if (msg.startsWith("INVALID:") || msg.startsWith("USED:") || msg.startsWith("EXPIRED:")) {
+            logEvent({ action: "kiosk.pair", outcome: "denied", correlationId: cid, fields: { reason: msg.split(":")[0] } });
             return Response.json({ error: msg.replace(/^[A-Z_]+:\s*/, "") }, { status: 400 });
           }
+          logEvent({ action: "kiosk.pair", outcome: "error", correlationId: cid });
           console.error("POST /api/kiosk/pair error:", err);
           return Response.json({ error: "Failed to pair tablet" }, { status: 500 });
         }

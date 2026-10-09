@@ -13,6 +13,7 @@ import { getApps, initializeApp, getApp, cert, type App } from "firebase-admin/a
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth, type DecodedIdToken } from "firebase-admin/auth";
 import type { AppRole } from "@/lib/auth-claims";
+import { assertEnvironmentSafe } from "@/lib/env-guard";
 
 let adminApp: App | undefined;
 let firestoreAdminInstance: Firestore | undefined;
@@ -85,6 +86,10 @@ function getAdminApp(): App {
         process.env.FIREBASE_PROJECT_ID ||
         process.env.VITE_FIREBASE_PROJECT_ID ||
         "checin-d172e";
+
+      // Stop a Preview deployment from touching production data.
+      assertEnvironmentSafe({ vercelEnv: process.env.VERCEL_ENV, projectId });
+      console.log(JSON.stringify({ action: "admin.init", firebaseProjectId: projectId, vercelEnv: process.env.VERCEL_ENV ?? "local" }));
 
       adminApp = initializeApp({
         projectId,
@@ -162,6 +167,27 @@ export async function setStaffRoleClaims(
     orgId,
     managerId: managerId ?? (role === "manager" ? targetUid : null),
   });
+}
+
+/**
+ * Adding locations and pairing/revoking tablets (kiosks): org admins always; managers only when an
+ * admin has switched on the `kioskAdmin` claim for them (see /api/admin/kiosk-access).
+ * Takes the verified token, never a client-supplied value.
+ */
+export function canManageKiosks(caller: { [claim: string]: unknown }): boolean {
+  return caller.role === "org_admin" || (caller.role === "manager" && caller.kioskAdmin === true);
+}
+
+/**
+ * Grants or removes a manager's tablet permission by merging one claim into
+ * their existing claims (role/orgId/managerId stay as they are).
+ */
+export async function setKioskAdminClaim(targetUid: string, allowed: boolean): Promise<void> {
+  const user = await getAuthAdmin().getUser(targetUid);
+  const claims: Record<string, unknown> = { ...(user.customClaims ?? {}) };
+  if (allowed) claims.kioskAdmin = true;
+  else delete claims.kioskAdmin;
+  await getAuthAdmin().setCustomUserClaims(targetUid, claims);
 }
 
 /**
