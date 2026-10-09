@@ -25,6 +25,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { PushNotificationManager } from "@/components/PushNotificationManager";
+import { TimezonePicker } from "@/components/TimezonePicker";
 import {
   getUserDevices,
   revokeDevice,
@@ -566,26 +567,16 @@ function SettingsPage() {
                   required
                 />
               </div>
-              <div className="space-y-1.5 w-full sm:w-56">
+              <div className="space-y-1.5 w-full sm:w-80">
                 <Label htmlFor="orgTimezoneInput" className="text-xs font-medium">
                   Timezone
                 </Label>
-                <Input
+                <TimezonePicker
                   id="orgTimezoneInput"
-                  list="tz-options"
                   value={orgTimezoneInput}
-                  onChange={(e) => setOrgTimezoneInput(e.target.value)}
-                  placeholder="e.g. Africa/Accra"
-                  className="h-10 text-sm"
+                  onChange={setOrgTimezoneInput}
+                  detected={typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null}
                 />
-                <datalist id="tz-options">
-                  {(typeof Intl !== "undefined" && (Intl as any).supportedValuesOf
-                    ? ((Intl as any).supportedValuesOf("timeZone") as string[])
-                    : ["UTC", "Africa/Accra"]
-                  ).map((tz) => (
-                    <option key={tz} value={tz} />
-                  ))}
-                </datalist>
               </div>
               <div className="flex gap-2">
                 <Button
