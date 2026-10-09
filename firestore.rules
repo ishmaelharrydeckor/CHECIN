@@ -236,9 +236,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Recent Scans: Ephemeral scan notifications read exclusively by Admin SDK in /api/kiosk/token
+    // Recent Scans: the old greeting note (carried a name). No longer written; kept locked.
     match /recent_scans/{locationId} {
       allow read, write: if false;
+    }
+
+    // Kiosk channels: the live greeting. ONE deliberate exception to default-deny.
+    // Anyone who knows a channel's address (32 random bytes, known only to the server and that
+    // tablet) may READ that single document. They can never list the collection or write to it
+    // (the scan route writes with the Admin SDK). The document holds only { type, at }: no name,
+    // no employee, no organization, no location. A test fails the build if its fields change.
+    match /kiosk_channels/{channelId} {
+      allow get: if true;
+      allow list, create, update, delete: if false;
     }
 
     // Default Deny: Catch-all for any collection not explicitly matched above

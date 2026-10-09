@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
 import { getKioskEntry } from "@/lib/kiosk-loader.server";
+import { publishScanNote } from "@/lib/kiosk-channel.server";
 import { computeScanFlags } from "@/lib/attendance-windows";
 import { dayKey, formatClock } from "@/lib/attendance-day";
 import {
@@ -232,16 +233,6 @@ export const Route = createFileRoute("/api/check-in/scan")({
             t.create(eventRef, eventData); // fails with ALREADY_EXISTS if this scanId was used
             t.set(summaryRef, next);
 
-            // Greeting for the kiosk tablet, only where the location has it switched on.
-            if (kiosk.greeting) {
-              t.set(firestoreAdmin.collection("recent_scans").doc(locationId), {
-                employeeName,
-                type: nextType,
-                time: timeDisplay,
-                timestamp: now,
-              });
-            }
-
             return {
               eventId: eventRef.id,
               type: nextType,
@@ -254,6 +245,10 @@ export const Route = createFileRoute("/api/check-in/scan")({
               replayed: false,
             };
           });
+
+          // The check-in is saved. Now tell the tablet, as a separate best-effort step so a hiccup
+          // here can never slow or fail a check-in. Only where the greeting is on; no name is sent.
+          if (kiosk.greeting) await publishScanNote(kiosk.channelId, scanResult.type, now);
 
           logEvent({
             action: "scan.record",

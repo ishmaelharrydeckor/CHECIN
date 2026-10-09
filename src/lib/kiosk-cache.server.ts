@@ -28,6 +28,8 @@ export interface KioskCacheEntry {
    * (docs/SCALE-PLAN.md, S3/S4).
    */
   greeting: boolean;
+  /** The tablet's private live-greeting channel address, if it has one yet (see kiosk-channel.ts). */
+  channelId?: string;
 }
 
 const cache = new Map<string, KioskCacheEntry>();
@@ -63,11 +65,9 @@ export function clearKioskCache(): void {
 }
 
 /** How soon the kiosk should ask again (ms). Server decides; the kiosk only obeys. */
-export const POLL_MS_ACTIVE = 4000; // around reporting / closing time: fast greeting
-export const POLL_MS_IDLE = 12000; // never slower: the QR token must be refreshed in time
+export const POLL_MS_FALLBACK = 4000; // asking for scans because the live connection is down
+export const POLL_MS_NORMAL = 12000; // only the QR code needs refreshing; never slower (the token goes stale)
 
-export function pollIntervalFor(mode: "check_in" | "check_out" | "idle", greeting = false): number {
-  // Without the greeting there is nothing to be quick about: only the QR needs refreshing.
-  if (!greeting) return POLL_MS_IDLE;
-  return mode === "idle" ? POLL_MS_IDLE : POLL_MS_ACTIVE;
+export function pollIntervalFor(inFallback: boolean): number {
+  return inFallback ? POLL_MS_FALLBACK : POLL_MS_NORMAL;
 }
