@@ -10,16 +10,16 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 
 | Task | Title | Size | Assignee | Status | Depends on |
 |---|---|---|---|---|---|
-| 1.3 | Change password on Account page | S | _unassigned_ | todo | none |
-| 1.5 | Remove demo/mock leftovers | S | integrator | done | none |
-| 1.1 | Leave requests (basic) | M | _unassigned_ | todo | none |
-| 1.6 | Manager dashboard: today's attendance and late list | M | _unassigned_ | todo | none |
-| 1.2 | Employee self-service page | M | _unassigned_ | todo | 1.1 |
-| 2.5 | Public holiday calendar | S | _unassigned_ | todo | none |
-| 2.1 | On-demand reports (CSV/PDF) | M | _unassigned_ | todo | 1.1 |
-| 2.3 | Work-from-home status | M | _unassigned_ | todo | 1.1, integrator review |
+| 1.3 | Change password on Account page | S | done (integrator) | live | none |
+| 1.5 | Remove demo/mock leftovers | S | integrator | live | none |
+| 1.1 | Leave requests (basic) | M | Cobberson | live | none |
+| 2.5 | Public holiday calendar | S | Augustine | live | none |
+| 1.6 | Manager dashboard: Today panel (real data now available) | M | Augustine (#13) | todo | none |
+| 1.2 | Employee self-service page | M | Cobberson (#14) | todo | 1.1 (done) |
+| 2.1 | On-demand reports: screens and downloads with sample data (integrator adds the data routes) | M | Cobberson (#16) | todo, starts after #14 | 1.1 (done) |
+| 2.3 | Work-from-home status | M | _unassigned_ (#17) | blocked: needs a design note first | 1.1, integrator review |
 
-Suggested first assignments: **1.3 and 1.5** to whoever is newest (small, self-contained, safe), **1.1** to your strongest teammate (it unblocks 1.2, 2.1, 2.3).
+Next assignments: **1.2** (Cobberson) and **1.6** (Augustine) are ready now. **2.1** goes to Cobberson after 1.2 (screens first; the integrator builds the data routes). **2.3** waits for a short design note.
 
 Update the Status column in your PR (`todo` > `in progress` > `in review` > `on staging` > `done`).
 
