@@ -6,6 +6,7 @@ import {
   getAuthAdmin,
 } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
+import { correlationId, logEvent } from "@/lib/log.server";
 
 export const Route = createFileRoute("/api/auth/register-org")({
   server: {
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/api/auth/register-org")({
           const rate = await checkRateLimit(`register_org_${clientIpFrom(request)}`, {
             limit: 10,
             windowMs: 15 * 60 * 1000,
+            failClosed: true,
           });
           if (!rate.allowed) {
             return Response.json(
@@ -107,6 +109,8 @@ export const Route = createFileRoute("/api/auth/register-org")({
             name: orgName,
             plan: "growth", // Default 14-day trial
             timezone,
+            region: "nam5", // where this org's data lives; every org has one value today
+            schemaVersion: 1,
             createdAt: new Date().toISOString(),
             createdById: userUid,
           });
@@ -130,6 +134,14 @@ export const Route = createFileRoute("/api/auth/register-org")({
             },
             { merge: true },
           );
+
+          logEvent({
+            action: "org.register",
+            outcome: "ok",
+            correlationId: correlationId(request),
+            orgId,
+            uid: userUid,
+          });
 
           return Response.json({
             ok: true,

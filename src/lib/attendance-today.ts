@@ -1,4 +1,5 @@
 import { dayKey } from "./attendance-day.ts";
+import type { DailySummary } from "./daily-summary.ts";
 
 /**
  * Server-side numbers for the manager dashboard: today's counts, today's feed,
@@ -197,6 +198,25 @@ function byTime(a: RawEvent, b: RawEvent): number {
   return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
 }
 
+function toEventRow(e: RawEvent, rosterById: Map<string, RosterMember>, timezone: string): TodayEventRow {
+  const member = rosterById.get(e.employeeId);
+  const name = e.employeeName || member?.displayName || e.employeeEmail || "Employee";
+  return {
+    id: e.id,
+    employeeId: e.employeeId,
+    name,
+    email: e.employeeEmail || member?.email || "",
+    initials: initialsOf(name),
+    department: e.department || member?.department || "",
+    location: e.locationName || "",
+    type: e.type === "out" ? "out" : "in",
+    late: e.late === true,
+    earlyDeparture: e.earlyDeparture === true,
+    time: formatClock(e.timestamp, timezone),
+    timestamp: e.timestamp,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Today
 // ---------------------------------------------------------------------------
@@ -281,24 +301,9 @@ export function buildTodaySummary(input: BuildTodayInput): TodaySummaryData {
   const wfh = 0; // wired up with work-from-home (task 2.3)
 
   const newestFirst = [...todays].sort((a, b) => byTime(b, a));
-  const events: TodayEventRow[] = newestFirst.slice(0, eventLimit).map((e) => {
-    const member = rosterById.get(e.employeeId);
-    const name = e.employeeName || member?.displayName || e.employeeEmail || "Employee";
-    return {
-      id: e.id,
-      employeeId: e.employeeId,
-      name,
-      email: e.employeeEmail || member?.email || "",
-      initials: initialsOf(name),
-      department: e.department || member?.department || "",
-      location: e.locationName || "",
-      type: e.type === "out" ? "out" : "in",
-      late: e.late === true,
-      earlyDeparture: e.earlyDeparture === true,
-      time: formatClock(e.timestamp, timezone),
-      timestamp: e.timestamp,
-    };
-  });
+  const events: TodayEventRow[] = newestFirst
+    .slice(0, eventLimit)
+    .map((e) => toEventRow(e, rosterById, timezone));
 
   return {
     dayKey: today,
@@ -377,6 +382,125 @@ export function buildWeekTrend(input: {
       future,
       present: future ? 0 : (people?.size ?? 0),
       late: future ? 0 : late,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// From daily summaries (docs/SCALE-PLAN.md, P4)
+//
+// One summary document per person per day replaces reading and folding every
+// raw event. The numbers mean the same thing, with one difference: "average
+// shift" is now the average of each person's total worked minutes for the day
+// (it used to average each separate in-to-out session).
+// ---------------------------------------------------------------------------
+
+export interface BuildTodayFromSummariesInput {
+  /** Today's summaries for the caller's scope (any other day is ignored). */
+  summaries: DailySummary[];
+  /** The newest events today, for the activity list only. */
+  recentEvents: RawEvent[];
+  roster: RosterMember[];
+  timezone: string;
+  now: Date | number;
+  eventLimit?: number;
+  truncated?: boolean;
+}
+
+export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): TodaySummaryData {
+  const { roster, timezone, now } = input;
+  const eventLimit = input.eventLimit ?? 20;
+  const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
+
+  const todays = input.summaries.filter((s) => s.dayKey === today);
+  const rosterById = new Map(roster.map((r) => [r.uid, r]));
+  const presentIds = new Set(todays.map((s) => s.employeeId));
+
+  const describe = (s: DailySummary): TodayPerson => {
+    const member = rosterById.get(s.employeeId);
+    return {
+      employeeId: s.employeeId,
+      name: member?.displayName || s.employeeName || member?.email || "Employee",
+      department: member?.department || "",
+    };
+  };
+
+  const onSite = todays.filter((s) => s.state === "in").length;
+  const withFirstIn = todays.filter((s) => s.firstIn).length;
+  const lateSummaries = todays.filter((s) => s.firstIn && s.late === true);
+  const late: TodayLate[] = lateSummaries
+    .map((s) => ({ ...describe(s), arrivedAt: formatClock(s.firstIn as string, timezone) }))
+    .sort((a, b) => a.arrivedAt.localeCompare(b.arrivedAt));
+
+  const worked = todays.map((s) => s.minutesWorked).filter((m) => m > 0);
+  const notArrived: TodayPerson[] = roster
+    .filter((r) => !presentIds.has(r.uid))
+    .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const expected = roster.length;
+  const present = presentIds.size;
+  const onLeave = 0; // wired up when leave requests land (task 1.1)
+  const wfh = 0; // wired up with work-from-home (task 2.3)
+
+  const events = input.recentEvents
+    .filter((e) => dayKey(e.timestamp, timezone) === today)
+    .sort((a, b) => byTime(b, a))
+    .slice(0, eventLimit)
+    .map((e) => toEventRow(e, rosterById, timezone));
+
+  return {
+    dayKey: today,
+    timezone,
+    generatedAt: new Date(now).toISOString(),
+    counts: {
+      expected,
+      present,
+      onSite,
+      late: lateSummaries.length,
+      onLeave,
+      wfh,
+      absent: Math.max(0, expected - present - onLeave - wfh),
+    },
+    onTimeRate: {
+      percent: withFirstIn > 0 ? Math.round(((withFirstIn - lateSummaries.length) / withFirstIn) * 100) : null,
+      onTime: withFirstIn - lateSummaries.length,
+      total: withFirstIn,
+    },
+    avgShift: {
+      completed: worked.length,
+      inProgress: onSite,
+      avgMinutes: worked.length > 0 ? Math.round(worked.reduce((a, b) => a + b, 0) / worked.length) : null,
+    },
+    events,
+    eventsTotal: todays.reduce((n, s) => n + s.eventCount, 0),
+    late,
+    notArrived,
+    truncated: input.truncated === true,
+  };
+}
+
+/** Mon-Fri trend from summaries: people who checked in each day, and how many of them were late. */
+export function buildWeekTrendFromSummaries(input: {
+  summaries: DailySummary[];
+  timezone: string;
+  now: Date | number;
+}): WeekTrendDay[] {
+  const { timezone, now } = input;
+  const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
+  const monday = addDays(today, -weekdayIndex(today));
+
+  return DAY_NAMES.map((name, i) => {
+    const key = addDays(monday, i);
+    const future = key > today;
+    const arrivals = input.summaries.filter((s) => s.dayKey === key && s.firstIn);
+    return {
+      day: name,
+      dayKey: key,
+      isToday: key === today,
+      future,
+      present: future ? 0 : arrivals.length,
+      late: future ? 0 : arrivals.filter((s) => s.late === true).length,
     };
   });
 }

@@ -90,6 +90,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- 4b. Daily Summaries (derived from clock_events, one document per person per day) ----
+    // Written ONLY by the verified-scan server route (and the backfill script) with the
+    // Admin SDK. Same read scope as clock_events; no client may write.
+    match /daily_summaries/{summaryId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // ---- 5. Leave Requests ----
     match /leave_requests/{requestId} {
       // Employee reads own; Manager reads team; Admin reads org

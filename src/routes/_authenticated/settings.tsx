@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Building2,
@@ -45,6 +46,7 @@ interface KioskLocation {
   reportingTime?: string | null;
   closingTime?: string | null;
   checkoutWindowMinutes?: number;
+  kioskGreeting?: boolean;
 }
 
 function SettingsPage() {
@@ -98,7 +100,12 @@ function SettingsPage() {
 
   // Reporting/closing hours editing (one location at a time)
   const [editingHoursId, setEditingHoursId] = useState<string | null>(null);
-  const [hoursDraft, setHoursDraft] = useState({ reportingTime: "", closingTime: "", checkoutWindowMinutes: "120" });
+  const [hoursDraft, setHoursDraft] = useState({
+    reportingTime: "",
+    closingTime: "",
+    checkoutWindowMinutes: "120",
+    kioskGreeting: false,
+  });
   const [savingHours, setSavingHours] = useState(false);
 
   // Device Sessions
@@ -258,6 +265,7 @@ function SettingsPage() {
       reportingTime: loc.reportingTime || "",
       closingTime: loc.closingTime || "",
       checkoutWindowMinutes: String(loc.checkoutWindowMinutes ?? 120),
+      kioskGreeting: loc.kioskGreeting === true,
     });
     setEditingHoursId(loc.id);
   };
@@ -281,6 +289,7 @@ function SettingsPage() {
           reportingTime: hoursDraft.reportingTime,
           closingTime: hoursDraft.closingTime,
           checkoutWindowMinutes: Number(hoursDraft.checkoutWindowMinutes),
+          kioskGreeting: hoursDraft.kioskGreeting,
         }),
       });
       const data = await res.json();
@@ -293,6 +302,7 @@ function SettingsPage() {
                   reportingTime: data.reportingTime,
                   closingTime: data.closingTime,
                   checkoutWindowMinutes: data.checkoutWindowMinutes,
+                  kioskGreeting: data.kioskGreeting === true,
                 }
               : l,
           ),
@@ -651,6 +661,17 @@ function SettingsPage() {
                                 className="h-8 text-xs"
                               />
                             </div>
+                            <div className="flex items-start gap-2">
+                              <Switch
+                                id={`greeting-${loc.id}`}
+                                checked={hoursDraft.kioskGreeting}
+                                onCheckedChange={(v) => setHoursDraft((d) => ({ ...d, kioskGreeting: v }))}
+                              />
+                              <Label htmlFor={`greeting-${loc.id}`} className="text-[11px] leading-snug text-muted-foreground">
+                                Show a welcome on the tablet after each scan. Employees already see their result on
+                                their phone. Turning this on makes the tablet refresh more often.
+                              </Label>
+                            </div>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -679,6 +700,7 @@ function SettingsPage() {
                                   {" "}
                                   (+{loc.checkoutWindowMinutes ?? 120}m)
                                 </span>
+                                {loc.kioskGreeting && <span className="text-muted-foreground"> · Welcome on</span>}
                               </span>
                             ) : (
                               <span className="text-muted-foreground">Not set</span>

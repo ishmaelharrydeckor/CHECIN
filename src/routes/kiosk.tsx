@@ -33,6 +33,7 @@ function KioskPage() {
   // so a code that has gone stale is hidden within a second of becoming too old.
   const status = kioskStatus({ lastSuccessMs: lastSuccessAt, nowMs: Date.now(), failures, credentialError });
   const [modeLabel, setModeLabel] = useState<string>("Scan to Check In / Out");
+  const [greetingOn, setGreetingOn] = useState(false);
   const [lastSeenScanTimestamp, setLastSeenScanTimestamp] = useState<number>(() => Date.now());
 
   const [toastData, setToastData] = useState<{
@@ -165,6 +166,7 @@ function KioskPage() {
       }
       // Label is decided server-side (org timezone); the kiosk only displays it.
       if (typeof data.label === "string") setModeLabel(data.label);
+      setGreetingOn(data.greeting === true);
 
       // Generate real QR code image
       const qrPayload = JSON.stringify({
@@ -429,6 +431,9 @@ function KioskPage() {
         <div className="inline-block bg-[#C0FD9B]/10 border border-[#C0FD9B]/30 px-3.5 py-1 rounded-full text-xs font-medium text-[#C0FD9B] mb-4">
           {status === "live" || status === "starting" ? `${modeLabel} · Use Phone Camera` : "Check-in paused"}
         </div>
+        {!greetingOn && status === "live" && (
+          <p className="text-xs text-white/50 -mt-2 mb-4">Your phone shows your check-in result</p>
+        )}
 
         {/* Real Dynamic QR Code SVG / Canvas */}
         <div className="w-72 h-72 mx-auto bg-white rounded-2xl p-4 shadow-inner flex items-center justify-center">

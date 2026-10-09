@@ -1,13 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
-import { nextScanType } from "@/lib/attendance-day";
+import { dayKey, formatClock, nextScanType } from "@/lib/attendance-day";
+import { summaryDocId, type DailySummary } from "@/lib/daily-summary";
+import { createTtlCache } from "@/lib/ttl-cache.server";
 
 /**
  * Read-only: is the signed-in employee currently clocked in today?
- * Uses the same "last event today in the org timezone" rule as the scan route,
- * so the scan screen's tag can never disagree with what the next scan will do.
- * Identity comes from the verified ID token only; nothing is read from the request.
+ * Reads today's `daily_summaries` document (one `get`), the same record the scan
+ * route uses to pick the direction, so the scan screen's tag can never disagree
+ * with what the next scan will do. Identity comes from the verified ID token
+ * only; nothing is read from the request.
  */
+
+// An organization's timezone almost never changes; a few minutes of staleness is fine.
+const timezoneCache = createTtlCache<string>(5 * 60_000, 2000);
+
+// See scan.ts: only needed for the first day after the summaries are deployed.
+const LEGACY_FALLBACK = process.env.SUMMARY_LEGACY_FALLBACK === "1";
+
 export const Route = createFileRoute("/api/check-in/status")({
   server: {
     handlers: {
@@ -21,23 +31,43 @@ export const Route = createFileRoute("/api/check-in/status")({
             return Response.json({ error: "Access Denied: no active organization" }, { status: 403 });
           }
 
-          const [orgSnap, lastSnap] = await Promise.all([
-            firestoreAdmin.collection("organizations").doc(caller.orgId).get(),
-            firestoreAdmin
+          let timezone = timezoneCache.get(caller.orgId);
+          if (!timezone) {
+            const orgSnap = await firestoreAdmin.collection("organizations").doc(caller.orgId).get();
+            timezone = orgSnap.data()?.timezone || "UTC";
+            timezoneCache.set(caller.orgId, timezone as string);
+          }
+          const tz = timezone as string;
+          const now = Date.now();
+          const today = dayKey(now, tz) ?? new Date(now).toISOString().slice(0, 10);
+
+          const summarySnap = await firestoreAdmin
+            .collection("daily_summaries")
+            .doc(summaryDocId(caller.uid, today))
+            .get();
+
+          let status: "in" | "out";
+          let lastTime: string | null = null; // when the latest scan today was recorded, in the org timezone
+          if (summarySnap.exists) {
+            const summary = summarySnap.data() as DailySummary;
+            status = summary.state === "in" ? "in" : "out";
+            lastTime = formatClock(summary.lastEventAt, tz) || null;
+          } else if (LEGACY_FALLBACK) {
+            const lastSnap = await firestoreAdmin
               .collection("clock_events")
               .where("orgId", "==", caller.orgId)
               .where("employeeId", "==", caller.uid)
               .orderBy("timestamp", "desc")
               .limit(1)
-              .get(),
-          ]);
+              .get();
+            const last = lastSnap.empty ? null : lastSnap.docs[0].data();
+            status = nextScanType(last, now, tz) === "out" ? "in" : "out";
+            lastTime = last && dayKey(last.timestamp, tz) === today ? formatClock(last.timestamp, tz) || null : null;
+          } else {
+            status = "out"; // no scan yet today
+          }
 
-          const timezone = orgSnap.data()?.timezone || "UTC";
-          const last = lastSnap.empty ? null : lastSnap.docs[0].data();
-          // If the next scan would be "out", the person is currently in.
-          const status = nextScanType(last, Date.now(), timezone) === "out" ? "in" : "out";
-
-          return Response.json({ status });
+          return Response.json({ status, lastTime });
         } catch (error: any) {
           console.error("check-in status error:", error);
           return Response.json({ error: "Could not load status" }, { status: 500 });
