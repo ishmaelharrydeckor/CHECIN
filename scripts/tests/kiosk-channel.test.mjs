@@ -9,6 +9,9 @@ import {
   NOTE_MIN_GAP_MS,
   FALLBACK_NOTE_WINDOW_MS,
   buildChannelNote,
+  isChannelDue,
+  NOTE_TTL_MS,
+  CHANNEL_ROTATE_MS,
   parseChannelNote,
   hasOnlyApprovedFields,
   isValidChannelId,
@@ -22,13 +25,30 @@ import {
 import { pollIntervalFor, POLL_MS_FALLBACK, POLL_MS_NORMAL } from "../../src/lib/kiosk-cache.server.ts";
 
 // ------------------------------------------------------------ privacy: the note carries nothing identifying
-test("the approved note fields are exactly 'at' and 'type' (a change here needs a deliberate decision)", () => {
-  assert.deepEqual([...CHANNEL_NOTE_FIELDS], ["at", "type"]);
+test("the approved note fields are exactly 'at', 'expireAt' and 'type' (a change here needs a deliberate decision)", () => {
+  assert.deepEqual([...CHANNEL_NOTE_FIELDS], ["at", "expireAt", "type"]);
+});
+
+test("expireAt is only the write time plus the time-to-live, so it reveals nothing new", () => {
+  const note = buildChannelNote("out", 1_700_000_000_000);
+  assert.equal(note.expireAt, note.at + NOTE_TTL_MS);
+});
+
+test("a channel address is due for replacement after a day, or when its age is unknown", () => {
+  const t0 = 1_700_000_000_000;
+  assert.equal(isChannelDue(undefined, t0), true);
+  assert.equal(isChannelDue("x", t0), true);
+  assert.equal(isChannelDue(0, t0), true);
+  assert.equal(isChannelDue(t0, t0 + 60_000), false);
+  assert.equal(isChannelDue(t0, t0 + CHANNEL_ROTATE_MS - 1), false);
+  assert.equal(isChannelDue(t0, t0 + CHANNEL_ROTATE_MS), true);
+  // a recorded time in the future (clock trouble) is not treated as due
+  assert.equal(isChannelDue(t0 + 5 * 60_000, t0), false);
 });
 
 test("a note built by the server has only the approved fields, and no name of any kind", () => {
   const note = buildChannelNote("in", 1_700_000_000_000);
-  assert.deepEqual(Object.keys(note).sort(), ["at", "type"]);
+  assert.deepEqual(Object.keys(note).sort(), ["at", "expireAt", "type"]);
   assert.equal(hasOnlyApprovedFields(note), true);
   assert.equal(hasOnlyApprovedFields({ ...note, employeeName: "Ama" }), false);
   assert.equal(hasOnlyApprovedFields({ ...note, orgId: "o1" }), false);

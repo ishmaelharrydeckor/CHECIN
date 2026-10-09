@@ -244,7 +244,7 @@ service cloud.firestore {
     // Kiosk channels: the live greeting. ONE deliberate exception to default-deny.
     // Anyone who knows a channel's address (32 random bytes, known only to the server and that
     // tablet) may READ that single document. They can never list the collection or write to it
-    // (the scan route writes with the Admin SDK). The document holds only { type, at }: no name,
+    // (the scan route writes with the Admin SDK). The document holds only { type, at, expireAt }: no name,
     // no employee, no organization, no location. A test fails the build if its fields change.
     match /kiosk_channels/{channelId} {
       allow get: if true;
