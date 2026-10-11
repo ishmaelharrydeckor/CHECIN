@@ -3,6 +3,7 @@ import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import {
   buildChannelNote,
   hasOnlyApprovedFields,
+  isChannelDue,
   isValidChannelId,
   parseChannelNote,
   shouldWriteNote,
@@ -39,9 +40,47 @@ export async function ensureChannelId(locationId: string): Promise<string | null
     const existing = snap.data()?.channelId;
     if (isValidChannelId(existing)) return existing;
     const created = generateChannelId();
-    t.update(ref, { channelId: created });
+    t.update(ref, { channelId: created, channelRotatedAt: Date.now() });
     return created;
   });
+}
+
+/**
+ * Replace the tablet's channel address if it is older than CHANNEL_ROTATE_MS (or has no recorded
+ * age, as for tablets paired before rotation existed). The tablet asks for its address on every
+ * token request and switches to the new one by itself, so nobody notices. The old note is deleted
+ * on a best-effort basis. Safe from several server instances at once: the transaction re-checks,
+ * so only one of them rotates and the others return the new address.
+ *
+ * Other server instances may keep scanning into the old address for up to the kiosk cache time
+ * (about a minute), so a greeting in that window may not appear. The greeting is only a courtesy.
+ */
+export async function rotateChannelIfDue(
+  locationId: string,
+  nowMs: number,
+): Promise<{ channelId: string; rotatedAt: number } | null> {
+  const ref = firestoreAdmin.collection("kiosks").doc(locationId);
+  const result = await firestoreAdmin.runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    if (!snap.exists) return null;
+    const data = snap.data()!;
+    const existing = isValidChannelId(data.channelId) ? data.channelId : undefined;
+    if (existing && !isChannelDue(data.channelRotatedAt, nowMs)) {
+      return { channelId: existing, rotatedAt: data.channelRotatedAt as number, previous: undefined };
+    }
+    const created = generateChannelId();
+    t.update(ref, { channelId: created, channelRotatedAt: nowMs });
+    return { channelId: created, rotatedAt: nowMs, previous: existing };
+  });
+  if (!result) return null;
+  if (result.previous) {
+    firestoreAdmin
+      .collection(COLLECTION)
+      .doc(result.previous)
+      .delete()
+      .catch((err) => console.warn("Could not delete the old greeting note:", err));
+  }
+  return { channelId: result.channelId, rotatedAt: result.rotatedAt };
 }
 
 // Per-instance record of the last write to each channel, for the 500 ms throttle.
@@ -66,7 +105,8 @@ export async function publishScanNote(channelId: string | undefined, type: Chann
 
   try {
     await Promise.race([
-      firestoreAdmin.collection(COLLECTION).doc(channelId).set(note),
+      // expireAt is stored as a timestamp so Firestore's time-to-live setting can clean it up.
+      firestoreAdmin.collection(COLLECTION).doc(channelId).set({ ...note, expireAt: new Date(note.expireAt) }),
       new Promise<void>((resolve) => setTimeout(resolve, NOTE_WRITE_TIMEOUT_MS)),
     ]);
   } catch (err) {

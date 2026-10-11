@@ -3,8 +3,8 @@ import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { timingSafeHashMatch, generateKioskToken } from "@/lib/kiosk-crypto.server";
 import { getKioskMode, KIOSK_MODE_LABEL, type KioskMode } from "@/lib/attendance-windows";
 import { getCachedKiosk, pollIntervalFor, setCachedKiosk } from "@/lib/kiosk-cache.server";
-import { ensureChannelId, readChannelNote } from "@/lib/kiosk-channel.server";
-import { noteForFallback } from "@/lib/kiosk-channel";
+import { ensureChannelId, readChannelNote, rotateChannelIfDue } from "@/lib/kiosk-channel.server";
+import { noteForFallback, isChannelDue } from "@/lib/kiosk-channel";
 import { loadKiosk } from "@/lib/kiosk-loader.server";
 
 export const Route = createFileRoute("/api/kiosk/token")({
@@ -64,6 +64,21 @@ export const Route = createFileRoute("/api/kiosk/token")({
               if (channelId) setCachedKiosk(locationId, { ...entry, channelId });
             } catch (chErr) {
               console.warn("Could not create the greeting channel:", chErr);
+            }
+          }
+
+          // Replace the channel address daily (a leaked address then stops working). The cached
+          // entry says when it was made, so this costs nothing on a normal poll; it only reads the
+          // database when a replacement is actually due.
+          if (entry.greeting && channelId && isChannelDue(entry.channelRotatedAt, now)) {
+            try {
+              const rotated = await rotateChannelIfDue(locationId, now);
+              if (rotated) {
+                channelId = rotated.channelId;
+                setCachedKiosk(locationId, { ...entry, channelId, channelRotatedAt: rotated.rotatedAt });
+              }
+            } catch (rotErr) {
+              console.warn("Could not rotate the greeting channel:", rotErr);
             }
           }
 

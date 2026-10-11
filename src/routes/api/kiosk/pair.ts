@@ -71,6 +71,7 @@ export const Route = createFileRoute("/api/kiosk/pair")({
             locationName: pairing.locationName,
             kiosk_secret_hash: secretHash,
             channelId: generateChannelId(), // re-pairing rotates the live-greeting address
+            channelRotatedAt: Date.now(),
             kiosk_paired_at: new Date().toISOString(),
           });
 

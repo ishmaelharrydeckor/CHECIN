@@ -41,6 +41,7 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
     timezone,
     greeting,
     channelId: isValidChannelId(kiosk.channelId) ? kiosk.channelId : undefined,
+    channelRotatedAt: typeof kiosk.channelRotatedAt === "number" ? kiosk.channelRotatedAt : undefined,
   };
   setCachedKiosk(locationId, entry);
   return entry;
