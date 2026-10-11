@@ -25,6 +25,7 @@ import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedReportsPreviewRouteImport } from './routes/_authenticated/reports-preview'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
 import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
@@ -135,6 +136,12 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReportsPreviewRoute =
+  AuthenticatedReportsPreviewRouteImport.update({
+    id: '/reports-preview',
+    path: '/reports-preview',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -293,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/reports-preview': typeof AuthenticatedReportsPreviewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -338,6 +346,7 @@ export interface FileRoutesByTo {
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/reports-preview': typeof AuthenticatedReportsPreviewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -385,6 +394,7 @@ export interface FileRoutesById {
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/reports-preview': typeof AuthenticatedReportsPreviewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -432,6 +442,7 @@ export interface FileRouteTypes {
     | '/leave'
     | '/me'
     | '/reports'
+    | '/reports-preview'
     | '/settings'
     | '/accept-invite/$token'
     | '/owner/reports'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/leave'
     | '/me'
     | '/reports'
+    | '/reports-preview'
     | '/settings'
     | '/accept-invite/$token'
     | '/owner/reports'
@@ -523,6 +535,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leave'
     | '/_authenticated/me'
     | '/_authenticated/reports'
+    | '/_authenticated/reports-preview'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
     | '/_authenticated/owner/reports'
@@ -701,6 +714,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports-preview': {
+      id: '/_authenticated/reports-preview'
+      path: '/reports-preview'
+      fullPath: '/reports-preview'
+      preLoaderRoute: typeof AuthenticatedReportsPreviewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -912,6 +932,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedReportsPreviewRoute: typeof AuthenticatedReportsPreviewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
 }
@@ -926,6 +947,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedReportsPreviewRoute: AuthenticatedReportsPreviewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
 }
