@@ -23,3 +23,15 @@ scratch/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Key files: never commit these (a job key is deleted after use)
+*.pem
+*.key
+*adminsdk*.json
+*serviceAccount*.json
+*service-account*.json
+
+# Browser test output
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
