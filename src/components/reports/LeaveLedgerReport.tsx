@@ -14,8 +14,8 @@ const PAGE_SIZE = 50;
 
 const STATUS_STYLE: Record<LeaveLedgerRow["status"], string> = {
   pending: "bg-amber-100 text-amber-900",
-  approved: "bg-[#E8FCE4] text-[#122300]",
-  denied: "bg-rose-100 text-rose-900",
+  approved: "bg-[#CBEED3] text-[#0E2322]",
+  denied: "bg-slate-100 text-destructive",
 };
 
 const GRID = "md:grid md:grid-cols-[1.6fr_1.2fr_1.3fr_1.6fr_0.5fr_0.9fr_1fr] md:gap-3 md:items-center";

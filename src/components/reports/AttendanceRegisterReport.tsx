@@ -17,10 +17,10 @@ const PAGE_SIZE = 50;
 // Status colours live in one place so they are easy to swap for the guide's exact values.
 const STATUS_META: Record<RegisterStatus, { label: string; code: string; cell: string }> = {
   present: { label: "Present", code: "P", cell: "bg-[#CBEED3] text-[#0E2322]" },
-  wfh: { label: "Work from home", code: "W", cell: "bg-blue-100 text-blue-900" },
-  leave: { label: "On leave", code: "L", cell: "bg-purple-100 text-purple-900" },
+  wfh: { label: "Work from home", code: "W", cell: "bg-slate-100 text-slate-700" },
+  leave: { label: "On leave", code: "L", cell: "bg-slate-100 text-slate-700" },
   holiday: { label: "Holiday", code: "H", cell: "bg-slate-100 text-slate-500" },
-  absent: { label: "Absent", code: "A", cell: "bg-rose-100 text-rose-900" },
+  absent: { label: "Absent", code: "A", cell: "bg-amber-100 text-amber-900" },
 };
 
 function useIsDesktop() {

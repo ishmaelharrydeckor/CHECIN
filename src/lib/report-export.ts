@@ -26,10 +26,10 @@ const STATUS_CODE: Record<RegisterStatus, string> = {
 
 const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
   present: [203, 238, 211],
-  absent: [254, 226, 226],
-  leave: [243, 232, 255],
+  absent: [254, 243, 199],
+  leave: [241, 245, 249],
   holiday: [241, 245, 249],
-  wfh: [219, 234, 254],
+  wfh: [241, 245, 249],
 };
 
 /** Hours with one decimal, e.g. 495 -> "8.3". Formatting only. */

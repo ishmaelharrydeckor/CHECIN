@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, Download, FileText, Inbox, Loader2 } from "lucide-react";
+import { Download, FileText, Inbox, Loader2 } from "lucide-react";
 
 export interface DateRange {
   from: string; // "YYYY-MM-DD"
@@ -167,12 +167,12 @@ export function ReportFrame(props: ReportFrameProps) {
           </div>
         </div>
         {rangeError && (
-          <p role="alert" className="text-xs font-medium text-rose-700">
+          <p role="alert" className="text-xs text-destructive">
             {rangeError}
           </p>
         )}
         {downloadError && (
-          <p role="alert" className="text-xs font-medium text-rose-700">
+          <p role="alert" className="text-xs text-destructive">
             {downloadError}
           </p>
         )}
@@ -185,10 +185,9 @@ export function ReportFrame(props: ReportFrameProps) {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center space-y-3">
-          <AlertTriangle className="size-6 mx-auto text-rose-600" />
-          <p className="text-sm font-medium text-rose-900">{error}</p>
-          <Button type="button" onClick={onRetry} className="bg-[#0E2322] hover:bg-[#163331] text-white text-xs">
+        <div role="alert" className="space-y-3 py-12 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button type="button" variant="outline" onClick={onRetry} className="border-slate-200 text-xs">
             Try again
           </Button>
         </div>
@@ -201,7 +200,7 @@ export function ReportFrame(props: ReportFrameProps) {
       ) : (
         <>
           {truncated && (
-            <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900">
+            <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-900">
               Showing the first {rowCount} results. Choose a shorter range.
             </p>
           )}
