@@ -14,6 +14,7 @@ export const STATUS_LABEL: Record<RegisterStatus, string> = {
   leave: "On leave",
   holiday: "Holiday",
   wfh: "Work from home",
+  off: "Day off",
 };
 
 const STATUS_CODE: Record<RegisterStatus, string> = {
@@ -22,6 +23,7 @@ const STATUS_CODE: Record<RegisterStatus, string> = {
   leave: "L",
   holiday: "H",
   wfh: "W",
+  off: "-",
 };
 
 const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
@@ -30,6 +32,7 @@ const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
   leave: [241, 245, 249],
   holiday: [241, 245, 249],
   wfh: [241, 245, 249],
+  off: [248, 250, 252],
 };
 
 /** Hours with one decimal, e.g. 495 -> "8.3". Formatting only. */
@@ -238,7 +241,7 @@ export async function buildRegisterPdf(reg: AttendanceRegister): Promise<jsPDF> 
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
   doc.text(
-    "P present   W work from home   L on leave   H holiday   A absent   * late   ~ left early",
+    "P present   W work from home   L on leave   H holiday   A absent   - day off   * late   ~ left early",
     MARGIN,
     y,
   );

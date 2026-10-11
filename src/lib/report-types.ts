@@ -1,4 +1,4 @@
-export type RegisterStatus = "present" | "absent" | "leave" | "holiday" | "wfh";
+export type RegisterStatus = "present" | "absent" | "leave" | "holiday" | "wfh" | "off";
 
 export interface RegisterDay {
   dayKey: string;            // "2026-10-05"

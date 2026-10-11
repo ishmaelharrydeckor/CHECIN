@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { firebaseAuth } from "@/integrations/firebase/config";
@@ -297,6 +297,9 @@ function ReportsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button asChild variant="outline" size="sm" className="border-slate-200 text-xs font-medium">
+            <Link to="/attendance-reports">Register and leave ledger</Link>
+          </Button>
           <Button
             variant="outline"
             size="sm"

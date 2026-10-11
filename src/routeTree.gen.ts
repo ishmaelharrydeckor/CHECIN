@@ -18,6 +18,7 @@ import { Route as ScanRouteImport } from './routes/scan'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
+import { Route as AuthenticatedAttendanceReportsRouteImport } from './routes/_authenticated/attendance-reports'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -25,7 +26,6 @@ import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
-import { Route as AuthenticatedReportsPreviewRouteImport } from './routes/_authenticated/reports-preview'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
 import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
@@ -54,6 +54,8 @@ import { Route as ApiPushSendRouteImport } from './routes/api/push/send'
 import { Route as ApiPushSubscribeRouteImport } from './routes/api/push/subscribe'
 import { Route as ApiPushVapidKeyRouteImport } from './routes/api/push/vapid-key'
 import { Route as ApiReportsIndexRouteImport } from './routes/api/reports/index'
+import { Route as ApiReportsLeaveRouteImport } from './routes/api/reports/leave'
+import { Route as ApiReportsRegisterRouteImport } from './routes/api/reports/register'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +102,12 @@ const AuthenticatedAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAttendanceReportsRoute =
+  AuthenticatedAttendanceReportsRouteImport.update({
+    id: '/attendance-reports',
+    path: '/attendance-reports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -136,12 +144,6 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedReportsPreviewRoute =
-  AuthenticatedReportsPreviewRouteImport.update({
-    id: '/reports-preview',
-    path: '/reports-preview',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -283,6 +285,16 @@ const ApiReportsIndexRoute = ApiReportsIndexRouteImport.update({
   path: '/api/reports/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReportsLeaveRoute = ApiReportsLeaveRouteImport.update({
+  id: '/api/reports/leave',
+  path: '/api/reports/leave',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReportsRegisterRoute = ApiReportsRegisterRouteImport.update({
+  id: '/api/reports/register',
+  path: '/api/reports/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -293,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
+  '/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
@@ -300,7 +313,6 @@ export interface FileRoutesByFullPath {
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/reports-preview': typeof AuthenticatedReportsPreviewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -325,6 +337,8 @@ export interface FileRoutesByFullPath {
   '/api/push/send': typeof ApiPushSendRoute
   '/api/push/subscribe': typeof ApiPushSubscribeRoute
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
+  '/api/reports/leave': typeof ApiReportsLeaveRoute
+  '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
@@ -339,6 +353,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
+  '/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
@@ -346,7 +361,6 @@ export interface FileRoutesByTo {
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
-  '/reports-preview': typeof AuthenticatedReportsPreviewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -371,6 +385,8 @@ export interface FileRoutesByTo {
   '/api/push/send': typeof ApiPushSendRoute
   '/api/push/subscribe': typeof ApiPushSubscribeRoute
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
+  '/api/reports/leave': typeof ApiReportsLeaveRoute
+  '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
   '/api/locations': typeof ApiLocationsIndexRoute
   '/api/organization': typeof ApiOrganizationIndexRoute
@@ -387,6 +403,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
+  '/_authenticated/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
@@ -394,7 +411,6 @@ export interface FileRoutesById {
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
-  '/_authenticated/reports-preview': typeof AuthenticatedReportsPreviewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -419,6 +435,8 @@ export interface FileRoutesById {
   '/api/push/send': typeof ApiPushSendRoute
   '/api/push/subscribe': typeof ApiPushSubscribeRoute
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
+  '/api/reports/leave': typeof ApiReportsLeaveRoute
+  '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
@@ -435,6 +453,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/account'
     | '/announcements'
+    | '/attendance-reports'
     | '/dashboard'
     | '/departments'
     | '/history'
@@ -442,7 +461,6 @@ export interface FileRouteTypes {
     | '/leave'
     | '/me'
     | '/reports'
-    | '/reports-preview'
     | '/settings'
     | '/accept-invite/$token'
     | '/owner/reports'
@@ -467,6 +485,8 @@ export interface FileRouteTypes {
     | '/api/push/send'
     | '/api/push/subscribe'
     | '/api/push/vapid-key'
+    | '/api/reports/leave'
+    | '/api/reports/register'
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
@@ -481,6 +501,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/account'
     | '/announcements'
+    | '/attendance-reports'
     | '/dashboard'
     | '/departments'
     | '/history'
@@ -488,7 +509,6 @@ export interface FileRouteTypes {
     | '/leave'
     | '/me'
     | '/reports'
-    | '/reports-preview'
     | '/settings'
     | '/accept-invite/$token'
     | '/owner/reports'
@@ -513,6 +533,8 @@ export interface FileRouteTypes {
     | '/api/push/send'
     | '/api/push/subscribe'
     | '/api/push/vapid-key'
+    | '/api/reports/leave'
+    | '/api/reports/register'
     | '/api/announcements'
     | '/api/locations'
     | '/api/organization'
@@ -528,6 +550,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/account'
     | '/_authenticated/announcements'
+    | '/_authenticated/attendance-reports'
     | '/_authenticated/dashboard'
     | '/_authenticated/departments'
     | '/_authenticated/history'
@@ -535,7 +558,6 @@ export interface FileRouteTypes {
     | '/_authenticated/leave'
     | '/_authenticated/me'
     | '/_authenticated/reports'
-    | '/_authenticated/reports-preview'
     | '/_authenticated/settings'
     | '/accept-invite/$token'
     | '/_authenticated/owner/reports'
@@ -560,6 +582,8 @@ export interface FileRouteTypes {
     | '/api/push/send'
     | '/api/push/subscribe'
     | '/api/push/vapid-key'
+    | '/api/reports/leave'
+    | '/api/reports/register'
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
@@ -596,6 +620,8 @@ export interface RootRouteChildren {
   ApiPushSendRoute: typeof ApiPushSendRoute
   ApiPushSubscribeRoute: typeof ApiPushSubscribeRoute
   ApiPushVapidKeyRoute: typeof ApiPushVapidKeyRoute
+  ApiReportsLeaveRoute: typeof ApiReportsLeaveRoute
+  ApiReportsRegisterRoute: typeof ApiReportsRegisterRoute
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
   ApiLocationsIndexRoute: typeof ApiLocationsIndexRoute
   ApiOrganizationIndexRoute: typeof ApiOrganizationIndexRoute
@@ -667,6 +693,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/attendance-reports': {
+      id: '/_authenticated/attendance-reports'
+      path: '/attendance-reports'
+      fullPath: '/attendance-reports'
+      preLoaderRoute: typeof AuthenticatedAttendanceReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -714,13 +747,6 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/reports-preview': {
-      id: '/_authenticated/reports-preview'
-      path: '/reports-preview'
-      fullPath: '/reports-preview'
-      preLoaderRoute: typeof AuthenticatedReportsPreviewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -919,12 +945,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reports/leave': {
+      id: '/api/reports/leave'
+      path: '/api/reports/leave'
+      fullPath: '/api/reports/leave'
+      preLoaderRoute: typeof ApiReportsLeaveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/reports/register': {
+      id: '/api/reports/register'
+      path: '/api/reports/register'
+      fullPath: '/api/reports/register'
+      preLoaderRoute: typeof ApiReportsRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
+  AuthenticatedAttendanceReportsRoute: typeof AuthenticatedAttendanceReportsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
@@ -932,7 +973,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
-  AuthenticatedReportsPreviewRoute: typeof AuthenticatedReportsPreviewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
 }
@@ -940,6 +980,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
+  AuthenticatedAttendanceReportsRoute: AuthenticatedAttendanceReportsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
@@ -947,7 +988,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
-  AuthenticatedReportsPreviewRoute: AuthenticatedReportsPreviewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
 }
@@ -985,6 +1025,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPushSendRoute: ApiPushSendRoute,
   ApiPushSubscribeRoute: ApiPushSubscribeRoute,
   ApiPushVapidKeyRoute: ApiPushVapidKeyRoute,
+  ApiReportsLeaveRoute: ApiReportsLeaveRoute,
+  ApiReportsRegisterRoute: ApiReportsRegisterRoute,
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
   ApiLocationsIndexRoute: ApiLocationsIndexRoute,
   ApiOrganizationIndexRoute: ApiOrganizationIndexRoute,
