@@ -1,6 +1,6 @@
 # Design note: Work from home (task 2.3)
 
-Status: **proposed, needs the owner's sign-off** (section 8). Nothing is built until it is approved.
+Status: **approved by the owner on 2026-10-12** (decisions 1 to 4 below). Decision 5: no customer has asked for approval, weekly limits or half days yet, so they are not in the first version.
 Why a note first: this changes what "present" means, and that feeds the Today panel, the register, analytics and later payroll.
 
 ## 1. What it is
@@ -69,11 +69,11 @@ export interface MyWfh { days: WfhDay[]; maxAheadDays: number }         // the n
 export interface WfhTodayPerson { employeeId: string; name: string; department: string }
 ```
 
-## 8. Decisions needed from the owner
-1. **Self-declared with no approval in v1?** (recommended: yes)
-2. **No back-dating** (today and the next 30 weekdays only)? (recommended: yes)
-3. **WFH counts as attended but not as "present"** on the Today tile, and carries **no hours**? (recommended: yes)
-4. **Only the employee declares**; managers and admins can remove? (recommended: yes)
-5. **Anything else about work-from-home that your customers have asked for?** (for example approval, limits per week, half days)
+## 8. Decisions (owner, 2026-10-12)
+1. **Self-declared with no approval in v1?** **Decision: yes.**
+2. **No back-dating** (today and the next 30 weekdays only)? **Decision: yes.**
+3. **WFH counts as attended but not as "present"** on the Today tile, and carries **no hours**? **Decision: yes.**
+4. **Only the employee declares**; managers and admins can remove? **Decision: yes.**
+5. **Anything customers have asked for?** **Decision: nothing requested yet.** Approval, weekly limits and half days wait until a customer needs them.
 
 Open for later: half days, recurring patterns ("every Friday"), notifying the manager, an organization policy setting.
