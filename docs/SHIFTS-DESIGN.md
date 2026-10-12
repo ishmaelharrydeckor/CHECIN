@@ -100,4 +100,6 @@ Overtime rules (3.2), shift bidding, giving a shift away to anyone (open shifts)
 
 Decided since: (a) **a manager edits only the shifts they created: yes**; (d) **a swap needs the colleague's acceptance and the manager's (or admin's) approval: yes**; (e) **refused scans write a note on a "Refused scans" list, and the admin can choose Strict or Lenient: yes**.
 
-Still to confirm: (c) **breaks**. Recommended: a **fixed unpaid break per shift, deducted only when the person was there longer than a set time** (for example more than 6 hours), with reports always keeping three separate figures (time at work, break, paid time) so recording real break scans can be added later without redoing reports. Real break scans are only needed if a customer must prove exact break times (an inspection or a pay dispute).
+Decided since (continued): (c) **breaks: Way 1. A fixed unpaid break per shift, deducted only when the person was there longer than a set time (for example more than 6 hours); reports keep time at work, break and paid time as three separate figures. Real break scans are only built if a customer must prove exact break times.**
+
+All points are now decided. Next: the phase 1 prompt (`docs/antigravity/prompts/3.1-phase-1-shift-engine.md`).
