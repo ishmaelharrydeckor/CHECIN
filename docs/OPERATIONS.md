@@ -14,6 +14,11 @@ Companion to [DEVOPS-PLAN.md](DEVOPS-PLAN.md) (the order to add things) and [SCA
 - A restore into a throwaway database, written down with the date: ____________
 - A backup that has never been restored is a hope, not a backup.
 
+## Needs the paid (Blaze) plan, not switched on yet
+- Backups and point-in-time recovery.
+- Automatic deletion of expired greeting notes (`kiosk_channels.expireAt`). Add this field override back to `firestore.indexes.json` once the projects are on Blaze. Until then the 15-second freshness check is what stops an old note being shown, and old notes simply stay.
+- Deploying `firestore.indexes.json` with a time-to-live override fails on the free plan ("billing disabled").
+
 ## Alerts (status: not yet set up, see DEVOPS-PLAN.md 2.2)
 - Uptime check on the sign-in page and `/api/check-in/status`.
 - An error tracker on the server routes and the browser.
