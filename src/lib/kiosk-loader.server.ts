@@ -13,6 +13,8 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
   const kioskDoc = await firestoreAdmin.collection("kiosks").doc(locationId).get();
   if (!kioskDoc.exists) return null;
   const kiosk = kioskDoc.data()!;
+  // A revoked tablet keeps its document (so admins can see it was revoked) but has no secret.
+  if (!kiosk.kiosk_secret_hash) return null;
 
   let hours: LocationHours = {};
   let timezone = "UTC";

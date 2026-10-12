@@ -10,7 +10,7 @@
 export type ScanType = "in" | "out";
 
 /** Minimum gap between two scans by the same person (prevents accidental double-clocking). */
-export const SCAN_COOLDOWN_MS = 60_000;
+export const SCAN_COOLDOWN_MS = 15_000;
 
 function safeTimezone(tz: unknown): string {
   if (typeof tz !== "string" || !tz) return "UTC";
