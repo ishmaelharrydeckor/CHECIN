@@ -58,7 +58,7 @@ export function TodayPanel({ data, loading, error, onRefresh }: TodayPanelProps)
     <section className="space-y-6" aria-label="Today">
       <PanelHeader
         subtitle={`${dayLabel} · times in your organization's timezone`}
-        updated={formatClock(data.generatedAt, data.timezone)}
+        updated={formatClock(data.generatedAt, data.timezone).slice(0, 5)}
         refreshing={loading}
         onRefresh={onRefresh}
       />
