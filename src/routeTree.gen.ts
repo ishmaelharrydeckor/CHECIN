@@ -50,6 +50,7 @@ import { Route as ApiLocationsRevokeRouteImport } from './routes/api/locations/r
 import { Route as ApiOrganizationIndexRouteImport } from './routes/api/organization/index'
 import { Route as ApiOrganizationDepartmentsRouteImport } from './routes/api/organization/departments'
 import { Route as ApiOrganizationMemberDepartmentRouteImport } from './routes/api/organization/member-department'
+import { Route as ApiOrganizationMemberManagerRouteImport } from './routes/api/organization/member-manager'
 import { Route as ApiPushNotificationsRouteImport } from './routes/api/push/notifications'
 import { Route as ApiPushPreferencesRouteImport } from './routes/api/push/preferences'
 import { Route as ApiPushSendRouteImport } from './routes/api/push/send'
@@ -269,6 +270,12 @@ const ApiOrganizationMemberDepartmentRoute =
     path: '/api/organization/member-department',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOrganizationMemberManagerRoute =
+  ApiOrganizationMemberManagerRouteImport.update({
+    id: '/api/organization/member-manager',
+    path: '/api/organization/member-manager',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPushNotificationsRoute = ApiPushNotificationsRouteImport.update({
   id: '/api/push/notifications',
   path: '/api/push/notifications',
@@ -348,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/api/locations/revoke': typeof ApiLocationsRevokeRoute
   '/api/organization/departments': typeof ApiOrganizationDepartmentsRoute
   '/api/organization/member-department': typeof ApiOrganizationMemberDepartmentRoute
+  '/api/organization/member-manager': typeof ApiOrganizationMemberManagerRoute
   '/api/push/notifications': typeof ApiPushNotificationsRoute
   '/api/push/preferences': typeof ApiPushPreferencesRoute
   '/api/push/send': typeof ApiPushSendRoute
@@ -398,6 +406,7 @@ export interface FileRoutesByTo {
   '/api/locations/revoke': typeof ApiLocationsRevokeRoute
   '/api/organization/departments': typeof ApiOrganizationDepartmentsRoute
   '/api/organization/member-department': typeof ApiOrganizationMemberDepartmentRoute
+  '/api/organization/member-manager': typeof ApiOrganizationMemberManagerRoute
   '/api/push/notifications': typeof ApiPushNotificationsRoute
   '/api/push/preferences': typeof ApiPushPreferencesRoute
   '/api/push/send': typeof ApiPushSendRoute
@@ -450,6 +459,7 @@ export interface FileRoutesById {
   '/api/locations/revoke': typeof ApiLocationsRevokeRoute
   '/api/organization/departments': typeof ApiOrganizationDepartmentsRoute
   '/api/organization/member-department': typeof ApiOrganizationMemberDepartmentRoute
+  '/api/organization/member-manager': typeof ApiOrganizationMemberManagerRoute
   '/api/push/notifications': typeof ApiPushNotificationsRoute
   '/api/push/preferences': typeof ApiPushPreferencesRoute
   '/api/push/send': typeof ApiPushSendRoute
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/api/locations/revoke'
     | '/api/organization/departments'
     | '/api/organization/member-department'
+    | '/api/organization/member-manager'
     | '/api/push/notifications'
     | '/api/push/preferences'
     | '/api/push/send'
@@ -552,6 +563,7 @@ export interface FileRouteTypes {
     | '/api/locations/revoke'
     | '/api/organization/departments'
     | '/api/organization/member-department'
+    | '/api/organization/member-manager'
     | '/api/push/notifications'
     | '/api/push/preferences'
     | '/api/push/send'
@@ -603,6 +615,7 @@ export interface FileRouteTypes {
     | '/api/locations/revoke'
     | '/api/organization/departments'
     | '/api/organization/member-department'
+    | '/api/organization/member-manager'
     | '/api/push/notifications'
     | '/api/push/preferences'
     | '/api/push/send'
@@ -643,6 +656,7 @@ export interface RootRouteChildren {
   ApiLocationsRevokeRoute: typeof ApiLocationsRevokeRoute
   ApiOrganizationDepartmentsRoute: typeof ApiOrganizationDepartmentsRoute
   ApiOrganizationMemberDepartmentRoute: typeof ApiOrganizationMemberDepartmentRoute
+  ApiOrganizationMemberManagerRoute: typeof ApiOrganizationMemberManagerRoute
   ApiPushNotificationsRoute: typeof ApiPushNotificationsRoute
   ApiPushPreferencesRoute: typeof ApiPushPreferencesRoute
   ApiPushSendRoute: typeof ApiPushSendRoute
@@ -945,6 +959,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOrganizationMemberDepartmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/organization/member-manager': {
+      id: '/api/organization/member-manager'
+      path: '/api/organization/member-manager'
+      fullPath: '/api/organization/member-manager'
+      preLoaderRoute: typeof ApiOrganizationMemberManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/push/notifications': {
       id: '/api/push/notifications'
       path: '/api/push/notifications'
@@ -1064,6 +1085,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLocationsRevokeRoute: ApiLocationsRevokeRoute,
   ApiOrganizationDepartmentsRoute: ApiOrganizationDepartmentsRoute,
   ApiOrganizationMemberDepartmentRoute: ApiOrganizationMemberDepartmentRoute,
+  ApiOrganizationMemberManagerRoute: ApiOrganizationMemberManagerRoute,
   ApiPushNotificationsRoute: ApiPushNotificationsRoute,
   ApiPushPreferencesRoute: ApiPushPreferencesRoute,
   ApiPushSendRoute: ApiPushSendRoute,
