@@ -1,6 +1,6 @@
 # Design note: overtime (3.2), pay periods and payroll exports (3.5, E3)
 
-Status: **proposed, needs the owner's sign-off** (section 9). Nothing is built until it is approved.
+Status: **decisions 1 to 9 approved by the owner on 2026-10-12.** Decision 10 has no customer answer yet, so the design adds a way for a company to connect its own tool (section 3.5). One open point about work-from-home time (section 3.6) waits for the owner's description of the work diary. Nothing is built until the open point is settled and the owner confirms.
 Why a note first: this is where attendance turns into money. A quiet bug here underpays or overpays real people. The plan also says: do not hard-code pay rules until a real customer's policy is known, and wait for a customer's actual payroll format. This note is designed around both.
 
 ## 1. The principle
@@ -52,7 +52,25 @@ Why a note first: this is where attendance turns into money. A quiet bug here un
 ### 3.4 Corrections (a dependency, not an extra)
 Because a forgotten check-out cannot be fixed today, exact payroll is impossible. Recommendation: **a time correction**: an employee (or their manager) records the missing check-out with a **reason**; the manager approves; it is stored **append-only** as its own record (the original scans are never edited) and the summary is rebuilt from scans plus approved corrections. Corrections are visible in History and in the export detail. Without this, "lock anyway" would become the norm.
 
+### 3.5 Connecting a company's own tool (instead of a named payroll format)
+No customer has named a payroll product, so ChecIN offers three **generic** ways for a company to get its data into whatever tool it uses. All three read only **locked** pay periods (the frozen snapshot), never live numbers.
+| Way | What it is | Phase |
+|---|---|---|
+| 1. Download | The admin downloads the CSV or Excel file with the columns they chose (already in the plan) | 5 |
+| 2. Read-only export API | The admin creates an **API key** in Settings. The company's tool calls `GET /api/export/pay-periods` with that key and receives the same locked data as JSON or CSV | 6 |
+| 3. Webhook | The admin registers a **web address** and ChecIN sends a signed message ("pay period 1 to 15 October locked, version 1") when a period is locked or reopened, so the company's tool can fetch it | 6 |
+
+How these are kept safe (all required, from the first line):
+- **API keys** are random, shown **once**, stored only as a hash (like the tablet secret), scoped to **one organization** and to **read-only locked periods**, revocable in one click, rate limited, and every use is logged. A key can never see another organization or any live data.
+- **Webhooks** go only to `https` addresses; addresses pointing at private or internal networks are refused (so ChecIN cannot be used to probe anyone's network); every message carries a **signature** made with a per-webhook secret so the receiver can check it is genuine; failures are retried a few times with a delivery log the admin can read; each message has an **idempotency id** so a repeated delivery is harmless.
+- The messages carry **period and version identifiers only, not employee data**; the tool then fetches the data with its key. That keeps personal data off the open internet.
+- Named connectors (for a specific payroll product) can be added later on top of this, once a customer names one.
+
+### 3.6 Work-from-home time from an external tool (open)
+Work-from-home days carry **no hours** from scans (decision 8). The owner runs a remote-work platform with a workroom and a **work diary** that tracks remote work. A possible later addition is to let an organization **import work-from-home hours from such a tool** as a second, clearly labelled **source** of time (never mixed into scanned time without a label), approved by the manager and shown separately in exports. This is **not designed yet**: it depends on what the work diary records, whether it has an API or an export, how its people map to ChecIN accounts, and what employees are told and agree to. The questions are listed in the final message of this thread and will be added here once answered.
+
 ## 4. Data
+- `api_keys/{id}` and `webhooks/{id}` (phase 6; server only, secrets stored hashed): `orgId`, `label`, `createdBy`, `createdAt`, `lastUsedAt`, `revokedAt`; webhooks also `url`, `signingSecretHash`. `webhook_deliveries/{id}`: `orgId`, `webhookId`, `periodId`, `version`, `status`, `attempts`, `lastAttemptAt`.
 - `pay_periods/{orgId_startDay}`: `orgId`, `startDay`, `endDay`, `status`, `version`, `lockedAt`, `lockedBy`, `reopenLog` (reason, by, at). Server writes only.
 - `pay_period_lines/{periodId_employeeId_version}`: the frozen totals for one person (minutes for worked, break, paid, expected, approved overtime, unapproved extra; counts for leave, holiday, WFH, absent, late) plus a small per-day list (at most 31). Server writes only.
 - `overtime_entries/{employeeId_dayKey}`: `orgId`, `managerId` (from the day's summary), `employeeId`, `dayKey`, `minutes`, `status` (pending, approved, declined), `decidedBy`, `decidedAt`. Deterministic ids; a decided entry is never overwritten by re-generating. Server writes only.
@@ -67,6 +85,7 @@ Because a forgotten check-out cannot be fixed today, exact payroll is impossible
 3. **Time corrections** (3.4).
 4. **Screens:** overtime approval for managers, the pay period page (review, warnings, lock, export) for the admin, settings, the payroll code on the People card, phone first for managers.
 5. **Export templates:** choosing and ordering columns, Excel output.
+6. **Integrations:** the read-only export API with per-organization keys, and signed webhooks (3.5). Work-from-home time import (3.6) only if the owner decides to pursue it, as its own design.
 
 Dependencies: shifts phases 1 and 2 (assignment snapshots and breaks) must be merged first. Breaks (shifts phase 8) must be done before overtime is switched on in real use.
 
@@ -87,14 +106,16 @@ Pay rates and any money amounts, pay multipliers, tax, payslips, direct integrat
 ## 8. Who builds what
 Antigravity builds phases 1 to 5 from prompts I write, one at a time. The integrator reviews each PR, deploys rules and indexes to staging, tests as admin, manager and employee, and checks the numbers by hand against a worked example before anything is switched on for a real customer.
 
-## 9. Decisions needed from the owner
-1. **ChecIN measures time and never calculates pay** (no rates, no money)? (recommended: yes)
-2. **Overtime is paid time beyond the expected time for the day** (shift length, or a standard 8-hour day when there is no shift), counted per day, with an adjustable **15-minute threshold**, and **no rounding**? (recommended: yes)
-3. **Overtime needs the manager's approval; unapproved extra time is exported separately, never dropped?** (recommended: yes)
-4. **One pay period type per organization (weekly, two-weekly, twice a month, monthly)?** (recommended: yes)
-5. **Only the admin locks; locking freezes a snapshot; the admin can reopen with a reason, and each reopen raises a version?** (recommended: yes)
-6. **Locking is blocked by missing check-outs or pending overtime unless the admin ticks "Lock anyway"?** (recommended: yes)
-7. **Build time corrections for forgotten check-outs (append-only, manager-approved) as part of this?** (recommended: yes)
-8. **Work-from-home days are exported as a day count with no hours?** (recommended: yes)
-9. **First exports are generic CSV and Excel with admin-chosen columns, decimal hours by default, and a payroll code on each person?** (recommended: yes)
-10. **Which payroll software or spreadsheet do your first customers use?** (no answer assumed; named formats wait for this)
+## 9. Decisions (owner, 2026-10-12)
+1. **ChecIN measures time and never calculates pay.** Decision: yes.
+2. **Overtime is paid time beyond the expected time for the day, per day, 15-minute adjustable threshold, no rounding.** Decision: yes.
+3. **Overtime needs the manager's approval; unapproved extra time is exported separately.** Decision: yes.
+4. **One pay period type per organization.** Decision: yes.
+5. **Only the admin locks; a frozen snapshot; reopen with a reason raises a version.** Decision: yes.
+6. **Locking is blocked by missing check-outs or pending overtime unless "Lock anyway" is ticked.** Decision: yes.
+7. **Build time corrections for forgotten check-outs.** Decision: yes.
+8. **Work-from-home days export as a day count with no hours.** Decision: yes, **with section 3.6 left open** for importing hours from an external tool.
+9. **First exports are generic CSV and Excel with chosen columns, decimal hours, a payroll code per person.** Decision: yes.
+10. **No customer has named a payroll product.** Decision: stay generic, and let a company connect its own tool through the export API and webhooks (3.5), built after the downloads.
+
+Still to settle: the owner's answers about the work diary (section 3.6) before any import is designed; and the owner's go-ahead for 3.5 as written (the three ways, and the safety rules for keys and webhooks).
