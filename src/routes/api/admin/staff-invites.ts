@@ -135,6 +135,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
                 role: data.role,
                 orgId: data.orgId,
                 orgName,
+                department: data.department || DEFAULT_DEPARTMENT,
                 expiresAt: data.expiresAt,
                 hasExistingAccount,
               },
@@ -191,7 +192,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               email: data.email || "",
               photoURL: data.photoURL || null,
               role: data.role || "member",
-              department: data.department || (data.role === "org_admin" ? "Leadership" : data.role === "manager" ? "Management" : "Operations"),
+              department: data.department || DEFAULT_DEPARTMENT,
             };
           });
 
