@@ -34,7 +34,6 @@ import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
-import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
 import { Route as ApiAttendanceMeRouteImport } from './routes/api/attendance/me'
 import { Route as ApiAttendanceTodayRouteImport } from './routes/api/attendance/today'
@@ -188,11 +187,6 @@ const ApiAnnouncementsIndexRoute = ApiAnnouncementsIndexRouteImport.update({
   path: '/api/announcements/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAttendanceFeedRoute = ApiAttendanceFeedRouteImport.update({
-  id: '/api/attendance/feed',
-  path: '/api/attendance/feed',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   id: '/api/attendance/history',
   path: '/api/attendance/history',
@@ -340,7 +334,6 @@ export interface FileRoutesByFullPath {
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
-  '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
@@ -391,7 +384,6 @@ export interface FileRoutesByTo {
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
-  '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
@@ -444,7 +436,6 @@ export interface FileRoutesById {
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
-  '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
@@ -497,7 +488,6 @@ export interface FileRouteTypes {
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
-    | '/api/attendance/feed'
     | '/api/attendance/history'
     | '/api/attendance/me'
     | '/api/attendance/today'
@@ -548,7 +538,6 @@ export interface FileRouteTypes {
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
-    | '/api/attendance/feed'
     | '/api/attendance/history'
     | '/api/attendance/me'
     | '/api/attendance/today'
@@ -600,7 +589,6 @@ export interface FileRouteTypes {
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
-    | '/api/attendance/feed'
     | '/api/attendance/history'
     | '/api/attendance/me'
     | '/api/attendance/today'
@@ -641,7 +629,6 @@ export interface RootRouteChildren {
   ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
-  ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
   ApiAttendanceMeRoute: typeof ApiAttendanceMeRoute
   ApiAttendanceTodayRoute: typeof ApiAttendanceTodayRoute
@@ -844,13 +831,6 @@ declare module '@tanstack/react-router' {
       path: '/api/announcements'
       fullPath: '/api/announcements/'
       preLoaderRoute: typeof ApiAnnouncementsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/attendance/feed': {
-      id: '/api/attendance/feed'
-      path: '/api/attendance/feed'
-      fullPath: '/api/attendance/feed'
-      preLoaderRoute: typeof ApiAttendanceFeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/attendance/history': {
@@ -1070,7 +1050,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
-  ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
   ApiAttendanceMeRoute: ApiAttendanceMeRoute,
   ApiAttendanceTodayRoute: ApiAttendanceTodayRoute,

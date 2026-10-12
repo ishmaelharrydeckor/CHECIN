@@ -84,7 +84,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 - One meaning changed: "average shift" is the mean of each person's total worked minutes for the day (it used to average each separate in-to-out session).
 - New composite indexes for the week range: `daily_summaries (orgId, dayKey)` and `(orgId, managerId, dayKey)`. Deploy `firestore.indexes.json` before the code; a missing index shows up as a failed weekly chart.
 - **Rollout order matters:** deploy rules and indexes, deploy the code, run `scripts/backfill-summaries.mjs` for the days you want history for. Until summaries exist for a day the dashboard shows that day as empty.
-- Not done: `/api/attendance/feed` is no longer called by any page. It can be deleted (it is a route that reads other people's data with no caller left); left in place because removing a route is the integrator's call.
+- Done: the unused `/api/attendance/feed` route (it read other people's data and had no caller left) was deleted.
 - Reports (task 2.1) should read summaries too: `loadScopedSummaries` in `attendance-data.server.ts` is the shared loader.
 
 ### 3.6 P5: only when a trigger fires
