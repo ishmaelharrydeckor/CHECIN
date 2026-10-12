@@ -34,7 +34,6 @@ import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-
 import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
-import { Route as ApiAttendanceFeedRouteImport } from './routes/api/attendance/feed'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
 import { Route as ApiAttendanceMeRouteImport } from './routes/api/attendance/me'
 import { Route as ApiAttendanceTodayRouteImport } from './routes/api/attendance/today'
@@ -42,6 +41,7 @@ import { Route as ApiAttendanceWeekRouteImport } from './routes/api/attendance/w
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
 import { Route as ApiCheckInScanRouteImport } from './routes/api/check-in/scan'
 import { Route as ApiCheckInStatusRouteImport } from './routes/api/check-in/status'
+import { Route as ApiCheckInUndoRouteImport } from './routes/api/check-in/undo'
 import { Route as ApiKioskPairRouteImport } from './routes/api/kiosk/pair'
 import { Route as ApiKioskPairCodeRouteImport } from './routes/api/kiosk/pair-code'
 import { Route as ApiKioskTokenRouteImport } from './routes/api/kiosk/token'
@@ -185,11 +185,6 @@ const ApiAnnouncementsIndexRoute = ApiAnnouncementsIndexRouteImport.update({
   path: '/api/announcements/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAttendanceFeedRoute = ApiAttendanceFeedRouteImport.update({
-  id: '/api/attendance/feed',
-  path: '/api/attendance/feed',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   id: '/api/attendance/history',
   path: '/api/attendance/history',
@@ -223,6 +218,11 @@ const ApiCheckInScanRoute = ApiCheckInScanRouteImport.update({
 const ApiCheckInStatusRoute = ApiCheckInStatusRouteImport.update({
   id: '/api/check-in/status',
   path: '/api/check-in/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCheckInUndoRoute = ApiCheckInUndoRouteImport.update({
+  id: '/api/check-in/undo',
+  path: '/api/check-in/undo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiKioskPairRoute = ApiKioskPairRouteImport.update({
@@ -320,7 +320,6 @@ export interface FileRoutesByFullPath {
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
-  '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
@@ -328,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/check-in/status': typeof ApiCheckInStatusRoute
+  '/api/check-in/undo': typeof ApiCheckInUndoRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
   '/api/kiosk/pair-code': typeof ApiKioskPairCodeRoute
   '/api/kiosk/token': typeof ApiKioskTokenRoute
@@ -368,7 +368,6 @@ export interface FileRoutesByTo {
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
-  '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
@@ -376,6 +375,7 @@ export interface FileRoutesByTo {
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/check-in/status': typeof ApiCheckInStatusRoute
+  '/api/check-in/undo': typeof ApiCheckInUndoRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
   '/api/kiosk/pair-code': typeof ApiKioskPairCodeRoute
   '/api/kiosk/token': typeof ApiKioskTokenRoute
@@ -418,7 +418,6 @@ export interface FileRoutesById {
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
-  '/api/attendance/feed': typeof ApiAttendanceFeedRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
@@ -426,6 +425,7 @@ export interface FileRoutesById {
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/check-in/status': typeof ApiCheckInStatusRoute
+  '/api/check-in/undo': typeof ApiCheckInUndoRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
   '/api/kiosk/pair-code': typeof ApiKioskPairCodeRoute
   '/api/kiosk/token': typeof ApiKioskTokenRoute
@@ -468,7 +468,6 @@ export interface FileRouteTypes {
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
-    | '/api/attendance/feed'
     | '/api/attendance/history'
     | '/api/attendance/me'
     | '/api/attendance/today'
@@ -476,6 +475,7 @@ export interface FileRouteTypes {
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/check-in/status'
+    | '/api/check-in/undo'
     | '/api/kiosk/pair'
     | '/api/kiosk/pair-code'
     | '/api/kiosk/token'
@@ -516,7 +516,6 @@ export interface FileRouteTypes {
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
-    | '/api/attendance/feed'
     | '/api/attendance/history'
     | '/api/attendance/me'
     | '/api/attendance/today'
@@ -524,6 +523,7 @@ export interface FileRouteTypes {
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/check-in/status'
+    | '/api/check-in/undo'
     | '/api/kiosk/pair'
     | '/api/kiosk/pair-code'
     | '/api/kiosk/token'
@@ -565,7 +565,6 @@ export interface FileRouteTypes {
     | '/api/admin/reset-link'
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
-    | '/api/attendance/feed'
     | '/api/attendance/history'
     | '/api/attendance/me'
     | '/api/attendance/today'
@@ -573,6 +572,7 @@ export interface FileRouteTypes {
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/check-in/status'
+    | '/api/check-in/undo'
     | '/api/kiosk/pair'
     | '/api/kiosk/pair-code'
     | '/api/kiosk/token'
@@ -603,7 +603,6 @@ export interface RootRouteChildren {
   ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
-  ApiAttendanceFeedRoute: typeof ApiAttendanceFeedRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
   ApiAttendanceMeRoute: typeof ApiAttendanceMeRoute
   ApiAttendanceTodayRoute: typeof ApiAttendanceTodayRoute
@@ -611,6 +610,7 @@ export interface RootRouteChildren {
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
   ApiCheckInScanRoute: typeof ApiCheckInScanRoute
   ApiCheckInStatusRoute: typeof ApiCheckInStatusRoute
+  ApiCheckInUndoRoute: typeof ApiCheckInUndoRoute
   ApiKioskPairRoute: typeof ApiKioskPairRoute
   ApiKioskPairCodeRoute: typeof ApiKioskPairCodeRoute
   ApiKioskTokenRoute: typeof ApiKioskTokenRoute
@@ -805,13 +805,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAnnouncementsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/attendance/feed': {
-      id: '/api/attendance/feed'
-      path: '/api/attendance/feed'
-      fullPath: '/api/attendance/feed'
-      preLoaderRoute: typeof ApiAttendanceFeedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/attendance/history': {
       id: '/api/attendance/history'
       path: '/api/attendance/history'
@@ -859,6 +852,13 @@ declare module '@tanstack/react-router' {
       path: '/api/check-in/status'
       fullPath: '/api/check-in/status'
       preLoaderRoute: typeof ApiCheckInStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/check-in/undo': {
+      id: '/api/check-in/undo'
+      path: '/api/check-in/undo'
+      fullPath: '/api/check-in/undo'
+      preLoaderRoute: typeof ApiCheckInUndoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/kiosk/pair': {
@@ -1008,7 +1008,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
-  ApiAttendanceFeedRoute: ApiAttendanceFeedRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
   ApiAttendanceMeRoute: ApiAttendanceMeRoute,
   ApiAttendanceTodayRoute: ApiAttendanceTodayRoute,
@@ -1016,6 +1015,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
   ApiCheckInScanRoute: ApiCheckInScanRoute,
   ApiCheckInStatusRoute: ApiCheckInStatusRoute,
+  ApiCheckInUndoRoute: ApiCheckInUndoRoute,
   ApiKioskPairRoute: ApiKioskPairRoute,
   ApiKioskPairCodeRoute: ApiKioskPairCodeRoute,
   ApiKioskTokenRoute: ApiKioskTokenRoute,
