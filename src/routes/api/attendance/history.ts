@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { dayKey } from "@/lib/attendance-day";
+import { resolveDashboardScope } from "@/lib/dashboard-scope";
+import { loadOrgContext } from "@/lib/attendance-data.server";
+import { mergeEventsNewestFirst, movedInMembers } from "@/lib/manager-history";
 
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 100;
@@ -59,19 +63,47 @@ export const Route = createFileRoute("/api/attendance/history")({
           // The time range and event type are applied by the database, not after the fact, and one
           // request reads at most one page. Needs the clock_events indexes in firestore.indexes.json.
           const windowMs = RANGE_MS[rangeParam];
-          if (windowMs) {
-            query = query.where("timestamp", ">=", new Date(Date.now() - windowMs).toISOString());
-          }
-          if (typeParam === "in" || typeParam === "out") {
-            query = query.where("type", "==", typeParam);
-          }
-          query = query.orderBy("timestamp", "desc");
-          if (cursor) query = query.startAfter(cursor);
+          const page = (q: FirebaseFirestore.Query): FirebaseFirestore.Query => {
+            if (windowMs) q = q.where("timestamp", ">=", new Date(Date.now() - windowMs).toISOString());
+            if (typeParam === "in" || typeParam === "out") q = q.where("type", "==", typeParam);
+            q = q.orderBy("timestamp", "desc");
+            if (cursor) q = q.startAfter(cursor);
+            return q;
+          };
 
           // One extra document tells us whether there is another page, without a second read.
-          const snap = await query.limit(pageSize + 1).get();
-          const hasMore = snap.docs.length > pageSize;
-          const docs = snap.docs.slice(0, pageSize);
+          const snap = await page(query).limit(pageSize + 1).get();
+          let found = snap.docs;
+
+          // A manager also sees the earlier events of people who joined their team during this
+          // window (filed under their previous manager). Two newest-first pages merge into one.
+          // A team where nobody has moved in reads nothing extra. (docs/MANAGER-CHANGE-DESIGN.md)
+          if (caller.role === "manager" && caller.orgId) {
+            const scope = resolveDashboardScope(caller);
+            if (scope) {
+              const { timezone, roster } = await loadOrgContext(scope);
+              const fromDay = (windowMs ? dayKey(Date.now() - windowMs, timezone) : null) ?? "0000-01-01";
+              const moved = movedInMembers(roster, timezone, fromDay).filter((m) => m.uid !== caller.uid);
+              if (moved.length > 0) {
+                const extra = await page(
+                  firestoreAdmin
+                    .collection("clock_events")
+                    .where("orgId", "==", orgId)
+                    .where("employeeId", "in", moved.map((m) => m.uid)),
+                )
+                  .limit(pageSize + 1)
+                  .get();
+                const wrap = (d: FirebaseFirestore.QueryDocumentSnapshot) => ({
+                  id: d.id,
+                  timestamp: String(d.data().timestamp ?? ""),
+                  doc: d,
+                });
+                found = mergeEventsNewestFirst(found.map(wrap), extra.docs.map(wrap), pageSize + 1).map((x) => x.doc);
+              }
+            }
+          }
+          const hasMore = found.length > pageSize;
+          const docs = found.slice(0, pageSize);
 
           const records = docs.map((doc) => {
             const d = doc.data();

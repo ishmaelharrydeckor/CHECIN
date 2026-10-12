@@ -22,6 +22,7 @@ const STATUS_META: Record<RegisterStatus, { label: string; code: string; cell: s
   holiday: { label: "Holiday", code: "H", cell: "bg-slate-100 text-slate-500" },
   absent: { label: "Absent", code: "A", cell: "bg-amber-100 text-amber-900" },
   off: { label: "Day off", code: "-", cell: "bg-slate-50 text-slate-400" },
+  other: { label: "Not on your team", code: "\u00b7", cell: "bg-white text-slate-300" },
 };
 
 function useIsDesktop() {

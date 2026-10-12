@@ -3,6 +3,7 @@ import { createTtlCache } from "./ttl-cache.server.ts";
 import type { DashboardScope } from "./dashboard-scope.ts";
 import type { RawEvent, RosterMember } from "./attendance-today.ts";
 import type { DailySummary } from "./daily-summary.ts";
+import { IN_QUERY_LIMIT, chunk, mergeByKey, movedInMembers } from "./manager-history.ts";
 
 /**
  * Data access for the manager dashboard routes (/api/attendance/today and /week).
@@ -58,6 +59,7 @@ export async function loadOrgContext(scope: DashboardScope): Promise<OrgContext>
       displayName: data.displayName || undefined,
       email: data.email || undefined,
       department: data.department || undefined,
+      managerChangedAt: typeof data.managerChangedAt === "string" ? data.managerChangedAt : undefined,
     };
   });
 
@@ -130,8 +132,40 @@ export async function loadScopedSummaries(
       : query.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay);
 
   const snap = await query.limit(cap).get();
-  return {
-    summaries: snap.docs.map((d) => d.data() as DailySummary),
-    truncated: snap.size >= cap,
-  };
+  let summaries = snap.docs.map((d) => d.data() as DailySummary);
+  let truncated = snap.size >= cap;
+
+  // A manager also sees the earlier days of people who joined their team during this range: those
+  // days are filed under the previous manager, so they are found by employee id. A team where
+  // nobody has moved in reads nothing extra. (docs/MANAGER-CHANGE-DESIGN.md)
+  if (scope.role === "manager") {
+    const { timezone, roster } = await loadOrgContext(scope);
+    const moved = movedInMembers(roster, timezone, fromDay).filter((m) => m.uid !== scope.uid);
+    if (moved.length > 0) {
+      const batches = await Promise.all(
+        chunk(
+          moved.map((m) => m.uid),
+          IN_QUERY_LIMIT,
+        ).map(async (uids) => {
+          let q: FirebaseFirestore.Query = firestoreAdmin
+            .collection("daily_summaries")
+            .where("orgId", "==", scope.orgId)
+            .where("employeeId", "in", uids);
+          q =
+            fromDay === toDay
+              ? q.where("dayKey", "==", fromDay)
+              : q.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay);
+          const extra = await q.limit(cap).get();
+          return { rows: extra.docs.map((d) => d.data() as DailySummary), full: extra.size >= cap };
+        }),
+      );
+      summaries = mergeByKey(summaries, batches.flatMap((b) => b.rows), (s) => `${s.employeeId}|${s.dayKey}`);
+      truncated = truncated || batches.some((b) => b.full);
+      if (summaries.length > cap) {
+        summaries = summaries.slice(0, cap);
+        truncated = true;
+      }
+    }
+  }
+  return { summaries, truncated };
 }
