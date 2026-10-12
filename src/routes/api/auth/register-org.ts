@@ -8,6 +8,7 @@ import {
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { isValidZone } from "@/lib/timezone-options";
+import { buildDepartmentList, DEFAULT_DEPARTMENT } from "@/lib/departments";
 
 export const Route = createFileRoute("/api/auth/register-org")({
   server: {
@@ -37,6 +38,14 @@ export const Route = createFileRoute("/api/auth/register-org")({
               { error: "Please choose your timezone from the list." },
               { status: 400 },
             );
+          }
+          // Departments are optional at sign-up. Sent but invalid (too long, too many) is refused,
+          // not cut. Not sent means just "General"; the admin can add more later.
+          let departments: string[] = [DEFAULT_DEPARTMENT];
+          if (body?.departments !== undefined && body?.departments !== null) {
+            const built = buildDepartmentList(body.departments);
+            if (!built.ok) return Response.json({ error: built.error }, { status: 400 });
+            departments = built.list;
           }
           const email = (body?.email || "").trim().toLowerCase();
           const password = body?.password || "";
@@ -113,6 +122,7 @@ export const Route = createFileRoute("/api/auth/register-org")({
             name: orgName,
             plan: "growth", // Default 14-day trial
             timezone,
+            departments,
             region: "nam5", // where this org's data lives; every org has one value today
             schemaVersion: 1,
             createdAt: new Date().toISOString(),

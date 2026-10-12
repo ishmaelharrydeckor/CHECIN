@@ -42,12 +42,15 @@ import { Route as ApiAttendanceWeekRouteImport } from './routes/api/attendance/w
 import { Route as ApiAuthRegisterOrgRouteImport } from './routes/api/auth/register-org'
 import { Route as ApiCheckInScanRouteImport } from './routes/api/check-in/scan'
 import { Route as ApiCheckInStatusRouteImport } from './routes/api/check-in/status'
+import { Route as ApiCheckInUndoRouteImport } from './routes/api/check-in/undo'
 import { Route as ApiKioskPairRouteImport } from './routes/api/kiosk/pair'
 import { Route as ApiKioskPairCodeRouteImport } from './routes/api/kiosk/pair-code'
 import { Route as ApiKioskTokenRouteImport } from './routes/api/kiosk/token'
 import { Route as ApiLocationsIndexRouteImport } from './routes/api/locations/index'
 import { Route as ApiLocationsRevokeRouteImport } from './routes/api/locations/revoke'
 import { Route as ApiOrganizationIndexRouteImport } from './routes/api/organization/index'
+import { Route as ApiOrganizationDepartmentsRouteImport } from './routes/api/organization/departments'
+import { Route as ApiOrganizationMemberDepartmentRouteImport } from './routes/api/organization/member-department'
 import { Route as ApiPushNotificationsRouteImport } from './routes/api/push/notifications'
 import { Route as ApiPushPreferencesRouteImport } from './routes/api/push/preferences'
 import { Route as ApiPushSendRouteImport } from './routes/api/push/send'
@@ -225,6 +228,11 @@ const ApiCheckInStatusRoute = ApiCheckInStatusRouteImport.update({
   path: '/api/check-in/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCheckInUndoRoute = ApiCheckInUndoRouteImport.update({
+  id: '/api/check-in/undo',
+  path: '/api/check-in/undo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiKioskPairRoute = ApiKioskPairRouteImport.update({
   id: '/api/kiosk/pair',
   path: '/api/kiosk/pair',
@@ -255,6 +263,18 @@ const ApiOrganizationIndexRoute = ApiOrganizationIndexRouteImport.update({
   path: '/api/organization/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOrganizationDepartmentsRoute =
+  ApiOrganizationDepartmentsRouteImport.update({
+    id: '/api/organization/departments',
+    path: '/api/organization/departments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiOrganizationMemberDepartmentRoute =
+  ApiOrganizationMemberDepartmentRouteImport.update({
+    id: '/api/organization/member-department',
+    path: '/api/organization/member-department',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPushNotificationsRoute = ApiPushNotificationsRouteImport.update({
   id: '/api/push/notifications',
   path: '/api/push/notifications',
@@ -328,10 +348,13 @@ export interface FileRoutesByFullPath {
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/check-in/status': typeof ApiCheckInStatusRoute
+  '/api/check-in/undo': typeof ApiCheckInUndoRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
   '/api/kiosk/pair-code': typeof ApiKioskPairCodeRoute
   '/api/kiosk/token': typeof ApiKioskTokenRoute
   '/api/locations/revoke': typeof ApiLocationsRevokeRoute
+  '/api/organization/departments': typeof ApiOrganizationDepartmentsRoute
+  '/api/organization/member-department': typeof ApiOrganizationMemberDepartmentRoute
   '/api/push/notifications': typeof ApiPushNotificationsRoute
   '/api/push/preferences': typeof ApiPushPreferencesRoute
   '/api/push/send': typeof ApiPushSendRoute
@@ -376,10 +399,13 @@ export interface FileRoutesByTo {
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/check-in/status': typeof ApiCheckInStatusRoute
+  '/api/check-in/undo': typeof ApiCheckInUndoRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
   '/api/kiosk/pair-code': typeof ApiKioskPairCodeRoute
   '/api/kiosk/token': typeof ApiKioskTokenRoute
   '/api/locations/revoke': typeof ApiLocationsRevokeRoute
+  '/api/organization/departments': typeof ApiOrganizationDepartmentsRoute
+  '/api/organization/member-department': typeof ApiOrganizationMemberDepartmentRoute
   '/api/push/notifications': typeof ApiPushNotificationsRoute
   '/api/push/preferences': typeof ApiPushPreferencesRoute
   '/api/push/send': typeof ApiPushSendRoute
@@ -426,10 +452,13 @@ export interface FileRoutesById {
   '/api/auth/register-org': typeof ApiAuthRegisterOrgRoute
   '/api/check-in/scan': typeof ApiCheckInScanRoute
   '/api/check-in/status': typeof ApiCheckInStatusRoute
+  '/api/check-in/undo': typeof ApiCheckInUndoRoute
   '/api/kiosk/pair': typeof ApiKioskPairRoute
   '/api/kiosk/pair-code': typeof ApiKioskPairCodeRoute
   '/api/kiosk/token': typeof ApiKioskTokenRoute
   '/api/locations/revoke': typeof ApiLocationsRevokeRoute
+  '/api/organization/departments': typeof ApiOrganizationDepartmentsRoute
+  '/api/organization/member-department': typeof ApiOrganizationMemberDepartmentRoute
   '/api/push/notifications': typeof ApiPushNotificationsRoute
   '/api/push/preferences': typeof ApiPushPreferencesRoute
   '/api/push/send': typeof ApiPushSendRoute
@@ -476,10 +505,13 @@ export interface FileRouteTypes {
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/check-in/status'
+    | '/api/check-in/undo'
     | '/api/kiosk/pair'
     | '/api/kiosk/pair-code'
     | '/api/kiosk/token'
     | '/api/locations/revoke'
+    | '/api/organization/departments'
+    | '/api/organization/member-department'
     | '/api/push/notifications'
     | '/api/push/preferences'
     | '/api/push/send'
@@ -524,10 +556,13 @@ export interface FileRouteTypes {
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/check-in/status'
+    | '/api/check-in/undo'
     | '/api/kiosk/pair'
     | '/api/kiosk/pair-code'
     | '/api/kiosk/token'
     | '/api/locations/revoke'
+    | '/api/organization/departments'
+    | '/api/organization/member-department'
     | '/api/push/notifications'
     | '/api/push/preferences'
     | '/api/push/send'
@@ -573,10 +608,13 @@ export interface FileRouteTypes {
     | '/api/auth/register-org'
     | '/api/check-in/scan'
     | '/api/check-in/status'
+    | '/api/check-in/undo'
     | '/api/kiosk/pair'
     | '/api/kiosk/pair-code'
     | '/api/kiosk/token'
     | '/api/locations/revoke'
+    | '/api/organization/departments'
+    | '/api/organization/member-department'
     | '/api/push/notifications'
     | '/api/push/preferences'
     | '/api/push/send'
@@ -611,10 +649,13 @@ export interface RootRouteChildren {
   ApiAuthRegisterOrgRoute: typeof ApiAuthRegisterOrgRoute
   ApiCheckInScanRoute: typeof ApiCheckInScanRoute
   ApiCheckInStatusRoute: typeof ApiCheckInStatusRoute
+  ApiCheckInUndoRoute: typeof ApiCheckInUndoRoute
   ApiKioskPairRoute: typeof ApiKioskPairRoute
   ApiKioskPairCodeRoute: typeof ApiKioskPairCodeRoute
   ApiKioskTokenRoute: typeof ApiKioskTokenRoute
   ApiLocationsRevokeRoute: typeof ApiLocationsRevokeRoute
+  ApiOrganizationDepartmentsRoute: typeof ApiOrganizationDepartmentsRoute
+  ApiOrganizationMemberDepartmentRoute: typeof ApiOrganizationMemberDepartmentRoute
   ApiPushNotificationsRoute: typeof ApiPushNotificationsRoute
   ApiPushPreferencesRoute: typeof ApiPushPreferencesRoute
   ApiPushSendRoute: typeof ApiPushSendRoute
@@ -861,6 +902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCheckInStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/check-in/undo': {
+      id: '/api/check-in/undo'
+      path: '/api/check-in/undo'
+      fullPath: '/api/check-in/undo'
+      preLoaderRoute: typeof ApiCheckInUndoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/kiosk/pair': {
       id: '/api/kiosk/pair'
       path: '/api/kiosk/pair'
@@ -901,6 +949,20 @@ declare module '@tanstack/react-router' {
       path: '/api/organization'
       fullPath: '/api/organization/'
       preLoaderRoute: typeof ApiOrganizationIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/organization/departments': {
+      id: '/api/organization/departments'
+      path: '/api/organization/departments'
+      fullPath: '/api/organization/departments'
+      preLoaderRoute: typeof ApiOrganizationDepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/organization/member-department': {
+      id: '/api/organization/member-department'
+      path: '/api/organization/member-department'
+      fullPath: '/api/organization/member-department'
+      preLoaderRoute: typeof ApiOrganizationMemberDepartmentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/push/notifications': {
@@ -1016,10 +1078,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthRegisterOrgRoute: ApiAuthRegisterOrgRoute,
   ApiCheckInScanRoute: ApiCheckInScanRoute,
   ApiCheckInStatusRoute: ApiCheckInStatusRoute,
+  ApiCheckInUndoRoute: ApiCheckInUndoRoute,
   ApiKioskPairRoute: ApiKioskPairRoute,
   ApiKioskPairCodeRoute: ApiKioskPairCodeRoute,
   ApiKioskTokenRoute: ApiKioskTokenRoute,
   ApiLocationsRevokeRoute: ApiLocationsRevokeRoute,
+  ApiOrganizationDepartmentsRoute: ApiOrganizationDepartmentsRoute,
+  ApiOrganizationMemberDepartmentRoute: ApiOrganizationMemberDepartmentRoute,
   ApiPushNotificationsRoute: ApiPushNotificationsRoute,
   ApiPushPreferencesRoute: ApiPushPreferencesRoute,
   ApiPushSendRoute: ApiPushSendRoute,
