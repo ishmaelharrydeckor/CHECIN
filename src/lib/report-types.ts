@@ -1,4 +1,5 @@
-export type RegisterStatus = "present" | "absent" | "leave" | "holiday" | "wfh" | "off";
+// "other": a day of someone who has since left this manager's team and has no record here. Nothing is claimed about it.
+export type RegisterStatus = "present" | "absent" | "leave" | "holiday" | "wfh" | "off" | "other";
 
 export interface RegisterDay {
   dayKey: string;            // "2026-10-05"

@@ -35,6 +35,8 @@ export interface RosterMember {
   displayName?: string;
   email?: string;
   department?: string;
+  /** When they joined this manager's team (ISO). Only set for people who were moved. */
+  managerChangedAt?: string;
 }
 
 export interface TodayEventRow {
@@ -412,8 +414,10 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
   const eventLimit = input.eventLimit ?? 20;
   const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
 
-  const todays = input.summaries.filter((s) => s.dayKey === today);
   const rosterById = new Map(roster.map((r) => [r.uid, r]));
+  // Only people on the team now are counted: someone who moved away today was filed under this
+  // manager for their first scan, but they are no longer part of this team's day.
+  const todays = input.summaries.filter((s) => s.dayKey === today && rosterById.has(s.employeeId));
   const presentIds = new Set(todays.map((s) => s.employeeId));
 
   const describe = (s: DailySummary): TodayPerson => {

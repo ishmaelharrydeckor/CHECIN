@@ -2,6 +2,8 @@ import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin
 import { checkRateLimit, sanitizeRateLimitKey } from "@/lib/rate-limit.server";
 import { resolveDashboardScope, type DashboardScope } from "@/lib/dashboard-scope";
 import type { ReportLeave } from "@/lib/report-data";
+import { loadOrgContext } from "@/lib/attendance-data.server";
+import { IN_QUERY_LIMIT, chunk, mergeByKey, movedInMembers } from "@/lib/manager-history";
 
 /**
  * Shared server pieces for the two on-demand reports (/api/reports/register and /api/reports/leave).
@@ -74,8 +76,40 @@ export async function loadScopedLeave(
   if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
   if (status) query = query.where("status", "==", status);
   const snap = await query.limit(LEAVE_READ_CAP).get();
-  return {
-    leaves: snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReportLeave, "id">) })),
-    truncated: snap.size >= LEAVE_READ_CAP,
-  };
+  let leaves: ReportLeave[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReportLeave, "id">) }));
+  let truncated = snap.size >= LEAVE_READ_CAP;
+
+  // Leave decided before someone joined this team is filed under their previous manager. A manager
+  // sees it for the people on their team now (docs/MANAGER-CHANGE-DESIGN.md). Nothing extra is read
+  // for a team where nobody has moved in.
+  if (scope.role === "manager") {
+    const { timezone, roster } = await loadOrgContext(scope);
+    const moved = movedInMembers(roster, timezone, "0000-01-01").filter((m) => m.uid !== scope.uid);
+    if (moved.length > 0) {
+      const batches = await Promise.all(
+        chunk(
+          moved.map((m) => m.uid),
+          IN_QUERY_LIMIT,
+        ).map(async (uids) => {
+          let q: FirebaseFirestore.Query = firestoreAdmin
+            .collection("leave_requests")
+            .where("orgId", "==", scope.orgId)
+            .where("employeeId", "in", uids);
+          if (status) q = q.where("status", "==", status);
+          const extra = await q.limit(LEAVE_READ_CAP).get();
+          return {
+            rows: extra.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ReportLeave, "id">) })) as ReportLeave[],
+            full: extra.size >= LEAVE_READ_CAP,
+          };
+        }),
+      );
+      leaves = mergeByKey(leaves, batches.flatMap((b) => b.rows), (l) => String(l.id));
+      truncated = truncated || batches.some((b) => b.full);
+      if (leaves.length > LEAVE_READ_CAP) {
+        leaves = leaves.slice(0, LEAVE_READ_CAP);
+        truncated = true;
+      }
+    }
+  }
+  return { leaves, truncated };
 }

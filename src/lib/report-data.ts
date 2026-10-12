@@ -67,6 +67,8 @@ export interface ReportPerson {
 
 export interface ReportSummary {
   employeeId?: unknown;
+  employeeName?: unknown;
+  department?: unknown;
   dayKey?: unknown;
   firstIn?: unknown;
   lastOut?: unknown;
@@ -100,6 +102,18 @@ function clock(v: unknown, timezone: string): string | null {
 }
 
 const isDay = (v: unknown): v is string => typeof v === "string" && DAY_RE.test(v);
+
+function presentDay(d: string, s: ReportSummary, timezone: string): RegisterDay {
+  return {
+    dayKey: d,
+    status: "present",
+    firstIn: clock(s.firstIn, timezone),
+    lastOut: clock(s.lastOut, timezone),
+    minutesWorked: typeof s.minutesWorked === "number" && s.minutesWorked > 0 ? Math.round(s.minutesWorked) : 0,
+    late: s.late === true,
+    earlyDeparture: s.earlyDeparture === true,
+  };
+}
 
 export function buildAttendanceRegister(input: {
   days: readonly string[];
@@ -142,17 +156,7 @@ export function buildAttendanceRegister(input: {
     const leave = leavesByPerson.get(p.uid) ?? [];
     const outDays: RegisterDay[] = days.map((d): RegisterDay => {
       const s = mine?.get(d);
-      if (s) {
-        return {
-          dayKey: d,
-          status: "present",
-          firstIn: clock(s.firstIn, timezone),
-          lastOut: clock(s.lastOut, timezone),
-          minutesWorked: typeof s.minutesWorked === "number" && s.minutesWorked > 0 ? Math.round(s.minutesWorked) : 0,
-          late: s.late === true,
-          earlyDeparture: s.earlyDeparture === true,
-        };
-      }
+      if (s) return presentDay(d, s, timezone);
       const blank = { dayKey: d, firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
       if (leave.some((l) => l.start <= d && d <= l.end)) return { ...blank, status: "leave" };
       if (holiday.has(d)) return { ...blank, status: "holiday" };
@@ -175,13 +179,48 @@ export function buildAttendanceRegister(input: {
     };
   });
 
+  // People who have since left this team but whose days under this manager are in the read: they
+  // keep a row for the days that were managed here. Days without a record are "other": no claim
+  // is made about them (they may have been absent, or on another team).
+  const known = new Set(input.people.map((p) => p.uid));
+  const former: RegisterRow[] = [];
+  for (const [employeeId, mine] of byPerson) {
+    if (known.has(employeeId) || !days.some((d) => mine.has(d))) continue;
+    let name = "";
+    let department = "";
+    for (const s of mine.values()) {
+      if (!name && typeof s.employeeName === "string") name = s.employeeName.trim();
+      if (!department && typeof s.department === "string") department = s.department.trim();
+    }
+    const outDays: RegisterDay[] = days.map((d): RegisterDay => {
+      const s = mine.get(d);
+      if (s) return presentDay(d, s, timezone);
+      return { dayKey: d, status: "other", firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
+    });
+    former.push({
+      employeeId,
+      name: name || "Former team member",
+      department,
+      days: outDays,
+      totals: {
+        presentDays: outDays.filter((x) => x.status === "present").length,
+        lateDays: outDays.filter((x) => x.status === "present" && x.late).length,
+        absentDays: 0,
+        leaveDays: 0,
+        minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
+      },
+    });
+  }
+  former.sort((a, b) => a.name.localeCompare(b.name));
+  const room = Math.max(0, REPORT_ROW_CAP - rows.length);
+
   return {
     from: input.from,
     to: input.to,
     timezone,
     generatedAt: input.generatedAt,
-    rows,
-    truncated: input.readTruncated === true || people.length > REPORT_ROW_CAP,
+    rows: [...rows, ...former.slice(0, room)],
+    truncated: input.readTruncated === true || people.length > REPORT_ROW_CAP || former.length > room,
   };
 }
 

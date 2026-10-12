@@ -15,6 +15,7 @@ export const STATUS_LABEL: Record<RegisterStatus, string> = {
   holiday: "Holiday",
   wfh: "Work from home",
   off: "Day off",
+  other: "Not on your team",
 };
 
 const STATUS_CODE: Record<RegisterStatus, string> = {
@@ -24,6 +25,7 @@ const STATUS_CODE: Record<RegisterStatus, string> = {
   holiday: "H",
   wfh: "W",
   off: "-",
+  other: ".",
 };
 
 const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
@@ -33,6 +35,7 @@ const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
   holiday: [241, 245, 249],
   wfh: [241, 245, 249],
   off: [248, 250, 252],
+  other: [255, 255, 255],
 };
 
 /** Hours with one decimal, e.g. 495 -> "8.3". Formatting only. */
