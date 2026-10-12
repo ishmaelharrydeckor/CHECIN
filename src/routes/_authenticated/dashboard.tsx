@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { dayKey } from "@/lib/attendance-day";
 import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
 import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
+import { TodayPanel } from "@/components/dashboard/TodayPanel";
 import {
   Users,
   Clock,
@@ -592,6 +593,15 @@ function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Today: counts, live activity, and the late and not-arrived lists. Every figure comes from
+          /api/attendance/today (the same answer as the tiles above), so nothing here can disagree. */}
+      <TodayPanel
+        data={today}
+        loading={refreshing || (!today && !todayError)}
+        error={todayError}
+        onRefresh={handleManualRefresh}
+      />
 
       {/* 3. Interactive Charts or Onboarding Telemetry Card */}
       {trendHasData || (today?.eventsTotal ?? 0) > 0 ? (
