@@ -1,6 +1,6 @@
 # Design note: an employee changes manager (E1)
 
-Status: **proposed, needs the owner's sign-off** (section 8). Nothing is built until it is approved.
+Status: **approved by the owner on 2026-10-12** (decisions 1 to 5 below). Decision 6: no customer has asked for future-dated moves or manager-requested transfers, so they are not in the first version.
 Why a note first: it decides who can see whose history, and it feeds the Today panel, reports, leave approval, analytics and later payroll.
 
 ## 1. The question
@@ -59,12 +59,12 @@ So today a move leaves the roster, the records and pending leave pointing at dif
 - **Integrator:** the server action, the audit collection and rule, the index, the two-sided history reads, and the fix for the roles route.
 - **Teammate (after approval, screens only):** the Manager dropdown on the People card and a small "Team history" list for the admin, in sample data first.
 
-## 8. Decisions needed from the owner
-1. **Admin only can move people** (managers cannot)? (recommended: yes)
-2. **The new manager sees the person's full history; the old manager keeps only the days they managed**? (recommended: yes)
-3. **Pending leave requests move to the new manager**? (recommended: yes)
-4. **A manager who still has people cannot be removed or demoted** until the team is moved? (recommended: yes)
-5. **Takes effect from the next scan**, with the person signed out once? (recommended: yes)
-6. Anything customers have asked for, such as a future-dated move or managers requesting a move? (nothing assumed)
+## 8. Decisions (owner, 2026-10-12)
+1. **Admin only can move people** (managers cannot)? **Decision: yes.**
+2. **The new manager sees the person's full history; the old manager keeps only the days they managed**? **Decision: yes.**
+3. **Pending leave requests move to the new manager**? **Decision: yes.**
+4. **A manager who still has people cannot be removed or demoted** until the team is moved? **Decision: yes.**
+5. **Takes effect from the next scan**, with the person signed out once? **Decision: yes.**
+6. Anything customers have asked for, such as a future-dated move or managers requesting a move? **Decision: nothing requested yet.**
 
 Open for later: future-dated moves, a manager "request transfer" flow, more than one manager per person, department heads separate from managers.
