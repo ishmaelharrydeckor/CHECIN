@@ -53,6 +53,7 @@ interface ClockRecord {
   verifiedMethod: string;
   late?: boolean;
   earlyDeparture?: boolean;
+  voided?: boolean;
 }
 
 function HistoryPage() {
@@ -124,12 +125,15 @@ function HistoryPage() {
     );
   }, [records, searchTerm]);
 
+  // Undone scans stay on screen (struck through) but are not exported as attendance.
+  const exportable = useMemo(() => filteredRecords.filter((r) => !r.voided), [filteredRecords]);
+
   const handleExportCSV = () => {
-    if (filteredRecords.length === 0) {
+    if (exportable.length === 0) {
       toast.info("No records to export.");
       return;
     }
-    const rows = filteredRecords.map((r) => ({
+    const rows = exportable.map((r) => ({
       ID: r.id,
       Employee: r.employeeName,
       Email: r.email,
@@ -142,11 +146,11 @@ function HistoryPage() {
   };
 
   const handleExportExcel = () => {
-    if (filteredRecords.length === 0) {
+    if (exportable.length === 0) {
       toast.info("No records to export.");
       return;
     }
-    const rows = filteredRecords.map((r) => ({
+    const rows = exportable.map((r) => ({
       ID: r.id,
       Employee: r.employeeName,
       Email: r.email,
@@ -159,12 +163,12 @@ function HistoryPage() {
   };
 
   const handleExportPDF = () => {
-    if (filteredRecords.length === 0) {
+    if (exportable.length === 0) {
       toast.info("No records to export.");
       return;
     }
     const headers = ["Employee", "Location", "Event", "Timestamp", "Verification"];
-    const rows = filteredRecords.map((r) => [
+    const rows = exportable.map((r) => [
       `${r.employeeName} (${r.email})`,
       r.locationName,
       r.type === "in" ? "CLOCK IN" : "CLOCK OUT",
@@ -325,7 +329,7 @@ function HistoryPage() {
                   </tr>
                 ) : (
                   filteredRecords.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={r.id} className={`hover:bg-slate-50/60 transition-colors ${r.voided ? "opacity-60 line-through" : ""}`}>
                       <td className="py-3.5 px-6">
                         <div className="font-medium text-[#0E2322]">{r.employeeName}</div>
                         <div className="text-xs text-muted-foreground">{r.email}</div>
@@ -340,6 +344,11 @@ function HistoryPage() {
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800">
                             <ArrowUpRight className="size-3 text-amber-600" />
                             Clock Out
+                          </span>
+                        )}
+                        {r.voided && (
+                          <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700 no-underline">
+                            Undone by employee
                           </span>
                         )}
                         {r.late && (

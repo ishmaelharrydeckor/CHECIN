@@ -20,6 +20,7 @@ import {
  *  GET    ?image=ID  : owner only, the screenshot of one report
  *  GET               : owner only, the latest 100 reports
  *  PATCH  owner only : mark a report new / seen / resolved, and add a private note
+ *  DELETE owner only : permanently delete a report and its screenshot (?id=REPORT_ID)
  *
  * Who sent a report comes ONLY from the verified login token, never from the form (AGENTS.md
  * rule 1). Who may READ reports is a short allowlist of user ids in the server environment
@@ -206,6 +207,29 @@ export const Route = createFileRoute("/api/reports/")({
         } catch (err) {
           console.error("PATCH /api/reports error:", err);
           return Response.json({ error: "Could not update the report." }, { status: 500 });
+        }
+      },
+
+      DELETE: async ({ request }) => {
+        try {
+          const caller = await verifyCallerToken(request.headers.get("authorization"));
+          if (!caller || !caller.uid) return Response.json({ error: "Please sign in." }, { status: 401 });
+          if (!isPlatformOwner(caller.uid, owners())) return Response.json({ error: "Not available." }, { status: 403 });
+
+          const id = new URL(request.url).searchParams.get("id") || "";
+          if (!/^[A-Za-z0-9]{10,40}$/.test(id)) return Response.json({ error: "Bad id." }, { status: 400 });
+
+          // The report and its screenshot go together, in one batch.
+          const batch = firestoreAdmin.batch();
+          batch.delete(firestoreAdmin.collection("problem_reports").doc(id));
+          batch.delete(firestoreAdmin.collection("problem_report_files").doc(id));
+          await batch.commit();
+
+          console.info(JSON.stringify({ action: "report.delete", outcome: "ok", uid: caller.uid, reportId: id }));
+          return Response.json({ ok: true }, { headers: JSON_HEADERS });
+        } catch (err) {
+          console.error("DELETE /api/reports error:", err);
+          return Response.json({ error: "Could not delete the report." }, { status: 500 });
         }
       },
     },

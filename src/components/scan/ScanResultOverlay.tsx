@@ -23,9 +23,13 @@ interface Props {
   state: ScanOverlayState;
   /** Success: scan again. Failure: dismiss and try again. */
   onPrimary: () => void;
+  /** Success only: undo this scan. Shown while undoSecondsLeft > 0. */
+  onUndo?: () => void;
+  undoSecondsLeft?: number;
+  undoing?: boolean;
 }
 
-export function ScanResultOverlay({ state, onPrimary }: Props) {
+export function ScanResultOverlay({ state, onPrimary, onUndo, undoSecondsLeft = 0, undoing = false }: Props) {
   if (state.kind === "failure") {
     return (
       <div
@@ -86,6 +90,15 @@ export function ScanResultOverlay({ state, onPrimary }: Props) {
       >
         Scan again
       </button>
+      {onUndo && undoSecondsLeft > 0 && (
+        <button
+          onClick={onUndo}
+          disabled={undoing}
+          className="mt-3 py-2 px-5 rounded-xl border border-[#0E2322]/40 text-[#0E2322] text-sm font-semibold disabled:opacity-60"
+        >
+          {undoing ? "Undoing..." : `Scanned by mistake? Undo (${undoSecondsLeft}s)`}
+        </button>
+      )}
     </div>
   );
 }

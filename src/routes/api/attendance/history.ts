@@ -88,6 +88,7 @@ export const Route = createFileRoute("/api/attendance/history")({
               type: d.type === "out" ? "out" : "in",
               late: d.late === true,
               earlyDeparture: d.earlyDeparture === true,
+              voided: !!d.voidedAt,
               timestamp: d.timestamp,
               verifiedMethod: d.verifiedBy || "15s Dynamic QR · HMAC Verified",
             };
