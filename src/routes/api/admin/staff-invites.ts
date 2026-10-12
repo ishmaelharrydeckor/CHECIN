@@ -193,6 +193,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               photoURL: data.photoURL || null,
               role: data.role || "member",
               department: data.department || DEFAULT_DEPARTMENT,
+              managerId: typeof data.managerId === "string" ? data.managerId : null,
             };
           });
 

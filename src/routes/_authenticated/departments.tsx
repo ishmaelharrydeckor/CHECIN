@@ -21,6 +21,8 @@ interface Member {
   displayName: string;
   email: string;
   department: string;
+  /** Who they report to. A manager (or admin) reports to themself. */
+  managerId?: string | null;
 }
 
 const PEOPLE_SHOWN = 100;
@@ -46,6 +48,7 @@ function DepartmentsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [movingUid, setMovingUid] = useState<string | null>(null);
+  const [reassigningUid, setReassigningUid] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
@@ -122,6 +125,39 @@ function DepartmentsPage() {
       setMovingUid(null);
     }
   };
+
+  // Moving an employee to another manager is the admin's call. The server keeps their login, the
+  // roster and pending leave in step, and signs the person out once so it applies.
+  const handleReassign = async (member: Member, managerId: string) => {
+    const before = member.managerId ?? null;
+    const target = leaders.find((l) => l.uid === managerId);
+    setReassigningUid(member.uid);
+    setMembers((prev) => prev && prev.map((m) => (m.uid === member.uid ? { ...m, managerId } : m)));
+    try {
+      const res = await authedFetch("/api/organization/member-manager", {
+        method: "PUT",
+        body: JSON.stringify({ uid: member.uid, managerId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Could not change the manager.");
+      const moved = data?.pendingLeaveMoved ? ` ${data.pendingLeaveMoved} pending leave request(s) moved with them.` : "";
+      toast.success(`${member.displayName} now reports to ${target?.displayName ?? "the new manager"}.${moved} They will be signed out once.`);
+    } catch (e: any) {
+      setMembers((prev) => prev && prev.map((m) => (m.uid === member.uid ? { ...m, managerId: before } : m)));
+      toast.error(e?.message || "Could not change the manager.");
+    } finally {
+      setReassigningUid(null);
+    }
+  };
+
+  // Managers report to themselves; the admin (this viewer) can also be someone's manager.
+  const leaders = useMemo(
+    () =>
+      (members ?? [])
+        .filter((m) => m.managerId === m.uid || m.uid === user?.id)
+        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [members, user?.id],
+  );
 
   // A manager sees and moves their team; they cannot move themselves (an admin decides that).
   const people = useMemo(() => {
@@ -224,7 +260,7 @@ function DepartmentsPage() {
               <CardTitle className="text-base font-semibold">People</CardTitle>
               <CardDescription className="text-xs">
                 {isOrgAdmin
-                  ? "Choose a department for each person. They can't change their own."
+                  ? "Choose a department and a manager for each person. They can't change their own. Changing a manager signs that person out once; their past check-ins stay where they were."
                   : "Your team. Choose a department for each person."}
               </CardDescription>
             </CardHeader>
@@ -251,24 +287,50 @@ function DepartmentsPage() {
                       // A person whose saved department is no longer on the list is shown under General.
                       const current = matchDepartment(saved, m.department) ?? DEFAULT_DEPARTMENT;
                       return (
-                        <li key={m.uid} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <li key={m.uid} className="py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-[#0E2322] truncate">{m.displayName}</p>
                             <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                           </div>
-                          <select
-                            aria-label={`Department for ${m.displayName}`}
-                            value={current}
-                            disabled={movingUid === m.uid}
-                            onChange={(e) => handleMove(m, e.target.value)}
-                            className="h-10 w-full sm:w-56 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B] disabled:opacity-60 cursor-pointer"
-                          >
-                            {saved.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                            <label className="block">
+                              <span className="block text-[11px] text-muted-foreground mb-0.5">Department</span>
+                              <select
+                                aria-label={`Department for ${m.displayName}`}
+                                value={current}
+                                disabled={movingUid === m.uid}
+                                onChange={(e) => handleMove(m, e.target.value)}
+                                className="h-10 w-full sm:w-52 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B] disabled:opacity-60 cursor-pointer"
+                              >
+                                {saved.map((d) => (
+                                  <option key={d} value={d}>
+                                    {d}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {isOrgAdmin && m.managerId && m.managerId !== m.uid && (
+                              <label className="block">
+                                <span className="block text-[11px] text-muted-foreground mb-0.5">Manager</span>
+                                <select
+                                  aria-label={`Manager for ${m.displayName}`}
+                                  value={m.managerId}
+                                  disabled={reassigningUid === m.uid}
+                                  onChange={(e) => handleReassign(m, e.target.value)}
+                                  className="h-10 w-full sm:w-52 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B] disabled:opacity-60 cursor-pointer"
+                                >
+                                  {!leaders.some((l) => l.uid === m.managerId) && (
+                                    <option value={m.managerId}>Current manager</option>
+                                  )}
+                                  {leaders.map((l) => (
+                                    <option key={l.uid} value={l.uid}>
+                                      {l.displayName}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+                          </div>
                         </li>
                       );
                     })}
