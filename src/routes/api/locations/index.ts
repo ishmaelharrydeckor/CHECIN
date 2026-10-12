@@ -28,7 +28,8 @@ export const Route = createFileRoute("/api/locations/")({
             // Check if kiosk is paired in Admin-only kiosks collection
             const kioskDoc = await firestoreAdmin.collection("kiosks").doc(doc.id).get();
             const isPaired = kioskDoc.exists && !!kioskDoc.data()?.kiosk_secret_hash;
-            const pairedAt = kioskDoc.data()?.kiosk_paired_at || null;
+            const pairedAt = isPaired ? kioskDoc.data()?.kiosk_paired_at || null : null;
+            const revokedAt = !isPaired ? kioskDoc.data()?.kiosk_revoked_at || null : null;
 
             locations.push({
               id: doc.id,
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/api/locations/")({
               kioskGreeting: data.kioskGreeting === true,
               isPaired,
               pairedAt,
+              revokedAt,
             });
           }
 

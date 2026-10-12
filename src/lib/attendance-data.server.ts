@@ -88,6 +88,7 @@ export async function loadScopedEvents(
   const events: RawEvent[] = [];
   for (const doc of snap.docs) {
     const d = doc.data();
+    if (d.voidedAt) continue; // undone by the employee
     if (!d.employeeId || !d.timestamp || (d.type !== "in" && d.type !== "out")) continue;
     events.push({
       id: doc.id,

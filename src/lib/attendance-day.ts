@@ -12,6 +12,9 @@ export type ScanType = "in" | "out";
 /** Minimum gap between two scans by the same person (prevents accidental double-clocking). */
 export const SCAN_COOLDOWN_MS = 60_000;
 
+/** After a scan, the employee may undo it (a mistaken scan) for this long. */
+export const UNDO_WINDOW_MS = 30_000;
+
 function safeTimezone(tz: unknown): string {
   if (typeof tz !== "string" || !tz) return "UTC";
   try {

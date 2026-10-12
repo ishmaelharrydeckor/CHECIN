@@ -4,7 +4,7 @@ import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
 import { getKioskEntry } from "@/lib/kiosk-loader.server";
 import { publishScanNote } from "@/lib/kiosk-channel.server";
 import { computeScanFlags } from "@/lib/attendance-windows";
-import { dayKey, formatClock } from "@/lib/attendance-day";
+import { UNDO_WINDOW_MS, dayKey, formatClock } from "@/lib/attendance-day";
 import {
   applyEventToSummary,
   cooldownFromSummary,
@@ -149,6 +149,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
               const todays: SummaryEvent[] = [];
               for (const d of recent.docs) {
                 const e = d.data();
+                if (e.voidedAt) continue; // an undone scan counts for nothing
                 if ((e.dayKey ?? dayKey(e.timestamp, orgTimezone)) === today) {
                   todays.push({
                     type: e.type === "out" ? "out" : "in",
@@ -220,6 +221,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
               locationName: kiosk.locationName,
               deviceFingerprint: deviceFingerprint || "browser-client",
               verifiedBy: "kiosk_hmac_sha256",
+              // What the day looked like before this scan, so an undo can put it back exactly.
+              summaryBefore: prev,
               schemaVersion: 1,
             };
 
@@ -242,6 +245,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
               timeDisplay,
               employeeName,
               locationName: eventData.locationName,
+              undoSeconds: Math.floor(UNDO_WINDOW_MS / 1000),
               replayed: false,
             };
           });
@@ -317,6 +321,9 @@ async function replayOf(
       timeDisplay: formatClock(e.timestamp, kiosk?.timezone ?? "UTC"),
       employeeName: e.employeeName,
       locationName: e.locationName,
+      undoSeconds: e.voidedAt
+        ? 0
+        : Math.max(0, Math.floor((UNDO_WINDOW_MS - (Date.now() - new Date(e.timestamp).getTime())) / 1000)),
       replayed: true,
     };
   } catch {

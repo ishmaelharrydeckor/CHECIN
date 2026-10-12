@@ -44,6 +44,7 @@ interface KioskLocation {
   name: string;
   isPaired: boolean;
   pairedAt?: string;
+  revokedAt?: string | null;
   reportingTime?: string | null;
   closingTime?: string | null;
   checkoutWindowMinutes?: number;
@@ -343,7 +344,7 @@ function SettingsPage() {
       const data = await res.json();
       if (data.ok) {
         setLocations(
-          locations.map((l) => (l.id === locId ? { ...l, isPaired: false, pairedAt: undefined } : l)),
+          locations.map((l) => (l.id === locId ? { ...l, isPaired: false, pairedAt: undefined, revokedAt: new Date().toISOString() } : l)),
         );
         toast.success("Tablet pairing revoked.");
       } else {
@@ -803,6 +804,10 @@ function SettingsPage() {
                             <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
                             Paired &amp; Active
                           </span>
+                        ) : loc.revokedAt ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-900">
+                            Tablet Revoked
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900">
                             Awaiting Tablet Pairing
@@ -810,7 +815,11 @@ function SettingsPage() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-xs text-muted-foreground">
-                        {loc.pairedAt ? new Date(loc.pairedAt).toLocaleDateString() : "Not paired yet"}
+                        {loc.pairedAt
+                          ? new Date(loc.pairedAt).toLocaleDateString()
+                          : loc.revokedAt
+                            ? `Revoked ${new Date(loc.revokedAt).toLocaleDateString()}`
+                            : "Not paired yet"}
                       </td>
                       <td className="py-3 px-4 text-right">
                         {loc.isPaired ? (

@@ -83,7 +83,14 @@ function AcceptInvitePage() {
         const data = await res.json();
         if (!active) return;
 
-        if (res.ok && data.ok && data.invite) {
+        if (res.status === 429 || res.status >= 500) {
+          setInviteErrorTitle("Please try again");
+          setInviteError(
+            res.status === 429
+              ? data.error || "Too many attempts from this connection. Please wait a few minutes and open the link again."
+              : "We couldn't check this invitation just now. The link is probably fine. Please open it again in a minute.",
+          );
+        } else if (res.ok && data.ok && data.invite) {
           setInviteData(data.invite);
           const nameSuggestion = data.invite.email
             .split("@")[0]

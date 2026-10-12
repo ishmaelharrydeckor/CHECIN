@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/attendance/feed")({
             const timeB = new Date(b.data().timestamp || 0).getTime();
             return timeB - timeA;
           });
-          docs = docs.slice(0, 30);
+          docs = docs.filter((d) => !d.data().voidedAt).slice(0, 30);
 
           const events = docs.map((doc) => {
             const d = doc.data();

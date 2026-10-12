@@ -68,6 +68,10 @@ function ScanPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [processingScan, setProcessingScan] = useState(false);
+  // The scan just made can be undone for a short while (the server decides how long).
+  const [undoState, setUndoState] = useState<{ eventId: string; type: "in" | "out"; until: number } | null>(null);
+  const [undoLeft, setUndoLeft] = useState(0);
+  const [undoing, setUndoing] = useState(false);
 
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -304,6 +308,52 @@ function ScanPage() {
     await handleScanDecoded(payload);
   };
 
+  // Count the undo button down once a second; it disappears when the time is up.
+  useEffect(() => {
+    if (!undoState) return;
+    const tick = () => {
+      const left = Math.ceil((undoState.until - Date.now()) / 1000);
+      if (left <= 0) {
+        setUndoState(null);
+        setUndoLeft(0);
+      } else {
+        setUndoLeft(left);
+      }
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [undoState]);
+
+  const handleUndo = async () => {
+    if (!undoState || undoing) return;
+    setUndoing(true);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Please sign in again.");
+      const res = await fetch("/api/check-in/undo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ eventId: undoState.eventId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not undo that scan.");
+      // The day is back to how it was: if the scan was an "in", you are out again, and vice versa.
+      setStatus(undoState.type === "in" ? "out" : "in");
+      setLastScanTime(null);
+      setUndoState(null);
+      setOverlay(null);
+      lastScanSucceededRef.current = false;
+      userPausedRef.current = false;
+      cooldownRef.current = false;
+      toast.success("Scan undone. Nothing was recorded.");
+      startCamera();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not undo that scan.");
+    } finally {
+      setUndoing(false);
+    }
+  };
+
   // Process a scanned ChecIN payload
   const handleScanDecoded = async ({ token, locationId }: { token: string; locationId: string }) => {
     if (!user) {
@@ -370,6 +420,10 @@ function ScanPage() {
         earlyDeparture: data.earlyDeparture === true,
       });
       scanFeedback(true);
+      if (typeof data.eventId === "string" && Number(data.undoSeconds) > 0) {
+        setUndoState({ eventId: data.eventId, type: isCheckIn ? "in" : "out", until: Date.now() + Number(data.undoSeconds) * 1000 });
+        setUndoLeft(Number(data.undoSeconds));
+      }
 
       // One scan is the whole job: release the camera until they ask for another.
       lastScanSucceededRef.current = true;
@@ -570,9 +624,13 @@ function ScanPage() {
           {overlay && (
             <ScanResultOverlay
               state={overlay}
+              onUndo={handleUndo}
+              undoSecondsLeft={undoLeft}
+              undoing={undoing}
               onPrimary={() => {
                 const wasSuccess = overlay.kind === "success";
                 setOverlay(null);
+                setUndoState(null);
                 cooldownRef.current = false;
                 if (wasSuccess) {
                   lastScanSucceededRef.current = false;
