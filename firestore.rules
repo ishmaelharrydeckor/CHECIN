@@ -251,6 +251,13 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // ---- Team changes (who moved from which manager to which, and when) ----
+    // Written by the server only (docs/MANAGER-CHANGE-DESIGN.md). The org admin can read the history.
+    match /team_changes/{changeId} {
+      allow read: if isOrgAdmin() && inOrg(resource.data);
+      allow create, update, delete: if false;
+    }
+
     // Default Deny: Catch-all for any collection not explicitly matched above
     match /{document=**} {
       allow read, write: if false;

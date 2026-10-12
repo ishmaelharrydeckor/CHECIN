@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  firestoreAdmin,
   getUserClaims,
   resolveTargetInScope,
   revokeUserSessions,
@@ -7,6 +8,7 @@ import {
   verifyCallerToken,
 } from "@/integrations/firebase/admin.server";
 import type { CorporateRole } from "@/lib/auth-claims";
+import { peopleLeftBehind } from "@/lib/manager-change";
 
 /**
  * ChecIN Role Management Endpoint
@@ -19,6 +21,14 @@ import type { CorporateRole } from "@/lib/auth-claims";
  *    A manager can never modify another manager or an admin.
  *  - Cannot change one's own role through this endpoint.
  */
+/** The roster reads `managerId` from the person's profile, so it must follow the claims. */
+async function syncRosterManager(uid: string, managerId: string): Promise<void> {
+  await firestoreAdmin
+    .collection("users")
+    .doc(uid)
+    .set({ managerId, updatedAt: new Date().toISOString() }, { merge: true });
+}
+
 export const Route = createFileRoute("/api/admin/roles")({
   server: {
     handlers: {
@@ -82,6 +92,7 @@ export const Route = createFileRoute("/api/admin/roles")({
             }
             // A manager owns their team: managerId is their own uid
             await setStaffRoleClaims(targetUid, "manager", callerOrgId, targetUid);
+            await syncRosterManager(targetUid, targetUid);
             await revokeUserSessions(targetUid);
             return Response.json({ ok: true, targetUid, role, orgId: callerOrgId, managerId: targetUid });
           }
@@ -104,7 +115,33 @@ export const Route = createFileRoute("/api/admin/roles")({
             }
           }
 
+          // Changing who an existing employee reports to is its own action, so the roster, pending
+          // leave and the history stay in step (docs/MANAGER-CHANGE-DESIGN.md).
+          if (target.role === "employee" && managerIdForEmployee !== target.managerId) {
+            return Response.json(
+              { error: "To change an employee's manager, use the Change manager action." },
+              { status: 409 },
+            );
+          }
+          // A manager who still has people cannot become an employee: that would leave a team
+          // nobody manages. Move the team first.
+          if (target.role === "manager") {
+            const team = await firestoreAdmin
+              .collection("users")
+              .where("orgId", "==", callerOrgId)
+              .where("managerId", "==", targetUid)
+              .limit(3)
+              .get();
+            if (peopleLeftBehind(team.docs.map((d) => d.id), targetUid).length > 0) {
+              return Response.json(
+                { error: "This manager still has people on their team. Move them to another manager first." },
+                { status: 409 },
+              );
+            }
+          }
+
           await setStaffRoleClaims(targetUid, "employee", callerOrgId, managerIdForEmployee);
+          await syncRosterManager(targetUid, managerIdForEmployee);
           await revokeUserSessions(targetUid);
           return Response.json({
             ok: true,
