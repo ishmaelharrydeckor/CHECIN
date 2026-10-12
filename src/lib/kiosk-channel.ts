@@ -30,7 +30,7 @@ export const CHANNEL_NOTE_FIELDS = ["at", "expireAt", "type"] as const;
  * How long a note may stay in the database before Firestore's time-to-live setting deletes it.
  * The time-to-live setting that would delete expired notes needs the paid Firebase plan, so it is NOT
  * switched on yet (firestore.indexes.json has no override for it). Add it back when the projects move to
- * Blaze: { collectionGroup: "kiosk_channels", fieldPath: "expireAt", ttl: true }.
+ * Blaze: a field override with ttl set to true on the expireAt field of the channel notes collection.
  * Deletion is housekeeping only and may happen well after this time; what keeps an old note from
  * ever being shown is the freshness check (NOTE_FRESH_MS), which does not depend on deletion.
  * `expireAt` is just the write time plus this, so it adds nothing a reader did not already have.
