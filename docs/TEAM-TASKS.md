@@ -14,12 +14,13 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 1.5 | Remove demo/mock leftovers | S | integrator | live | none |
 | 1.1 | Leave requests (basic) | M | Cobberson | live | none |
 | 2.5 | Public holiday calendar | S | Augustine | live | none |
-| 1.6 | Manager dashboard: Today panel (real data now available) | M | Augustine (#13) | todo | none |
-| 1.2 | Employee self-service page | M | Cobberson (#14) | todo | 1.1 (done) |
-| 2.1 | On-demand reports: screens and downloads with sample data (integrator adds the data routes) | M | Cobberson (#16) | todo, starts after #14 | 1.1 (done) |
-| 2.3 | Work-from-home status | M | _unassigned_ (#17) | blocked: needs a design note first | 1.1, integrator review |
+| 1.2 | Employee self-service page ("My page") | M | Cobberson (#14) | on staging, not yet tested | 1.1 (done) |
+| 2.1 | Reports: attendance register and leave ledger | M | Cobberson (#16) | on staging (screens and real data), not yet tested | 1.1 (done) |
+| 1.6 | Manager dashboard: Today panel | M | Augustine (#13) | on staging as a screen with sample data; the integrator connects it to the real data next | none |
+| 2.3 | Work from home: employee card and manager list (screens, sample data) | M | Cobberson (#17) | todo. Design approved (docs/WFH-DESIGN.md) | 1.1 (done), integrator builds the routes |
+| 2.4 | Dashboard analytics (screens, sample data) | M | Augustine (#70) | todo | daily summaries (done), integrator builds the numbers |
 
-Next assignments: **1.2** (Cobberson) and **1.6** (Augustine) are ready now. **2.1** goes to Cobberson after 1.2 (screens first; the integrator builds the data routes). **2.3** waits for a short design note.
+Next: **2.3** (Cobberson) and **2.4** (Augustine) are open now, as screens only with sample data. The integrator connects the real data after each one is merged. Integrator-only work: plan gating, billing, email verification, leave types and balances, and phase 3.
 
 Update the Status column in your PR (`todo` > `in progress` > `in review` > `on staging` > `done`).
 
