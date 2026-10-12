@@ -89,8 +89,8 @@ test("forgotten check-out yesterday does not turn today's first scan into 'out'"
 test("cooldown comes from lastEventAt", () => {
   const today = { lastEventAt: "2026-03-10T08:00:00.000Z" };
   const t0 = new Date("2026-03-10T08:00:00.000Z").getTime();
-  assert.equal(cooldownFromSummary(today, t0 + 5_000), 10);
-  assert.equal(cooldownFromSummary(today, t0 + 15_000), 0);
+  assert.equal(cooldownFromSummary(today, t0 + 20_000), 40);
+  assert.equal(cooldownFromSummary(today, t0 + 60_000), 0);
   assert.equal(cooldownFromSummary(null, t0), 0);
 });
 

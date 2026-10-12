@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 
+const DEFAULT_PAGE = 50;
+const MAX_PAGE = 100;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RANGE_MS: Record<string, number> = { today: DAY_MS, week: 7 * DAY_MS, month: 30 * DAY_MS };
+
 export const Route = createFileRoute("/api/attendance/history")({
   server: {
     handlers: {
@@ -13,7 +18,12 @@ export const Route = createFileRoute("/api/attendance/history")({
 
           const url = new URL(request.url);
           const typeParam = url.searchParams.get("type"); // "in" | "out" | null
-          const searchParam = (url.searchParams.get("search") || "").trim().toLowerCase();
+          const rangeParam = url.searchParams.get("range") || "today"; // today | week | month | all
+          const cursor = url.searchParams.get("cursor"); // timestamp of the last record already shown
+          const pageSize = Math.min(
+            Math.max(parseInt(url.searchParams.get("limit") || "", 10) || DEFAULT_PAGE, 1),
+            MAX_PAGE,
+          );
 
           let orgId = caller.orgId;
           if (!orgId) {
@@ -46,22 +56,24 @@ export const Route = createFileRoute("/api/attendance/history")({
             query = query.where("employeeId", "==", caller.uid);
           }
 
-          let snap;
-          try {
-            snap = await query.orderBy("timestamp", "desc").limit(200).get();
-          } catch (queryErr: any) {
-            console.warn("[History] Index fallback:", queryErr?.message);
-            snap = await query.limit(200).get();
+          // The time range and event type are applied by the database, not after the fact, and one
+          // request reads at most one page. Needs the clock_events indexes in firestore.indexes.json.
+          const windowMs = RANGE_MS[rangeParam];
+          if (windowMs) {
+            query = query.where("timestamp", ">=", new Date(Date.now() - windowMs).toISOString());
           }
+          if (typeParam === "in" || typeParam === "out") {
+            query = query.where("type", "==", typeParam);
+          }
+          query = query.orderBy("timestamp", "desc");
+          if (cursor) query = query.startAfter(cursor);
 
-          let docs = snap.docs;
-          docs.sort((a, b) => {
-            const timeA = new Date(a.data().timestamp || 0).getTime();
-            const timeB = new Date(b.data().timestamp || 0).getTime();
-            return timeB - timeA;
-          });
+          // One extra document tells us whether there is another page, without a second read.
+          const snap = await query.limit(pageSize + 1).get();
+          const hasMore = snap.docs.length > pageSize;
+          const docs = snap.docs.slice(0, pageSize);
 
-          let records = docs.map((doc) => {
+          const records = docs.map((doc) => {
             const d = doc.data();
             return {
               id: doc.id,
@@ -81,21 +93,9 @@ export const Route = createFileRoute("/api/attendance/history")({
             };
           });
 
-          // In-memory filters for type and search term
-          if (typeParam && (typeParam === "in" || typeParam === "out")) {
-            records = records.filter((r) => r.type === typeParam);
-          }
+          const nextCursor = hasMore && docs.length ? docs[docs.length - 1].data().timestamp : null;
 
-          if (searchParam) {
-            records = records.filter(
-              (r) =>
-                r.employeeName.toLowerCase().includes(searchParam) ||
-                r.email.toLowerCase().includes(searchParam) ||
-                r.locationName.toLowerCase().includes(searchParam),
-            );
-          }
-
-          return Response.json({ ok: true, records });
+          return Response.json({ ok: true, records, hasMore, nextCursor });
         } catch (err: any) {
           console.error("GET /api/attendance/history error:", err);
           return Response.json({ error: "Failed to fetch attendance history" }, { status: 500 });

@@ -64,8 +64,15 @@ function HistoryPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "in" | "out">("all");
   const [timeRange, setTimeRange] = useState<"today" | "week" | "month" | "all">("today");
 
-  const fetchRecords = async (isManual = false) => {
-    if (isManual) setRefreshing(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // One page at a time. The range and event type are sent to the server, so each request reads
+  // only what is shown; "Load more" asks for the next page using the cursor the server gave us.
+  const fetchRecords = async (mode: "initial" | "refresh" | "more" = "initial") => {
+    if (mode === "more") setLoadingMore(true);
+    else if (mode === "refresh") setRefreshing(true);
     else setLoading(true);
 
     try {
@@ -76,12 +83,20 @@ function HistoryPage() {
         headers.Authorization = `Bearer ${idToken}`;
       }
 
-      const res = await fetch("/api/attendance/history", { headers });
+      const params = new URLSearchParams({ range: timeRange, type: typeFilter, limit: "50" });
+      if (mode === "more" && nextCursor) params.set("cursor", nextCursor);
+
+      const res = await fetch(`/api/attendance/history?${params}`, { headers });
       const data = await res.json();
       if (res.ok && Array.isArray(data.records)) {
-        setRecords(data.records);
-      } else {
+        setRecords((prev) => (mode === "more" ? [...prev, ...data.records] : data.records));
+        setHasMore(data.hasMore === true);
+        setNextCursor(data.nextCursor ?? null);
+      } else if (mode !== "more") {
         setRecords([]);
+        setHasMore(false);
+        setNextCursor(null);
+        toast.error(data?.error || "Could not load attendance history.");
       }
     } catch (err) {
       console.error("Failed to fetch history:", err);
@@ -89,43 +104,25 @@ function HistoryPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     fetchRecords();
-  }, [user?.id]);
+  }, [user?.id, timeRange, typeFilter]);
 
+  // Search only narrows the pages already loaded; it never triggers another database read.
   const filteredRecords = useMemo(() => {
-    const now = Date.now();
-    return records.filter((rec) => {
-      // Time range filter
-      if (timeRange !== "all") {
-        const eventTime = new Date(rec.timestamp).getTime();
-        const diffHours = (now - eventTime) / (1000 * 60 * 60);
-        if (timeRange === "today" && diffHours > 24) return false;
-        if (timeRange === "week" && diffHours > 24 * 7) return false;
-        if (timeRange === "month" && diffHours > 24 * 31) return false;
-      }
-
-      // Event type filter
-      if (typeFilter !== "all" && rec.type !== typeFilter) {
-        return false;
-      }
-
-      // Search term filter
-      if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase();
-        const matches =
-          rec.employeeName.toLowerCase().includes(term) ||
-          rec.email.toLowerCase().includes(term) ||
-          rec.locationName.toLowerCase().includes(term);
-        if (!matches) return false;
-      }
-
-      return true;
-    });
-  }, [records, searchTerm, typeFilter, timeRange]);
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return records;
+    return records.filter(
+      (rec) =>
+        rec.employeeName.toLowerCase().includes(term) ||
+        rec.email.toLowerCase().includes(term) ||
+        rec.locationName.toLowerCase().includes(term),
+    );
+  }, [records, searchTerm]);
 
   const handleExportCSV = () => {
     if (filteredRecords.length === 0) {
@@ -184,14 +181,14 @@ function HistoryPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0E2322]">Attendance History</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Cryptographically verified physical presence scan logs.
+            Verified physical presence scan logs. Showing the newest first; use Load more for older ones.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchRecords(true)}
+            onClick={() => fetchRecords("refresh")}
             disabled={refreshing || loading}
             className="border-slate-200 text-xs font-medium"
           >
@@ -379,6 +376,20 @@ function HistoryPage() {
               </tbody>
             </table>
           </div>
+          {hasMore && !loading && (
+            <div className="p-3 border-t text-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchRecords("more")}
+                disabled={loadingMore}
+                className="text-xs"
+              >
+                {loadingMore ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
+                Load more
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

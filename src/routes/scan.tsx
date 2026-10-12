@@ -621,7 +621,7 @@ function ScanPage() {
           </div>
 
           <p className="text-[10px] text-center text-white/50 pt-1">
-            HMAC verified against entrance kiosk secret • 15s cooldown protected
+            HMAC verified against entrance kiosk secret • 60s cooldown protected
           </p>
         </div>
       </div>

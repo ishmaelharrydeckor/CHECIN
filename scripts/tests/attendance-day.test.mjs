@@ -97,12 +97,12 @@ test("nextScanType: unreadable timestamp is treated as no usable history", () =>
 test("cooldownSecondsLeft", () => {
   const now = Date.parse("2026-05-04T08:00:30.000Z");
   assert.equal(cooldownSecondsLeft(null, now), 0);
-  assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T08:00:00.000Z" }, now), 0); // 30 s elapsed, past the 15 s wait
-  assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T08:00:29.500Z" }, now), 15); // 0.5 s elapsed
-  assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T07:59:30.000Z" }, now), 0); // well past the wait
+  assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T08:00:00.000Z" }, now), 30); // 30 s elapsed
+  assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T08:00:29.500Z" }, now), 60); // 0.5 s elapsed
+  assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T07:59:30.000Z" }, now), 0); // exactly 60 s
   assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T07:00:00.000Z" }, now), 0);
   assert.equal(cooldownSecondsLeft({ timestamp: "garbage" }, now), 0);
   // a timestamp in the future (clock skew) must not lock someone out
   assert.equal(cooldownSecondsLeft({ timestamp: "2026-05-04T09:00:00.000Z" }, now), 0);
-  assert.equal(SCAN_COOLDOWN_MS, 15000);
+  assert.equal(SCAN_COOLDOWN_MS, 60000);
 });
