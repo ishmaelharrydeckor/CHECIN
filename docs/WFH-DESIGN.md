@@ -77,3 +77,5 @@ export interface WfhTodayPerson { employeeId: string; name: string; department: 
 5. **Anything customers have asked for?** **Decision: nothing requested yet.** Approval, weekly limits and half days wait until a customer needs them.
 
 Open for later: half days, recurring patterns ("every Friday"), notifying the manager, an organization policy setting.
+
+> **Update (2026-10-12):** an optional work-from-home **diary** (a started work session with presence checks, reviewed by the manager) is designed in `docs/WFH-DIARY-DESIGN.md`. Until it is built and switched on for an organization, this note's rule stands: a work-from-home day carries no hours.
