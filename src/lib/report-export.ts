@@ -16,9 +16,10 @@ export const STATUS_LABEL: Record<RegisterStatus, string> = {
   wfh: "Work from home",
   off: "Day off",
   other: "Not on your team",
+  expected: "Not yet due",
 };
 
-const STATUS_CODE: Record<RegisterStatus, string> = {
+export const STATUS_CODE: Record<RegisterStatus, string> = {
   present: "P",
   absent: "A",
   leave: "L",
@@ -26,9 +27,10 @@ const STATUS_CODE: Record<RegisterStatus, string> = {
   wfh: "W",
   off: "-",
   other: ".",
+  expected: "E",
 };
 
-const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
+export const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
   present: [203, 238, 211],
   absent: [254, 243, 199],
   leave: [241, 245, 249],
@@ -36,6 +38,7 @@ const STATUS_FILL: Record<RegisterStatus, [number, number, number]> = {
   wfh: [241, 245, 249],
   off: [248, 250, 252],
   other: [255, 255, 255],
+  expected: [248, 250, 252],
 };
 
 /** Hours with one decimal, e.g. 495 -> "8.3". Formatting only. */

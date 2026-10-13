@@ -4,6 +4,9 @@ import type { DashboardScope } from "./dashboard-scope.ts";
 import type { RawEvent, RosterMember, TodayLeave } from "./attendance-today.ts";
 import type { DailySummary } from "./daily-summary.ts";
 import { IN_QUERY_LIMIT, chunk, mergeByKey, movedInMembers } from "./manager-history.ts";
+import { readShiftSettings, type ShiftSettings } from "./shift-requests.ts";
+import { assignmentFromDoc } from "./shift-scan.ts";
+import type { ShiftSnapshot } from "./shift-engine.ts";
 
 /**
  * Data access for the manager dashboard routes (/api/attendance/today and /week).
@@ -22,10 +25,13 @@ export const WEEK_SUMMARY_CAP = 6000;
 export const TODAY_LEAVE_CAP = 1500;
 /** The activity list on the dashboard only ever shows this many events. */
 export const RECENT_EVENT_LIMIT = 20;
+export const SHIFT_ASSIGNMENT_CAP_TODAY = 4000;
+export const SHIFT_ASSIGNMENT_CAP_RANGE = 12000;
 
 interface OrgContext {
   timezone: string;
   roster: RosterMember[];
+  shifts: ShiftSettings;
 }
 
 // The roster and timezone change rarely; caching them keeps a poll from re-reading every user.
@@ -54,6 +60,7 @@ export async function loadOrgContext(scope: DashboardScope): Promise<OrgContext>
   ]);
 
   const timezone = (orgSnap.exists && (orgSnap.data()?.timezone as string)) || "UTC";
+  const shifts = readShiftSettings(orgSnap.exists ? orgSnap.data() : undefined);
   const roster: RosterMember[] = usersSnap.docs.map((d) => {
     const data = d.data();
     return {
@@ -65,7 +72,7 @@ export async function loadOrgContext(scope: DashboardScope): Promise<OrgContext>
     };
   });
 
-  const value = { timezone, roster };
+  const value = { timezone, roster, shifts };
   orgContextCache.set(key, value);
   return value;
 }
@@ -195,4 +202,44 @@ export async function loadApprovedLeaveOnDay(
     .map((d) => d.data() as TodayLeave)
     .filter((l) => typeof l.startDate === "string" && l.startDate <= day);
   return { leaves, truncated: snap.size >= TODAY_LEAVE_CAP };
+}
+
+/**
+ * Shift assignments for the caller's scope in [fromDay, toDay] (inclusive, "YYYY-MM-DD").
+ * An org admin sees the whole organization; a manager sees assignments where managerId == their uid.
+ */
+export async function loadShiftAssignments(
+  scope: DashboardScope,
+  fromDay: string,
+  toDay: string,
+  cap: number,
+): Promise<{
+  assignments: { employeeId: string; dayKey: string; shift: ShiftSnapshot }[];
+  truncated: boolean;
+}> {
+  let query: FirebaseFirestore.Query = firestoreAdmin
+    .collection("shift_assignments")
+    .where("orgId", "==", scope.orgId);
+  if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
+
+  query =
+    fromDay === toDay
+      ? query.where("dayKey", "==", fromDay)
+      : query.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay);
+
+  const snap = await query.limit(cap).get();
+  const assignments: { employeeId: string; dayKey: string; shift: ShiftSnapshot }[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    const employeeId = typeof data.employeeId === "string" ? data.employeeId : "";
+    if (!employeeId) continue;
+    const parsed = assignmentFromDoc(data, scope.orgId);
+    if (!parsed) continue;
+    assignments.push({
+      employeeId,
+      dayKey: parsed.dayKey,
+      shift: parsed.shift,
+    });
+  }
+  return { assignments, truncated: snap.size >= cap };
 }
