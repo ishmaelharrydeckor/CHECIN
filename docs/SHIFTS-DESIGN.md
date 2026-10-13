@@ -59,12 +59,13 @@ An organization can define **shifts** (Day, Early, Late, Night, Flex) and assign
 - A shift also has `unpaidBreakMinutes` (default 0) once breaks exist.
 - Daily summaries and `clock_events` keep their `dayKey`, which for a shift scan **is the shift day**; summaries also store the `shiftId` and the copied start/end.
 - **Indexes:** `shift_assignments (orgId, dayKey)`, `(orgId, managerId, dayKey)`, `(orgId, employeeId, dayKey)`. `shifts (orgId)`.
-- **Scan route budget:** at most **+1 read** per scan (the person's assignments for yesterday, today and tomorrow in one `in` read by id, or one small query), served from a short cache. If the read fails, fall back to today's behaviour.
+- **Scan route budget (revised 2026-10-13):** Firestore bills one read per document, so "+1 read" was wrong. When shifts are on, a scan reads up to 3 assignment documents (yesterday, today, tomorrow) and up to 3 summary documents, in parallel in one round trip: **at most 5 extra document reads**, only for organizations with shifts on. With shifts off, or for a person with no shift, the scan is unchanged. If the assignment read fails or takes longer than 800 ms, the scan falls back to today's behaviour.
 
 ## 5. Build plan (each phase is one PR, reviewed before the next)
 1. **Pure engine and tests** (no screens, no database): shift windows including across midnight, which shift a scan belongs to, late / early with grace, direction by shift day, expected / absent. A large table of tests.
 2. **Data and routes:** collections, rules, indexes, create/list/edit shifts, assign (with the repeat helper), the organization switch.
-3. **Scan integration** behind the switch: choosing the shift, late / early, direction by shift day, **refusing a scan outside the window** (or, in Lenient mode, recording it marked) with the new reasons on the phone, the refused-scan note, a load test and fallback tests (missing data records the scan as today).
+3. **Scan integration** behind the switch: choosing the shift, late / early, direction by shift day, **refusing a scan outside the window** (Strict only in this phase) with the new reasons on the phone, the refused-scan note, a load test and fallback tests (missing data records the scan as today).
+3b. **Lenient mode:** a scan outside the window is recorded but not counted. It needs its own design pass, because an uncounted event must not change the direction of the next scan or the hours; until then the setting behaves as Strict.
 4. **Today panel, week chart, register and reports** read the shift rules (expected, absent, late, "still on a night shift").
 5. **Screens:** shift templates, a rota grid (week view) for admins and managers, "My shifts" for employees, the per-manager "Manage shifts" switch, the Strict / Lenient setting, the "Refused scans" tab in History, phone first.
 6. **Repeating patterns and rotations** (the alternative to filling ranges by hand), with the server keeping assignments filled ahead.
@@ -103,3 +104,5 @@ Decided since: (a) **a manager edits only the shifts they created: yes**; (d) **
 Decided since (continued): (c) **breaks: Way 1. A fixed unpaid break per shift, deducted only when the person was there longer than a set time (for example more than 6 hours); reports keep time at work, break and paid time as three separate figures. Real break scans are only built if a customer must prove exact break times.**
 
 All points are now decided. Next: the phase 1 prompt (`docs/antigravity/prompts/3.1-phase-1-shift-engine.md`).
+
+> **Update (2026-10-13):** the status check on the phone (`/api/check-in/status`) also looks up "today" and must use the shift day, or a night worker would see "checked out" while still on shift. It is part of phase 3.
