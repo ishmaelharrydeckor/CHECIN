@@ -258,6 +258,22 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Shifts (templates) and shift assignments ----
+    // Written by the server only (docs/SHIFTS-DESIGN.md). Everyone in the organization can read the
+    // shift templates; an assignment is readable by the person, their manager and org admins.
+    match /shifts/{shiftId} {
+      allow read: if inOrg(resource.data);
+      allow create, update, delete: if false;
+    }
+    match /shift_assignments/{assignmentId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // Default Deny: Catch-all for any collection not explicitly matched above
     match /{document=**} {
       allow read, write: if false;
