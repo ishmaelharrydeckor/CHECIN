@@ -3,6 +3,7 @@ import { verifyCallerToken } from "@/integrations/firebase/admin.server";
 import {
   RECENT_EVENT_LIMIT,
   SUMMARY_CAP,
+  loadApprovedLeaveOnDay,
   loadOrgContext,
   loadScopedEvents,
   loadScopedSummaries,
@@ -12,6 +13,7 @@ import { createCachedLoader } from "@/lib/ttl-cache.server";
 import type { TodaySummaryData } from "@/lib/attendance-today";
 import { buildTodayFromSummaries, dayBoundsMs } from "@/lib/attendance-today";
 import { dayKey } from "@/lib/attendance-day";
+import { correlationId, logEvent } from "@/lib/log.server";
 
 // Keep each answer for 45 s so several viewers, or one person refreshing, share one calculation.
 // The Refresh button asks for ?fresh=1, which recomputes (but not more than once every 5 s).
@@ -54,11 +56,32 @@ export const Route = createFileRoute("/api/attendance/today")({
               const now = Date.now();
               const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
               const { startMs, endMs } = dayBoundsMs(today, timezone);
-              const [{ summaries, truncated }, { events: recentEvents }] = await Promise.all([
+              const [{ summaries, truncated }, { events: recentEvents }, leaveResult] = await Promise.all([
                 loadScopedSummaries(scope, today, today, SUMMARY_CAP),
                 loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),
+                // People on approved leave are not expected. If leave cannot be read, the panel still works
+                // (it just cannot tell who is on leave).
+                loadApprovedLeaveOnDay(scope, today).catch((leaveErr) => {
+                  logEvent({
+                    action: "attendance.leave_fallback",
+                    outcome: "error",
+                    correlationId: correlationId(request),
+                    uid: scope.uid,
+                    orgId: scope.orgId,
+                    fields: { reason: leaveErr instanceof Error ? leaveErr.message.slice(0, 80) : "read_error" },
+                  });
+                  return { leaves: [], truncated: false };
+                }),
               ]);
-              return buildTodayFromSummaries({ summaries, recentEvents, roster, timezone, now, truncated });
+              return buildTodayFromSummaries({
+                summaries,
+                recentEvents,
+                roster,
+                timezone,
+                now,
+                truncated: truncated || leaveResult.truncated,
+                leaves: leaveResult.leaves,
+              });
             },
             { fresh },
           );

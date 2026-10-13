@@ -1,7 +1,7 @@
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { createTtlCache } from "./ttl-cache.server.ts";
 import type { DashboardScope } from "./dashboard-scope.ts";
-import type { RawEvent, RosterMember } from "./attendance-today.ts";
+import type { RawEvent, RosterMember, TodayLeave } from "./attendance-today.ts";
 import type { DailySummary } from "./daily-summary.ts";
 import { IN_QUERY_LIMIT, chunk, mergeByKey, movedInMembers } from "./manager-history.ts";
 
@@ -18,6 +18,8 @@ export const WEEK_EVENT_CAP = 4000;
 /** Most summaries one dashboard answer reads: 2,000 people, or a few days of a smaller team. */
 export const SUMMARY_CAP = 2000;
 export const WEEK_SUMMARY_CAP = 6000;
+/** Most approved-leave documents one dashboard answer reads. */
+export const TODAY_LEAVE_CAP = 1500;
 /** The activity list on the dashboard only ever shows this many events. */
 export const RECENT_EVENT_LIMIT = 20;
 
@@ -168,4 +170,29 @@ export async function loadScopedSummaries(
     }
   }
   return { summaries, truncated };
+}
+
+/**
+ * Approved leave that covers `day` for the caller's scope (a manager sees their own team's). The database
+ * returns only leave that has not ended yet (`endDate >= day`), so old leave is never read; leave that
+ * starts later is dropped here. Needs the (orgId, status, endDate) and (orgId, managerId, status, endDate)
+ * indexes in firestore.indexes.json.
+ */
+export async function loadApprovedLeaveOnDay(
+  scope: DashboardScope,
+  day: string,
+): Promise<{ leaves: TodayLeave[]; truncated: boolean }> {
+  let query: FirebaseFirestore.Query = firestoreAdmin
+    .collection("leave_requests")
+    .where("orgId", "==", scope.orgId);
+  if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
+  const snap = await query
+    .where("status", "==", "approved")
+    .where("endDate", ">=", day)
+    .limit(TODAY_LEAVE_CAP)
+    .get();
+  const leaves = snap.docs
+    .map((d) => d.data() as TodayLeave)
+    .filter((l) => typeof l.startDate === "string" && l.startDate <= day);
+  return { leaves, truncated: snap.size >= TODAY_LEAVE_CAP };
 }
