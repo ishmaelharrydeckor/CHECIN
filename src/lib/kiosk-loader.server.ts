@@ -2,6 +2,7 @@ import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import type { LocationHours } from "@/lib/attendance-windows";
 import { getCachedKiosk, setCachedKiosk, type KioskCacheEntry } from "@/lib/kiosk-cache.server";
 import { isValidChannelId } from "@/lib/kiosk-channel";
+import { DEFAULT_SHIFT_SETTINGS, readShiftSettings, type ShiftSettings } from "@/lib/shift-requests";
 
 /**
  * Loads everything the kiosk token route and the scan route need about a kiosk
@@ -19,6 +20,7 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
   let hours: LocationHours = {};
   let timezone = "UTC";
   let greeting = false;
+  let shifts: ShiftSettings = { ...DEFAULT_SHIFT_SETTINGS };
   try {
     const [locSnap, orgSnap] = await Promise.all([
       firestoreAdmin.collection("locations").doc(locationId).get(),
@@ -29,7 +31,9 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
       hours = locSnap.data()!;
       greeting = locSnap.data()?.kioskGreeting === true;
     }
-    timezone = orgSnap.data()?.timezone || "UTC";
+    const orgData = orgSnap.data();
+    timezone = orgData?.timezone || "UTC";
+    shifts = readShiftSettings(orgData);
   } catch (modeErr) {
     console.warn("Could not load location hours for kiosk mode:", modeErr);
   }
@@ -42,6 +46,7 @@ export async function loadKiosk(locationId: string): Promise<KioskCacheEntry | n
     hours,
     timezone,
     greeting,
+    shifts,
     channelId: isValidChannelId(kiosk.channelId) ? kiosk.channelId : undefined,
     channelRotatedAt: typeof kiosk.channelRotatedAt === "number" ? kiosk.channelRotatedAt : undefined,
   };
