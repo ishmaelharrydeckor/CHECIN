@@ -122,14 +122,45 @@ export type ExpandAssignmentRangeResult =
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Building an Intl formatter is the slow part of every time conversion (about 1 ms), and a scan needs
+// many of them, so each time zone's formatter is built once and reused. Bounded in case an invalid
+// name is ever passed in many different spellings.
+const CACHE_LIMIT = 200;
+const zoneIsValid = new Map<string, boolean>();
+const wallFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function safeTimezone(tz: unknown): string {
   if (typeof tz !== "string" || !tz) return "UTC";
+  const known = zoneIsValid.get(tz);
+  if (known !== undefined) return known ? tz : "UTC";
+  let ok = true;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return tz;
   } catch {
-    return "UTC";
+    ok = false;
   }
+  if (zoneIsValid.size >= CACHE_LIMIT) zoneIsValid.clear();
+  zoneIsValid.set(tz, ok);
+  return ok ? tz : "UTC";
+}
+
+function wallFormatter(tz: string): Intl.DateTimeFormat {
+  let f = wallFormatters.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    if (wallFormatters.size >= CACHE_LIMIT) wallFormatters.clear();
+    wallFormatters.set(tz, f);
+  }
+  return f;
 }
 
 function isRealDay(key: unknown): key is string {
@@ -262,16 +293,7 @@ export function shiftMinutes(start: string, end: string): number {
 }
 
 function wallMsInZone(instantMs: number, tz: string): number {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(instantMs));
+  const parts = wallFormatter(tz).formatToParts(new Date(instantMs));
   let y = 0;
   let m = 0;
   let d = 0;
