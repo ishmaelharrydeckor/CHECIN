@@ -288,7 +288,8 @@ export const Route = createFileRoute("/api/shifts/assignments")({
                 ? snap.data()!.displayName.trim()
                 : "";
             const authName = resolved.targets.get(snap.id)?.authDisplayName.trim() || "";
-            nameByUid.set(snap.id, docName || authName || "Employee");
+            // The profile name is editable by the person and is copied onto every assignment, so keep it short.
+            nameByUid.set(snap.id, (docName || authName || "Employee").slice(0, 80));
           }
 
           const hasTodaySummary = days.includes(today)

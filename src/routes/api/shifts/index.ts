@@ -48,15 +48,26 @@ export const Route = createFileRoute("/api/shifts/")({
             );
           }
 
-          const snap = await firestoreAdmin
+          // Active and archived shifts are read separately. Archived shifts are never deleted, so a
+          // single mixed read of the first 200 could push active shifts out of the list.
+          const activeSnap = await firestoreAdmin
             .collection("shifts")
             .where("orgId", "==", orgId)
+            .where("archived", "==", false)
             .limit(200)
             .get();
+          const archivedSnap = wantArchived
+            ? await firestoreAdmin
+                .collection("shifts")
+                .where("orgId", "==", orgId)
+                .where("archived", "==", true)
+                .limit(200)
+                .get()
+            : null;
 
-          const shifts = snap.docs
-            .map((doc) => formatShiftRow(doc.id, doc.data()))
-            .filter((row) => wantArchived || !row.archived);
+          const shifts = [...activeSnap.docs, ...(archivedSnap?.docs ?? [])].map((doc) =>
+            formatShiftRow(doc.id, doc.data()),
+          );
 
           return Response.json({ ok: true, shifts });
         } catch (err) {
@@ -98,13 +109,14 @@ export const Route = createFileRoute("/api/shifts/")({
             return Response.json({ error: parsed.error }, { status: 400 });
           }
 
-          const existingSnap = await firestoreAdmin
+          // Only the count of active shifts matters, and reading up to the cap is enough to know.
+          const activeSnap = await firestoreAdmin
             .collection("shifts")
             .where("orgId", "==", orgId)
-            .limit(200)
+            .where("archived", "==", false)
+            .limit(MAX_ACTIVE_SHIFTS)
             .get();
-          const activeCount = existingSnap.docs.filter((d) => d.data().archived !== true).length;
-          if (activeCount >= MAX_ACTIVE_SHIFTS) {
+          if (activeSnap.size >= MAX_ACTIVE_SHIFTS) {
             return Response.json(
               {
                 error: `Your organization already has ${MAX_ACTIVE_SHIFTS} active shifts. Archive an unused shift first.`,
