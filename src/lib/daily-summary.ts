@@ -22,6 +22,10 @@ export interface SummaryIdentity {
   department: string;
   /** YYYY-MM-DD in the organization's timezone. */
   dayKey: string;
+  shiftId?: string;
+  shiftName?: string;
+  shiftStart?: string | null;
+  shiftEnd?: string | null;
 }
 
 /** The parts of a clock event the summary needs. */
@@ -106,9 +110,22 @@ export function applyEventToSummary(
   if (!prev) {
     // First scan of the day. A check-out with nothing before it (the check-in
     // happened on an earlier day) is recorded but opens and closes nothing.
+    // Firestore rejects keys with value `undefined`, so shift fields are only added when present.
     const isIn = event.type === "in";
+    const shiftFields: Partial<Pick<SummaryIdentity, "shiftId" | "shiftName" | "shiftStart" | "shiftEnd">> = {};
+    if (identity.shiftId !== undefined) shiftFields.shiftId = identity.shiftId;
+    if (identity.shiftName !== undefined) shiftFields.shiftName = identity.shiftName;
+    if (identity.shiftStart !== undefined) shiftFields.shiftStart = identity.shiftStart;
+    if (identity.shiftEnd !== undefined) shiftFields.shiftEnd = identity.shiftEnd;
+
     return {
-      ...identity,
+      orgId: identity.orgId,
+      managerId: identity.managerId,
+      employeeId: identity.employeeId,
+      employeeName: identity.employeeName,
+      department: identity.department,
+      dayKey: identity.dayKey,
+      ...shiftFields,
       firstIn: isIn ? event.timestamp : null,
       lastOut: isIn ? null : event.timestamp,
       lastEventType: event.type,

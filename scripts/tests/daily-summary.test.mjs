@@ -142,3 +142,61 @@ test("a summary written before the department field gains it on the next scan", 
   const next = applyEventToSummary(old, ev("out", "12:00"), id, NOW);
   assert.equal(next.department, "Ops");
 });
+
+test("first scan of a shift day creates the summary with shiftId, shiftName, shiftStart and shiftEnd", () => {
+  const shiftIdentity = {
+    ...id,
+    shiftId: "shift_day",
+    shiftName: "Day Shift",
+    shiftStart: "09:00",
+    shiftEnd: "17:00",
+  };
+  const s = applyEventToSummary(null, ev("in", "08:55", { late: false }), shiftIdentity, NOW);
+  assert.equal(s.shiftId, "shift_day");
+  assert.equal(s.shiftName, "Day Shift");
+  assert.equal(s.shiftStart, "09:00");
+  assert.equal(s.shiftEnd, "17:00");
+  assert.equal(Object.values(s).includes(undefined), false);
+});
+
+test("later scans on a shift day keep the shift fields from the first scan", () => {
+  const shiftIdentity = {
+    ...id,
+    shiftId: "shift_night",
+    shiftName: "Night Shift",
+    shiftStart: "22:00",
+    shiftEnd: "06:00",
+  };
+  let s = applyEventToSummary(null, ev("in", "21:55"), shiftIdentity, NOW);
+  // Even if a later scan passes a plain identity, ...prev preserves the shift fields
+  s = applyEventToSummary(s, ev("out", "23:55"), id, NOW);
+  s = applyEventToSummary(s, ev("in", "00:15"), id, NOW);
+  assert.equal(s.shiftId, "shift_night");
+  assert.equal(s.shiftName, "Night Shift");
+  assert.equal(s.shiftStart, "22:00");
+  assert.equal(s.shiftEnd, "06:00");
+  assert.equal(Object.values(s).includes(undefined), false);
+});
+
+test("a summary created with no shift omits the shift keys and never contains undefined values", () => {
+  const s = applyEventToSummary(null, ev("in", "08:00"), id, NOW);
+  assert.equal("shiftId" in s, false);
+  assert.equal("shiftName" in s, false);
+  assert.equal("shiftStart" in s, false);
+  assert.equal("shiftEnd" in s, false);
+  assert.equal(Object.values(s).includes(undefined), false);
+
+  // Even if caller explicitly passes undefined shift properties on identity, they are omitted
+  const withExplicitUndefined = applyEventToSummary(
+    null,
+    ev("in", "08:00"),
+    { ...id, shiftId: undefined, shiftName: undefined, shiftStart: undefined, shiftEnd: undefined },
+    NOW,
+  );
+  assert.equal("shiftId" in withExplicitUndefined, false);
+  assert.equal("shiftName" in withExplicitUndefined, false);
+  assert.equal("shiftStart" in withExplicitUndefined, false);
+  assert.equal("shiftEnd" in withExplicitUndefined, false);
+  assert.equal(Object.values(withExplicitUndefined).includes(undefined), false);
+});
+

@@ -1,4 +1,5 @@
 import type { LocationHours } from "./attendance-windows";
+import type { ShiftSettings } from "./shift-requests.ts";
 
 /**
  * Per-instance cache for the data /api/kiosk/token needs on every poll.
@@ -28,6 +29,8 @@ export interface KioskCacheEntry {
    * (docs/SCALE-PLAN.md, S3/S4).
    */
   greeting: boolean;
+  /** Shift settings from the organization document (60s cache TTL). */
+  shifts: ShiftSettings;
   /** The tablet's private live-greeting channel address, if it has one yet (see kiosk-channel.ts). */
   channelId?: string;
   /** When that address was created (ms). Used to replace it daily; see kiosk-channel.ts. */
