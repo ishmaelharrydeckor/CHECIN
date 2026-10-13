@@ -8,7 +8,8 @@ import {
 } from "@/integrations/firebase/admin.server";
 import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
-import { MAX_PENDING_LEAVE_MOVED, planManagerMove } from "@/lib/manager-change";
+import { MAX_FUTURE_SHIFTS_MOVED, MAX_PENDING_LEAVE_MOVED, planManagerMove } from "@/lib/manager-change";
+import { dayKey } from "@/lib/attendance-day";
 
 /**
  * Move an employee to another manager (design: docs/MANAGER-CHANGE-DESIGN.md).
@@ -17,6 +18,7 @@ import { MAX_PENDING_LEAVE_MOVED, planManagerMove } from "@/lib/manager-change";
  *  1. the login permissions (the claims decide who their next scan is filed under),
  *  2. the roster copy on their profile,
  *  3. their pending leave requests (decided ones are history and stay as they are),
+ *     and their shift assignments from today onwards (past ones are history and stay),
  *  4. one history record in `team_changes` (written by the server only).
  * Past check-ins and daily summaries are never touched: they keep the manager they were written with.
  * Who is calling and which organization both come from the verified token; the person and the new
@@ -70,6 +72,28 @@ export const Route = createFileRoute("/api/organization/member-manager")({
             );
           }
 
+          // Shifts from today onwards follow the person, so the new manager's rota and dashboard see them
+          // (each assignment carries a copy of the manager). Past shifts stay with the manager they had.
+          const orgSnap = await firestoreAdmin.collection("organizations").doc(orgId).get();
+          const rawTz = orgSnap.exists ? orgSnap.data()?.timezone : undefined;
+          const tz = typeof rawTz === "string" && rawTz.trim().length > 0 ? rawTz.trim() : "UTC";
+          const today = dayKey(Date.now(), tz) ?? new Date().toISOString().slice(0, 10);
+          const futureShifts = await firestoreAdmin
+            .collection("shift_assignments")
+            .where("orgId", "==", orgId)
+            .where("employeeId", "==", targetUid)
+            .where("dayKey", ">=", today)
+            .limit(MAX_FUTURE_SHIFTS_MOVED + 1)
+            .get();
+          if (futureShifts.size > MAX_FUTURE_SHIFTS_MOVED) {
+            return Response.json(
+              {
+                error: `This person has more than ${MAX_FUTURE_SHIFTS_MOVED} shifts planned. Clear some of their future shifts first, then move them.`,
+              },
+              { status: 409 },
+            );
+          }
+
           const fromManagerId = target!.managerId;
           const now = new Date().toISOString();
 
@@ -84,6 +108,7 @@ export const Route = createFileRoute("/api/organization/member-manager")({
               { merge: true },
             );
             for (const doc of pending.docs) batch.update(doc.ref, { managerId: newManagerUid });
+            for (const doc of futureShifts.docs) batch.update(doc.ref, { managerId: newManagerUid });
             batch.set(firestoreAdmin.collection("team_changes").doc(), {
               orgId,
               employeeId: targetUid,
@@ -92,6 +117,7 @@ export const Route = createFileRoute("/api/organization/member-manager")({
               changedAt: now,
               changedBy: caller.uid,
               pendingLeaveMoved: pending.size,
+              futureShiftsMoved: futureShifts.size,
             });
             await batch.commit();
           } catch (err) {
@@ -126,9 +152,14 @@ export const Route = createFileRoute("/api/organization/member-manager")({
             correlationId: correlationId(request),
             orgId,
             uid: caller.uid,
-            fields: { target: targetUid, pendingLeaveMoved: pending.size },
+            fields: { target: targetUid, pendingLeaveMoved: pending.size, futureShiftsMoved: futureShifts.size },
           });
-          return Response.json({ ok: true, managerId: newManagerUid, pendingLeaveMoved: pending.size });
+          return Response.json({
+            ok: true,
+            managerId: newManagerUid,
+            pendingLeaveMoved: pending.size,
+            futureShiftsMoved: futureShifts.size,
+          });
         } catch (err) {
           console.error("Member manager error:", err);
           return Response.json({ error: "Could not move the person" }, { status: 500 });
