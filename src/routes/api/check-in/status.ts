@@ -5,6 +5,7 @@ import { summaryDocId, type DailySummary } from "@/lib/daily-summary";
 import { assignmentId, type ShiftAssignment } from "@/lib/shift-engine";
 import { readShiftSettings, type ShiftSettings } from "@/lib/shift-requests";
 import { assignmentFromDoc, candidateShiftDays, planShiftStatus } from "@/lib/shift-scan";
+import { correlationId, logEvent } from "@/lib/log.server";
 import { createTtlCache } from "@/lib/ttl-cache.server";
 
 /**
@@ -108,9 +109,20 @@ export const Route = createFileRoute("/api/check-in/status")({
                 }
                 fallbackTodaySummary = { loaded: true, summary: summaries[today] ?? null };
               }
-            } catch {
+            } catch (shiftErr) {
               // Any error or timeout reading shift data falls back to today's legacy status behaviour.
               fallbackTodaySummary = null;
+              logEvent({
+                action: "status.shift_fallback",
+                outcome: "error",
+                correlationId: correlationId(request),
+                uid: caller.uid,
+                orgId: caller.orgId,
+                fields: {
+                  reason:
+                    shiftErr instanceof Error && /TIMEOUT/.test(shiftErr.message) ? "timeout" : "read_error",
+                },
+              });
             } finally {
               if (timer) clearTimeout(timer);
             }

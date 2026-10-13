@@ -135,10 +135,12 @@ export const Route = createFileRoute("/api/check-in/scan")({
           const nowIso = new Date(now).toISOString();
           const today = dayKey(now, orgTimezone) ?? nowIso.slice(0, 10);
           const managerId = (caller as any).managerId || null;
-          const days = candidateShiftDays(now, orgTimezone);
+          // Shifts are off by default: then nothing about shifts is worked out or read at all.
+          const shiftsOn = kiosk.shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1";
+          const days = shiftsOn ? candidateShiftDays(now, orgTimezone) : [];
 
           let assignments: ShiftAssignment[] = [];
-          if (kiosk.shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1" && days.length > 0) {
+          if (shiftsOn && days.length > 0) {
             let timer: ReturnType<typeof setTimeout> | undefined;
             try {
               const assignRefs = days.map((day) =>
@@ -352,6 +354,14 @@ export const Route = createFileRoute("/api/check-in/scan")({
 
           if (txResult.refused) {
             const { plan } = txResult;
+            // A retry of a scan that WAS recorded (its answer was lost) can arrive after the window has
+            // closed. Answer with the original result, exactly as the normal path does, instead of
+            // telling the person it was not recorded.
+            const replay = await replayOf(scanActor, requestScanId);
+            if (replay) {
+              logEvent({ action: "scan.record", outcome: "ok", correlationId: cid, ...scanActor, fields: { replayed: true } });
+              return Response.json({ ok: true, ...replay });
+            }
             try {
               const noteId = refusedScanId(caller.uid, plan.shiftDay, plan.reason, now);
               await firestoreAdmin
