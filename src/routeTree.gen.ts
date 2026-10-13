@@ -59,6 +59,10 @@ import { Route as ApiPushVapidKeyRouteImport } from './routes/api/push/vapid-key
 import { Route as ApiReportsIndexRouteImport } from './routes/api/reports/index'
 import { Route as ApiReportsLeaveRouteImport } from './routes/api/reports/leave'
 import { Route as ApiReportsRegisterRouteImport } from './routes/api/reports/register'
+import { Route as ApiShiftsIndexRouteImport } from './routes/api/shifts/index'
+import { Route as ApiShiftsAccessRouteImport } from './routes/api/shifts/access'
+import { Route as ApiShiftsAssignmentsRouteImport } from './routes/api/shifts/assignments'
+import { Route as ApiShiftsSettingsRouteImport } from './routes/api/shifts/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -316,6 +320,26 @@ const ApiReportsRegisterRoute = ApiReportsRegisterRouteImport.update({
   path: '/api/reports/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiShiftsIndexRoute = ApiShiftsIndexRouteImport.update({
+  id: '/api/shifts/',
+  path: '/api/shifts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShiftsAccessRoute = ApiShiftsAccessRouteImport.update({
+  id: '/api/shifts/access',
+  path: '/api/shifts/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShiftsAssignmentsRoute = ApiShiftsAssignmentsRouteImport.update({
+  id: '/api/shifts/assignments',
+  path: '/api/shifts/assignments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShiftsSettingsRoute = ApiShiftsSettingsRouteImport.update({
+  id: '/api/shifts/settings',
+  path: '/api/shifts/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -363,10 +387,14 @@ export interface FileRoutesByFullPath {
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
   '/api/reports/leave': typeof ApiReportsLeaveRoute
   '/api/reports/register': typeof ApiReportsRegisterRoute
+  '/api/shifts/access': typeof ApiShiftsAccessRoute
+  '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
   '/api/reports/': typeof ApiReportsIndexRoute
+  '/api/shifts/': typeof ApiShiftsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -414,10 +442,14 @@ export interface FileRoutesByTo {
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
   '/api/reports/leave': typeof ApiReportsLeaveRoute
   '/api/reports/register': typeof ApiReportsRegisterRoute
+  '/api/shifts/access': typeof ApiShiftsAccessRoute
+  '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
   '/api/locations': typeof ApiLocationsIndexRoute
   '/api/organization': typeof ApiOrganizationIndexRoute
   '/api/reports': typeof ApiReportsIndexRoute
+  '/api/shifts': typeof ApiShiftsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -467,10 +499,14 @@ export interface FileRoutesById {
   '/api/push/vapid-key': typeof ApiPushVapidKeyRoute
   '/api/reports/leave': typeof ApiReportsLeaveRoute
   '/api/reports/register': typeof ApiReportsRegisterRoute
+  '/api/shifts/access': typeof ApiShiftsAccessRoute
+  '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
   '/api/organization/': typeof ApiOrganizationIndexRoute
   '/api/reports/': typeof ApiReportsIndexRoute
+  '/api/shifts/': typeof ApiShiftsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -520,10 +556,14 @@ export interface FileRouteTypes {
     | '/api/push/vapid-key'
     | '/api/reports/leave'
     | '/api/reports/register'
+    | '/api/shifts/access'
+    | '/api/shifts/assignments'
+    | '/api/shifts/settings'
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
     | '/api/reports/'
+    | '/api/shifts/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -571,10 +611,14 @@ export interface FileRouteTypes {
     | '/api/push/vapid-key'
     | '/api/reports/leave'
     | '/api/reports/register'
+    | '/api/shifts/access'
+    | '/api/shifts/assignments'
+    | '/api/shifts/settings'
     | '/api/announcements'
     | '/api/locations'
     | '/api/organization'
     | '/api/reports'
+    | '/api/shifts'
   id:
     | '__root__'
     | '/'
@@ -623,10 +667,14 @@ export interface FileRouteTypes {
     | '/api/push/vapid-key'
     | '/api/reports/leave'
     | '/api/reports/register'
+    | '/api/shifts/access'
+    | '/api/shifts/assignments'
+    | '/api/shifts/settings'
     | '/api/announcements/'
     | '/api/locations/'
     | '/api/organization/'
     | '/api/reports/'
+    | '/api/shifts/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -664,10 +712,14 @@ export interface RootRouteChildren {
   ApiPushVapidKeyRoute: typeof ApiPushVapidKeyRoute
   ApiReportsLeaveRoute: typeof ApiReportsLeaveRoute
   ApiReportsRegisterRoute: typeof ApiReportsRegisterRoute
+  ApiShiftsAccessRoute: typeof ApiShiftsAccessRoute
+  ApiShiftsAssignmentsRoute: typeof ApiShiftsAssignmentsRoute
+  ApiShiftsSettingsRoute: typeof ApiShiftsSettingsRoute
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
   ApiLocationsIndexRoute: typeof ApiLocationsIndexRoute
   ApiOrganizationIndexRoute: typeof ApiOrganizationIndexRoute
   ApiReportsIndexRoute: typeof ApiReportsIndexRoute
+  ApiShiftsIndexRoute: typeof ApiShiftsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1022,6 +1074,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReportsRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shifts/': {
+      id: '/api/shifts/'
+      path: '/api/shifts'
+      fullPath: '/api/shifts/'
+      preLoaderRoute: typeof ApiShiftsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shifts/access': {
+      id: '/api/shifts/access'
+      path: '/api/shifts/access'
+      fullPath: '/api/shifts/access'
+      preLoaderRoute: typeof ApiShiftsAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shifts/assignments': {
+      id: '/api/shifts/assignments'
+      path: '/api/shifts/assignments'
+      fullPath: '/api/shifts/assignments'
+      preLoaderRoute: typeof ApiShiftsAssignmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shifts/settings': {
+      id: '/api/shifts/settings'
+      path: '/api/shifts/settings'
+      fullPath: '/api/shifts/settings'
+      preLoaderRoute: typeof ApiShiftsSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1093,10 +1173,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPushVapidKeyRoute: ApiPushVapidKeyRoute,
   ApiReportsLeaveRoute: ApiReportsLeaveRoute,
   ApiReportsRegisterRoute: ApiReportsRegisterRoute,
+  ApiShiftsAccessRoute: ApiShiftsAccessRoute,
+  ApiShiftsAssignmentsRoute: ApiShiftsAssignmentsRoute,
+  ApiShiftsSettingsRoute: ApiShiftsSettingsRoute,
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
   ApiLocationsIndexRoute: ApiLocationsIndexRoute,
   ApiOrganizationIndexRoute: ApiOrganizationIndexRoute,
   ApiReportsIndexRoute: ApiReportsIndexRoute,
+  ApiShiftsIndexRoute: ApiShiftsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
