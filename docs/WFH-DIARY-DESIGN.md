@@ -1,6 +1,6 @@
 # Design note: work-from-home diary (2.3b)
 
-Status: **proposed, needs the owner's sign-off** (section 9). Nothing is built until it is approved.
+Status: **approved by the owner on 2026-10-12** (decisions 1 to 7 in section 10: yes; decision 8: nothing requested yet). Build order: after work from home (2.3) is built and connected, and after shifts; the phase prompts are written when it is next in line.
 Builds on `docs/WFH-DESIGN.md` (a work-from-home day is self-declared and carries no scanned hours). This note adds an **optional diary** that can show hours and activity for those days. It is built **natively inside ChecIN**: no connection to any other product.
 
 ## 1. What it is
@@ -71,12 +71,12 @@ Dependencies: work from home (2.3) built and connected; payroll (3.5) for the ex
 | Trust and morale | Off by default; the employee's own view; no automatic penalties |
 | Phones sleeping tabs | A clear warning; unverified time is shown, not hidden |
 
-## 10. Decisions needed from the owner
-1. **Tier 1 first (a web session with presence checks), with the desktop agent left as a separate later decision?** (recommended: yes)
-2. **Hours come from verified presence; activity counts are shown to the manager as context only?** (recommended: yes)
-3. **Random "still here?" checks, default 2 an hour, adjustable 0 to 4?** (recommended: yes)
-4. **Diary hours count only after the manager approves the day?** (recommended: yes)
-5. **No screenshots in v1?** (recommended: yes)
-6. **Consent is required and recorded before the first session?** (recommended: yes)
-7. **Interval detail kept 12 months by default, daily summary kept?** (recommended: yes)
-8. **Anything customers have asked for?** (nothing assumed)
+## 10. Decisions (owner, 2026-10-12)
+1. **Tier 1 first (a web session with presence checks), with the desktop agent left as a separate later decision?** **Decision: yes.**
+2. **Hours come from verified presence; activity counts are shown to the manager as context only?** **Decision: yes.**
+3. **Random "still here?" checks, default 2 an hour, adjustable 0 to 4?** **Decision: yes.**
+4. **Diary hours count only after the manager approves the day?** **Decision: yes.**
+5. **No screenshots in v1?** **Decision: yes.**
+6. **Consent is required and recorded before the first session?** **Decision: yes.**
+7. **Interval detail kept 12 months by default, daily summary kept?** **Decision: yes.**
+8. **Anything customers have asked for?** **Decision: nothing requested yet.**
