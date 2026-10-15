@@ -126,6 +126,8 @@ export function buildAttendanceRegister(input: {
   generatedAt: string;
   from: string;
   to: string;
+  /** Self-declared work-from-home days (docs/WFH-DESIGN.md). A scan or approved leave on the same day wins. */
+  wfh?: readonly { employeeId: string; dayKey: string }[];
   /** True if a read stopped at its safety cap, so the report may be missing people or days. */
   readTruncated?: boolean;
   shifts?: {
@@ -153,6 +155,8 @@ export function buildAttendanceRegister(input: {
     leavesByPerson.set(l.employeeId, list);
   }
 
+  const wfhSet = new Set((input.wfh ?? []).map((w) => `${w.employeeId}|${w.dayKey}`));
+
   const assignmentsByPersonDay = new Map<string, Map<string, ShiftSnapshot>>();
   if (input.shifts) {
     for (const a of input.shifts.assignments) {
@@ -174,6 +178,8 @@ export function buildAttendanceRegister(input: {
       if (s) return presentDay(d, s, timezone);
       const blank = { dayKey: d, firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
       if (leave.some((l) => l.start <= d && d <= l.end)) return { ...blank, status: "leave" };
+      // Declared work from home counts as attended (no hours are recorded for it).
+      if (wfhSet.has(`${p.uid}|${d}`)) return { ...blank, status: "wfh" };
       if (holiday.has(d)) return { ...blank, status: "holiday" };
 
       if (!input.shifts) {
@@ -210,6 +216,7 @@ export function buildAttendanceRegister(input: {
         lateDays: count((x) => x.status === "present" && x.late),
         absentDays: count((x) => x.status === "absent"),
         leaveDays: count((x) => x.status === "leave"),
+        wfhDays: count((x) => x.status === "wfh"),
         minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
       },
     };
@@ -243,6 +250,7 @@ export function buildAttendanceRegister(input: {
         lateDays: outDays.filter((x) => x.status === "present" && x.late).length,
         absentDays: 0,
         leaveDays: 0,
+        wfhDays: 0,
         minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
       },
     });

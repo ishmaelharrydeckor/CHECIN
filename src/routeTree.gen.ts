@@ -30,7 +30,6 @@ import { Route as AuthenticatedMyShiftsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
-import { Route as AuthenticatedWfhPreviewRouteImport } from './routes/_authenticated/wfh-preview'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
 import { Route as ApiWfhRouteImport } from './routes/api/wfh'
 import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
@@ -176,11 +175,6 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedShiftsRoute = AuthenticatedShiftsRouteImport.update({
   id: '/shifts',
   path: '/shifts',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedWfhPreviewRoute = AuthenticatedWfhPreviewRouteImport.update({
-  id: '/wfh-preview',
-  path: '/wfh-preview',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
@@ -399,7 +393,6 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
-  '/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/api/wfh': typeof ApiWfhRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -460,7 +453,6 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
-  '/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/api/wfh': typeof ApiWfhRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -523,7 +515,6 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
-  '/_authenticated/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/api/wfh': typeof ApiWfhRoute
   '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
@@ -586,7 +577,6 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/shifts'
-    | '/wfh-preview'
     | '/accept-invite/$token'
     | '/api/wfh'
     | '/owner/reports'
@@ -647,7 +637,6 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/shifts'
-    | '/wfh-preview'
     | '/accept-invite/$token'
     | '/api/wfh'
     | '/owner/reports'
@@ -709,7 +698,6 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/shifts'
-    | '/_authenticated/wfh-preview'
     | '/accept-invite/$token'
     | '/api/wfh'
     | '/_authenticated/owner/reports'
@@ -944,13 +932,6 @@ declare module '@tanstack/react-router' {
       path: '/shifts'
       fullPath: '/shifts'
       preLoaderRoute: typeof AuthenticatedShiftsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/wfh-preview': {
-      id: '/_authenticated/wfh-preview'
-      path: '/wfh-preview'
-      fullPath: '/wfh-preview'
-      preLoaderRoute: typeof AuthenticatedWfhPreviewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/accept-invite/$token': {
@@ -1237,7 +1218,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
-  AuthenticatedWfhPreviewRoute: typeof AuthenticatedWfhPreviewRoute
   AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
 }
 
@@ -1256,7 +1236,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
-  AuthenticatedWfhPreviewRoute: AuthenticatedWfhPreviewRoute,
   AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
 }
 

@@ -70,16 +70,16 @@ const register = {
       name: "=Kwame Test",
       department: "+Finance",
       days: [day(), day({ dayKey: "2026-10-06", status: "absent", firstIn: null, lastOut: null, minutesWorked: 0 })],
-      totals: { presentDays: 1, lateDays: 0, absentDays: 1, leaveDays: 0, minutesWorked: 495 },
+      totals: { presentDays: 1, lateDays: 0, absentDays: 1, leaveDays: 0, wfhDays: 0, minutesWorked: 495 },
     },
   ],
 };
 
 test("registerToCsv: headings, one column per day, totals, hours with one decimal", () => {
   const lines = registerToCsv(register).replace(CSV_BOM, "").trim().split("\r\n");
-  assert.equal(lines[0], "Name,Department,2026-10-05,2026-10-06,Present days,Late days,Absent days,Leave days,Hours worked");
+  assert.equal(lines[0], "Name,Department,2026-10-05,2026-10-06,Present days,Late days,Absent days,Leave days,Work from home days,Hours worked");
   assert.equal(lines[1].split(",").length, lines[0].split(",").length);
-  assert.ok(lines[1].endsWith(",1,0,1,0,8.3"));
+  assert.ok(lines[1].endsWith(",1,0,1,0,0,8.3"));
 });
 
 test("registerToCsv: names and departments that look like formulas are neutralised", () => {

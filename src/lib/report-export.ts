@@ -85,6 +85,7 @@ export function registerToCsv(reg: AttendanceRegister): string {
     "Late days",
     "Absent days",
     "Leave days",
+    "Work from home days",
     "Hours worked",
   ];
   const body = reg.rows.map((r) => {
@@ -100,6 +101,7 @@ export function registerToCsv(reg: AttendanceRegister): string {
       r.totals.lateDays,
       r.totals.absentDays,
       r.totals.leaveDays,
+      r.totals.wfhDays ?? 0,
       formatHours(r.totals.minutesWorked),
     ];
   });

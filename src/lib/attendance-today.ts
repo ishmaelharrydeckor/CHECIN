@@ -88,6 +88,8 @@ export interface TodaySummaryData {
   eventsTotal: number;
   late: TodayLate[];
   notArrived: TodayPerson[];
+  /** Self-declared work from home today: nobody scanned and not on leave. Counted in `counts.wfh`. */
+  wfhPeople?: TodayPerson[];
   /** True if the underlying query hit its safety cap (numbers may be undercounted). */
   truncated: boolean;
 }
@@ -405,7 +407,26 @@ export interface TodayLeave {
   status?: unknown;
 }
 
+/**
+ * People who declared work from home today (docs/WFH-DESIGN.md). A scan wins (they are present) and
+ * approved leave wins (they are on leave), so neither is listed here. Only people on this team count.
+ */
+export function wfhPeopleToday(
+  roster: readonly RosterMember[],
+  declaredIds: readonly string[] | undefined,
+  ...excluded: ReadonlySet<string>[]
+): TodayPerson[] {
+  if (!declaredIds || declaredIds.length === 0) return [];
+  const declared = new Set(declaredIds);
+  return roster
+    .filter((r) => declared.has(r.uid) && !excluded.some((s) => s.has(r.uid)))
+    .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export interface BuildTodayFromSummariesInput {
+  /** Employee ids with a work-from-home day today (from wfh_days). Without it nobody is working from home. */
+  wfhEmployeeIds?: readonly string[];
   /** Approved leave that has not ended yet (any dates; only those covering today count). Without it nobody is on leave. */
   leaves?: readonly TodayLeave[];
   /** Today's summaries for the caller's scope (any other day is ignored). */
@@ -457,15 +478,17 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
     .sort((a, b) => a.arrivedAt.localeCompare(b.arrivedAt));
 
   const worked = todays.map((s) => s.minutesWorked).filter((m) => m > 0);
+  const wfhPeople = wfhPeopleToday(roster, input.wfhEmployeeIds, presentIds, onLeaveIds);
+  const wfhIds = new Set(wfhPeople.map((p) => p.employeeId));
   const notArrived: TodayPerson[] = roster
-    .filter((r) => !presentIds.has(r.uid) && !onLeaveIds.has(r.uid))
+    .filter((r) => !presentIds.has(r.uid) && !onLeaveIds.has(r.uid) && !wfhIds.has(r.uid))
     .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const expected = roster.length - onLeaveIds.size;
   const present = presentIds.size;
   const onLeave = onLeaveIds.size;
-  const wfh = 0; // wired up with work-from-home (task 2.3)
+  const wfh = wfhPeople.length;
 
   const events = input.recentEvents
     .filter((e) => dayKey(e.timestamp, timezone) === today)
@@ -500,6 +523,7 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
     eventsTotal: todays.reduce((n, s) => n + s.eventCount, 0),
     late,
     notArrived,
+    wfhPeople,
     truncated: input.truncated === true,
   };
 }

@@ -4,6 +4,7 @@ import { formatClock, type TodayEventRow, type TodaySummaryData } from "@/lib/at
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WfhTodayList } from "@/components/wfh/WfhTodayList";
 import { Calendar, CheckCircle2, ChevronDown, ChevronUp, Clock, Home, RefreshCw, UserX } from "lucide-react";
 
 /**
@@ -23,6 +24,8 @@ interface TodayPanelProps {
   loading: boolean;
   error: string | null;
   onRefresh?: () => void;
+  /** Remove one person's work-from-home day for today. Provided by the page, which does the fetching. */
+  onRemoveWfh?: (employeeId: string) => Promise<void>;
 }
 
 /** "Tuesday, 6 Oct" from the server's day key. Only formats the date, no clock involved. */
@@ -35,7 +38,7 @@ function formatDayLabel(dayKey: string): string {
   });
 }
 
-export function TodayPanel({ data, loading, error, onRefresh }: TodayPanelProps) {
+export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: TodayPanelProps) {
   if (!data && loading) return <TodayLoading onRefresh={onRefresh} />;
   if (!data) return <TodayUnavailable message={error} onRefresh={onRefresh} />;
 
@@ -185,6 +188,16 @@ export function TodayPanel({ data, loading, error, onRefresh }: TodayPanelProps)
           </Card>
 
           <NotArrivedCard people={data.notArrived} expected={counts.expected} />
+
+          {(data.wfhPeople?.length ?? 0) > 0 && (
+            <WfhTodayList
+              people={data.wfhPeople ?? []}
+              loading={false}
+              error={null}
+              onRetry={() => onRefresh?.()}
+              onRemove={onRemoveWfh}
+            />
+          )}
         </div>
       </div>
     </section>

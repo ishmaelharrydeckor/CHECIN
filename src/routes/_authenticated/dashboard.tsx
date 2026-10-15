@@ -145,6 +145,20 @@ function DashboardPage() {
     }
   };
 
+  // A manager or admin removes a team member's work-from-home day for today; then the panel is recomputed.
+  const removeWfhDay = async (employeeId: string) => {
+    if (!today) return;
+    const token = await firebaseAuth.currentUser?.getIdToken();
+    const res = await fetch("/api/wfh", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ dayKey: today.dayKey, employeeId }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || data?.ok === false) throw new Error(data?.error || "Could not remove that day.");
+    await fetchToday(true);
+  };
+
   // Mon-Fri trend for the chart. Reads the whole week, so it is fetched on load and on Refresh only.
   const fetchWeek = async () => {
     try {
@@ -626,6 +640,7 @@ function DashboardPage() {
         loading={refreshing || (!today && !todayError)}
         error={todayError}
         onRefresh={handleManualRefresh}
+        onRemoveWfh={removeWfhDay}
       />
 
       {/* 3. Interactive Charts or Onboarding Telemetry Card */}

@@ -94,6 +94,8 @@ export function buildTodayWithShifts(input: {
   settings: ShiftSettings;
   timezone: string;
   now: number;
+  /** Employee ids with a work-from-home day today. A scan or approved leave still wins. */
+  wfhEmployeeIds?: readonly string[];
   eventLimit?: number;
   truncated?: boolean;
 }): TodaySummaryData {
@@ -199,6 +201,8 @@ export function buildTodayWithShifts(input: {
 
   const lateList: TodayLate[] = [];
   const notArrivedList: TodayPerson[] = [];
+  const wfhList: TodayPerson[] = [];
+  const wfhDeclared = new Set(input.wfhEmployeeIds ?? []);
   const presentSummaries: DailySummary[] = [];
 
   for (const ev of evaluations) {
@@ -221,6 +225,10 @@ export function buildTodayWithShifts(input: {
           });
         }
       }
+    } else if ((status === "expected" || status === "absent") && wfhDeclared.has(member.uid)) {
+      // Working from home is attended, not absent, and still part of who was expected.
+      expectedStatusCount++;
+      wfhList.push({ employeeId: member.uid, name, department: dept });
     } else if (status === "expected") {
       expectedStatusCount++;
       notArrivedList.push({ employeeId: member.uid, name, department: dept });
@@ -236,6 +244,7 @@ export function buildTodayWithShifts(input: {
 
   lateList.sort((a, b) => a.arrivedAt.localeCompare(b.arrivedAt));
   notArrivedList.sort((a, b) => a.name.localeCompare(b.name));
+  wfhList.sort((a, b) => a.name.localeCompare(b.name));
 
   const expectedCount = presentCount + expectedStatusCount + absentCount;
 
@@ -275,7 +284,7 @@ export function buildTodayWithShifts(input: {
       onSite: onSiteCount,
       late: lateList.length,
       onLeave: onLeaveCount,
-      wfh: 0,
+      wfh: wfhList.length,
       absent: absentCount,
       notRostered: notRosteredCount,
     },
@@ -286,6 +295,7 @@ export function buildTodayWithShifts(input: {
     eventsTotal: presentSummaries.reduce((n, s) => n + (typeof s.eventCount === "number" ? s.eventCount : 0), 0),
     late: lateList,
     notArrived: notArrivedList,
+    wfhPeople: wfhList,
     truncated: input.truncated === true,
   } as TodaySummaryData;
 }

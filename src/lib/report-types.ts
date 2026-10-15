@@ -16,7 +16,7 @@ export interface RegisterRow {
   name: string;
   department: string;
   days: RegisterDay[];       // one per day in the range, oldest first
-  totals: { presentDays: number; lateDays: number; absentDays: number; leaveDays: number; minutesWorked: number };
+  totals: { presentDays: number; lateDays: number; absentDays: number; leaveDays: number; wfhDays: number; minutesWorked: number };
 }
 
 export interface AttendanceRegister {
