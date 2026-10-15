@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { planManagerMove, peopleLeftBehind } from "../../src/lib/manager-change.ts";
+import { planManagerMove, peopleLeftBehind, MAX_FUTURE_SHIFTS_MOVED, MAX_PENDING_LEAVE_MOVED } from "../../src/lib/manager-change.ts";
 
 const ORG = "org-1";
 const employee = { role: "employee", orgId: ORG, managerId: "mgr-a" };
@@ -89,4 +89,13 @@ test("the move history is written by the server only", () => {
   assert.ok(start > 0, "found the team_changes rule");
   const block = rules.slice(start, rules.indexOf("}", rules.indexOf("}", start) + 1));
   assert.ok(block.includes("allow create, update, delete: if false"), "no client may write team_changes");
+});
+
+test("shifts from today onwards follow the person, and everything still fits one batch of 500 writes", () => {
+  assert.ok(1 + MAX_PENDING_LEAVE_MOVED + MAX_FUTURE_SHIFTS_MOVED + 1 <= 500, "profile + leave + shifts + history must fit one batch");
+  const src = readFileSync("src/routes/api/organization/member-manager.ts", "utf8");
+  assert.ok(src.includes('collection("shift_assignments")'), "the move reads the person's shift assignments");
+  assert.ok(src.includes('.where("dayKey", ">=", today)'), "only shifts from today onwards move; past shifts stay");
+  assert.ok(src.includes("for (const doc of futureShifts.docs) batch.update(doc.ref, { managerId: newManagerUid })"), "they are re-pointed in the same batch");
+  assert.ok(src.includes("futureShiftsMoved: futureShifts.size"), "the history record says how many moved");
 });

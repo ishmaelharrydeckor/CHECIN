@@ -16,6 +16,9 @@ export interface ClaimsLike {
 /** A move moves at most this many pending leave requests along with the person. */
 export const MAX_PENDING_LEAVE_MOVED = 50;
 
+/** Shifts from today onwards that move with the person. With the profile, history record and pending leave this stays inside one batch of 500 writes. */
+export const MAX_FUTURE_SHIFTS_MOVED = 400;
+
 export type MoveDecision = { ok: true } | { ok: false; status: number; error: string };
 
 export function planManagerMove(input: {

@@ -30,6 +30,7 @@ So today a move leaves the roster, the records and pending leave pointing at dif
 | Org admin | Sees everything, unchanged | |
 | Pending leave requests | **Move to the new manager** (the server rewrites `managerId` on pending ones only; decided ones stay) | Otherwise the old manager must approve for someone who no longer works for them |
 | Work-from-home days (2.3) | Same as check-ins: they carry the manager when declared | |
+| Shift assignments (3.1) | **From today onwards they move to the new manager** with the person (each assignment carries a copy of the manager); past ones stay as history. At most 400 move in one go | A rota must follow the person, or the new manager cannot see their shifts and the old manager still sees them |
 | Removing or demoting a manager who has people | **Refused** until the team is moved (or "move the whole team to X" is used) | Stops teams nobody manages |
 | Payroll (E3) | Uses the manager stored on the day, never the current one | Keeps exports exact and repeatable |
 
