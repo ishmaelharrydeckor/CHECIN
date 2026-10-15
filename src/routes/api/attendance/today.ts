@@ -2,18 +2,23 @@ import { createFileRoute } from "@tanstack/react-router";
 import { verifyCallerToken } from "@/integrations/firebase/admin.server";
 import {
   RECENT_EVENT_LIMIT,
+  SHIFT_ASSIGNMENT_CAP_TODAY,
   SUMMARY_CAP,
+  WEEK_SUMMARY_CAP,
   loadApprovedLeaveOnDay,
   loadOrgContext,
   loadScopedEvents,
   loadScopedSummaries,
+  loadShiftAssignments,
 } from "@/lib/attendance-data.server";
 import { dashboardCacheKey, resolveDashboardScope } from "@/lib/dashboard-scope";
 import { createCachedLoader } from "@/lib/ttl-cache.server";
 import type { TodaySummaryData } from "@/lib/attendance-today";
-import { buildTodayFromSummaries, dayBoundsMs } from "@/lib/attendance-today";
+import { addDays, buildTodayFromSummaries, dayBoundsMs } from "@/lib/attendance-today";
 import { dayKey } from "@/lib/attendance-day";
 import { correlationId, logEvent } from "@/lib/log.server";
+import { loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
+import { buildTodayWithShifts } from "@/lib/shift-today";
 
 // Keep each answer for 45 s so several viewers, or one person refreshing, share one calculation.
 // The Refresh button asks for ?fresh=1, which recomputes (but not more than once every 5 s).
@@ -52,10 +57,55 @@ export const Route = createFileRoute("/api/attendance/today")({
           const summary = await loadToday(
             dashboardCacheKey(scope),
             async () => {
-              const { timezone, roster } = await loadOrgContext(scope);
+              const context = await loadOrgContext(scope);
+              const { timezone, roster, shifts } = context;
               const now = Date.now();
               const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
               const { startMs, endMs } = dayBoundsMs(today, timezone);
+
+              if (shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1") {
+                const yesterday = addDays(today, -1);
+                try {
+                  const [
+                    { summaries, truncated: summariesTruncated },
+                    { assignments, truncated: assignmentsTruncated },
+                    leaveResult,
+                    holidays,
+                    { events: recentEvents },
+                  ] = await Promise.all([
+                    loadScopedSummaries(scope, yesterday, today, WEEK_SUMMARY_CAP),
+                    loadShiftAssignments(scope, yesterday, today, SHIFT_ASSIGNMENT_CAP_TODAY),
+                    loadScopedLeave(scope, "approved"),
+                    loadHolidayDays(scope.orgId),
+                    loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),
+                  ]);
+
+                  if (assignments.length > 0) {
+                    return buildTodayWithShifts({
+                      summaries,
+                      recentEvents,
+                      roster,
+                      assignments,
+                      leaves: leaveResult.leaves,
+                      holidays,
+                      settings: shifts,
+                      timezone,
+                      now,
+                      truncated: summariesTruncated || assignmentsTruncated || leaveResult.truncated,
+                    });
+                  }
+                } catch (shiftErr) {
+                  logEvent({
+                    action: "attendance.shift_fallback",
+                    outcome: "error",
+                    correlationId: correlationId(request),
+                    uid: scope.uid,
+                    orgId: scope.orgId,
+                    fields: { reason: "read_error" },
+                  });
+                }
+              }
+
               const [{ summaries, truncated }, { events: recentEvents }, leaveResult] = await Promise.all([
                 loadScopedSummaries(scope, today, today, SUMMARY_CAP),
                 loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),

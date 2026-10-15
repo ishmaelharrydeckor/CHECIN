@@ -19,6 +19,7 @@
 import { dayKey, formatClock } from "./attendance-day.ts";
 import { addDays, weekdayIndex } from "./attendance-today.ts";
 import { LEAVE_TYPE_LABELS, countDays, isLeaveType } from "./leave.ts";
+import { shiftDayStatus, type ShiftSnapshot } from "./shift-engine.ts";
 import type {
   AttendanceRegister,
   LeaveLedger,
@@ -127,6 +128,10 @@ export function buildAttendanceRegister(input: {
   to: string;
   /** True if a read stopped at its safety cap, so the report may be missing people or days. */
   readTruncated?: boolean;
+  shifts?: {
+    assignments: { employeeId: string; dayKey: string; shift: ShiftSnapshot }[];
+    nowMs: number;
+  };
 }): AttendanceRegister {
   const { days, timezone } = input;
   const holiday = new Set(input.holidays);
@@ -148,6 +153,16 @@ export function buildAttendanceRegister(input: {
     leavesByPerson.set(l.employeeId, list);
   }
 
+  const assignmentsByPersonDay = new Map<string, Map<string, ShiftSnapshot>>();
+  if (input.shifts) {
+    for (const a of input.shifts.assignments) {
+      if (!a || typeof a.employeeId !== "string" || !isDay(a.dayKey) || !a.shift) continue;
+      let m = assignmentsByPersonDay.get(a.employeeId);
+      if (!m) assignmentsByPersonDay.set(a.employeeId, (m = new Map()));
+      m.set(a.dayKey, a.shift);
+    }
+  }
+
   const people = [...input.people].sort((a, b) => personName(a).localeCompare(personName(b)));
   const capped = people.slice(0, REPORT_ROW_CAP);
 
@@ -160,8 +175,29 @@ export function buildAttendanceRegister(input: {
       const blank = { dayKey: d, firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
       if (leave.some((l) => l.start <= d && d <= l.end)) return { ...blank, status: "leave" };
       if (holiday.has(d)) return { ...blank, status: "holiday" };
-      if (weekdayIndex(d) >= 5) return { ...blank, status: "off" };
-      return { ...blank, status: "absent" };
+
+      if (!input.shifts) {
+        if (weekdayIndex(d) >= 5) return { ...blank, status: "off" };
+        return { ...blank, status: "absent" };
+      }
+
+      // Shifts-aware decision:
+      const shiftSnapshot = assignmentsByPersonDay.get(p.uid)?.get(d);
+      if (!shiftSnapshot) return { ...blank, status: "off" };
+
+      const today = dayKey(input.shifts.nowMs, timezone) ?? new Date(input.shifts.nowMs).toISOString().slice(0, 10);
+      if (d < today) return { ...blank, status: "absent" };
+      if (d > today) return { ...blank, status: "expected" };
+
+      const st = shiftDayStatus({
+        assignment: { dayKey: d, shift: shiftSnapshot },
+        hasScan: false,
+        onLeave: false,
+        isHoliday: false,
+        nowMs: input.shifts.nowMs,
+        timezone,
+      });
+      return { ...blank, status: st === "absent" ? "absent" : "expected" };
     });
     const count = (f: (x: RegisterDay) => boolean) => outDays.filter(f).length;
     return {
