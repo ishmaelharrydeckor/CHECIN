@@ -397,7 +397,17 @@ export function buildWeekTrend(input: {
 // (it used to average each separate in-to-out session).
 // ---------------------------------------------------------------------------
 
+/** The few fields of a leave request the Today panel needs. Only approved leave counts. */
+export interface TodayLeave {
+  employeeId?: unknown;
+  startDate?: unknown;
+  endDate?: unknown;
+  status?: unknown;
+}
+
 export interface BuildTodayFromSummariesInput {
+  /** Approved leave that has not ended yet (any dates; only those covering today count). Without it nobody is on leave. */
+  leaves?: readonly TodayLeave[];
   /** Today's summaries for the caller's scope (any other day is ignored). */
   summaries: DailySummary[];
   /** The newest events today, for the activity list only. */
@@ -420,6 +430,16 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
   const todays = input.summaries.filter((s) => s.dayKey === today && rosterById.has(s.employeeId));
   const presentIds = new Set(todays.map((s) => s.employeeId));
 
+  // People on approved leave today are not expected and not absent. Someone who scanned anyway counts
+  // as present, not on leave.
+  const onLeaveIds = new Set<string>();
+  for (const l of input.leaves ?? []) {
+    if (!l || l.status !== "approved") continue;
+    if (typeof l.employeeId !== "string" || !rosterById.has(l.employeeId) || presentIds.has(l.employeeId)) continue;
+    if (typeof l.startDate !== "string" || typeof l.endDate !== "string") continue;
+    if (l.startDate <= today && today <= l.endDate) onLeaveIds.add(l.employeeId);
+  }
+
   const describe = (s: DailySummary): TodayPerson => {
     const member = rosterById.get(s.employeeId);
     return {
@@ -438,13 +458,13 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
 
   const worked = todays.map((s) => s.minutesWorked).filter((m) => m > 0);
   const notArrived: TodayPerson[] = roster
-    .filter((r) => !presentIds.has(r.uid))
+    .filter((r) => !presentIds.has(r.uid) && !onLeaveIds.has(r.uid))
     .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const expected = roster.length;
+  const expected = roster.length - onLeaveIds.size;
   const present = presentIds.size;
-  const onLeave = 0; // wired up when leave requests land (task 1.1)
+  const onLeave = onLeaveIds.size;
   const wfh = 0; // wired up with work-from-home (task 2.3)
 
   const events = input.recentEvents
@@ -464,7 +484,7 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
       late: lateSummaries.length,
       onLeave,
       wfh,
-      absent: Math.max(0, expected - present - onLeave - wfh),
+      absent: Math.max(0, expected - present - wfh), // people on leave are already outside `expected`
     },
     onTimeRate: {
       percent: withFirstIn > 0 ? Math.round(((withFirstIn - lateSummaries.length) / withFirstIn) * 100) : null,
