@@ -8,6 +8,7 @@ import { dayKey } from "@/lib/attendance-day";
 import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
 import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
+import { AnalyticsSection } from "@/components/analytics/AnalyticsSection";
 import { DEFAULT_DEPARTMENT } from "@/lib/departments";
 import {
   Users,
@@ -642,6 +643,10 @@ function DashboardPage() {
         onRefresh={handleManualRefresh}
         onRemoveWfh={removeWfhDay}
       />
+
+      {/* Attendance analytics: rates, punctuality, hours and the trend, worked out on the server
+          (/api/analytics) from daily summaries. */}
+      <AnalyticsSection />
 
       {/* 3. Interactive Charts or Onboarding Telemetry Card */}
       {trendHasData || (today?.eventsTotal ?? 0) > 0 ? (
