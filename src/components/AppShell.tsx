@@ -32,10 +32,10 @@ import { toast } from "sonner";
 import { clearUserAppCache } from "@/lib/query-client";
 
 // Pages employees must never see (management views); they are sent to their own history instead
-const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings"];
+const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings", "/shifts"];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, isOrgAdmin, isManager, canManageShifts, loading } = useAuth();
+  const { user, isOrgAdmin, isManager, loading } = useAuth();
   // Only decides whether to SHOW the inbox link; the server checks every request itself.
   const isPlatformOwner = useIsPlatformOwner(user?.id);
   const navigate = useNavigate();
@@ -51,14 +51,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       navigate({ to: "/history", replace: true });
     }
   }, [loading, user, canManage, pathname, navigate]);
-
-  // The Shifts page is for admins and for managers an admin has allowed; everyone else is sent to their history.
-  useEffect(() => {
-    if (loading || !user) return;
-    if (!canManageShifts && pathname.startsWith("/shifts")) {
-      navigate({ to: "/history", replace: true });
-    }
-  }, [loading, user, canManageShifts, pathname, navigate]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -97,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/announcements", label: "Notices", icon: Megaphone },
         { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },
-        ...(canManageShifts ? [{ to: "/shifts", label: "Shifts", icon: CalendarClock }] : []),
+        { to: "/shifts", label: "Shifts", icon: CalendarClock },
         { to: "/departments", label: "Departments", icon: Building2 },
         { to: "/settings", label: "Settings", icon: Settings },
       ]
@@ -105,6 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/me", label: "My Page", icon: User },
         { to: "/history", label: "My History", icon: Clock },
         { to: "/announcements", label: "Notices", icon: Megaphone },
+        { to: "/my-shifts", label: "My Shifts", icon: CalendarClock },
         { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },
       ];

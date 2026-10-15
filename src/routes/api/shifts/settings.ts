@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
+import { dayKey } from "@/lib/attendance-day";
 import { parseSettingsInput, readShiftSettings } from "@/lib/shift-requests";
 
 export const Route = createFileRoute("/api/shifts/settings")({
@@ -30,7 +31,12 @@ export const Route = createFileRoute("/api/shifts/settings")({
           const orgSnap = await firestoreAdmin.collection("organizations").doc(orgId).get();
           const settings = readShiftSettings(orgSnap.exists ? orgSnap.data() : undefined);
 
-          return Response.json({ ok: true, ...settings, settings });
+          // The organization's own "today", so the rota screens never rely on the device's clock.
+          const rawTz = orgSnap.exists ? orgSnap.data()?.timezone : undefined;
+          const timezone = typeof rawTz === "string" && rawTz.trim().length > 0 ? rawTz.trim() : "UTC";
+          const today = dayKey(Date.now(), timezone) ?? new Date().toISOString().slice(0, 10);
+
+          return Response.json({ ok: true, ...settings, settings, timezone, today });
         } catch (err) {
           console.error("GET /api/shifts/settings error:", err);
           return Response.json({ error: "Could not load shift settings." }, { status: 500 });

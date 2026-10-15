@@ -15,9 +15,11 @@ interface ShiftsListProps {
   onEdit: (shift: ShiftRow) => void;
   onArchive: (shift: ShiftRow) => void;
   onCreate: () => void;
+  /** False for a manager who has not been allowed to manage shifts: they can look but not create. */
+  canCreate?: boolean;
 }
 
-export function ShiftsList({ shifts, loading, error, onRetry, canEdit, onEdit, onArchive, onCreate }: ShiftsListProps) {
+export function ShiftsList({ shifts, loading, error, onRetry, canEdit, onEdit, onArchive, onCreate, canCreate = true }: ShiftsListProps) {
   return (
     <Card className="border-border/80 shadow-sm">
       <CardHeader className="pb-3">
@@ -49,15 +51,19 @@ export function ShiftsList({ shifts, loading, error, onRetry, canEdit, onEdit, o
             <CalendarClock className="size-8 mx-auto text-muted-foreground/60" />
             <p className="text-sm font-medium text-[#0E2322]">No shifts yet</p>
             <p className="text-xs text-muted-foreground">
-              Create your first one, for example "Day 09:00 to 17:00".
+              {canCreate
+                ? 'Create your first one, for example "Day 09:00 to 17:00".'
+                : "Ask your administrator to create the first one."}
             </p>
-            <Button
-              type="button"
-              onClick={onCreate}
-              className="bg-[#0E2322] hover:bg-[#163331] text-white text-xs font-medium"
-            >
-              New shift
-            </Button>
+            {canCreate && (
+              <Button
+                type="button"
+                onClick={onCreate}
+                className="bg-[#0E2322] hover:bg-[#163331] text-white text-xs font-medium"
+              >
+                New shift
+              </Button>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-border/70">

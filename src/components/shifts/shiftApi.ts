@@ -29,6 +29,21 @@ export interface ManagerShiftRow {
   shiftAdmin: boolean;
 }
 
+/** The settings answer plus the organization's own "today" and timezone. */
+export interface ShiftContext extends ShiftSettingsData {
+  today: string; // YYYY-MM-DD in the organization's timezone
+  timezone: string;
+}
+
+/** A person in the caller's scope (GET /api/admin/staff-invites). */
+export interface RotaMember {
+  uid: string;
+  displayName: string;
+  email: string;
+  department: string;
+  managerId?: string | null;
+}
+
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 /**
