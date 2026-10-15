@@ -17,10 +17,10 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 1.2 | Employee self-service page ("My page") | M | Cobberson (#14) | on staging, not yet tested | 1.1 (done) |
 | 2.1 | Reports: attendance register and leave ledger | M | Cobberson (#16) | on staging (screens and real data), not yet tested | 1.1 (done) |
 | 1.6 | Manager dashboard: Today panel | M | Augustine (#13) | on staging as a screen with sample data; the integrator connects it to the real data next | none |
-| 2.3 | Work from home: employee card and manager list (screens, sample data) | M | Cobberson (#17) | todo. Design approved (docs/WFH-DESIGN.md) | 1.1 (done), integrator builds the routes |
-| 2.4 | Dashboard analytics (screens, sample data) | M | Augustine (#70) | todo | daily summaries (done), integrator builds the numbers |
+| 2.3 | Work from home: employee card and manager list | M | Cobberson (#17, #98) | on staging with real data (card on My page, Today panel, register); not yet tested | 1.1 (done) |
+| 2.4 | Dashboard analytics | M | Augustine (#97) | on staging with real numbers (Dashboard, under Today); not yet tested | daily summaries (done) |
 
-Next: **2.3** (Cobberson) and **2.4** (Augustine) are open now, as screens only with sample data. The integrator connects the real data after each one is merged. Integrator-only work: plan gating, billing, email verification, leave types and balances, and phase 3.
+Next: nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
 
 Update the Status column in your PR (`todo` > `in progress` > `in review` > `on staging` > `done`).
 
