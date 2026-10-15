@@ -4,7 +4,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 
 **Before any task:** read [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md). Branch off `staging`, PR into `staging`. No GPS, ever.
 
-**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you. Don't start the others.
+**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P8, 2.3b). Don't start the others.
 
 **Augustine works with Claude Code** (he can run and test the code locally). His tasks below include server routes and tests, so they follow a stricter bar than screens-only tasks: write the tests first, run `npm run check`, and list in the PR every file you touched and every shared-file change you need (rules, indexes) for the integrator to make.
 
@@ -23,6 +23,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 2.4 | Dashboard analytics | M | Augustine (#97) | on staging with real numbers (Dashboard, under Today); not yet tested | daily summaries (done) |
 | 3.1-P6 | Shifts phase 6: repeating patterns | L | Augustine | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 | 2.3b | Work-from-home diary | L | Augustine | todo. Starts after 3.1-P6 is merged. Design approved (docs/WFH-DIARY-DESIGN.md) | 2.3 (done), 3.1-P6 |
+| 3.1-P8 | Shifts phase 8: breaks (the calculation, no screens) | M | Cobberson | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 
 Next: nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
 
@@ -143,6 +144,23 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 4. Manager review and the report column (the design note's later phases).
 
 **Hard rules:** counts and timings only, never content, applications or websites. The **server clock** decides all times. Nothing is punished automatically: flags are shown to the manager. No GPS, ever. Anything that touches pay (overtime) stays off unless the admin switches it on, and that switch is the integrator's work.
+
+## 3.1-P8 Shifts phase 8: breaks, the calculation only (M, Cobberson)
+
+**What:** No screens in this task. It is the **calculation**: given a shift with a fixed unpaid break, work out time at work, break and paid time. Read the "Breaks" parts of `docs/SHIFTS-DESIGN.md` (the table row, and the decision "Way 1" near the end) and `src/lib/shift-engine.ts` for the style of a pure, tested module.
+
+**The rule (decided):** a shift can have a **fixed unpaid break** of N minutes. It is deducted **only when the person was there longer than a set time** (for example more than 6 hours). Reports keep three separate figures: **time at work**, **break**, **paid time**. The raw minutes from the scans are **never overwritten**. Real break scans are not part of this.
+
+**Files (all new):** `src/lib/shift-breaks.ts` and `scripts/tests/shift-breaks.test.mjs`. Pure functions only: no Firebase, no `@/` imports (relative `.ts` imports, as `shift-engine.ts` does), no clock reads.
+
+**What to write:**
+- `computePaidTime({ workedMinutes, unpaidBreakMinutes, deductAfterMinutes })` returns `{ workedMinutes, breakMinutes, paidMinutes }`. The break is deducted only if `workedMinutes` is **more than** `deductAfterMinutes`, and never more than the time worked. Whole minutes, never negative.
+- A validator for the two settings (break 0 to 240 minutes, deduct-after 0 to 720; anything else is refused with a plain sentence).
+- A table of test cases: no break set; worked exactly at the limit (no deduction) and one minute over (deduction); worked less than the break; zero minutes; huge numbers; a night shift's total (the function only receives minutes, so it never needs dates); non-numbers and negatives refused.
+
+**Not in this task (the integrator does these):** the database fields, the organization switch "Track breaks", the shift form field, routes, the register and exports, and anything on screen. You only deliver the calculation and its tests.
+
+**Done when:** CI is green (the tests run there; you cannot run them yourself, so read your tests twice) and the PR lists the cases covered.
 
 ## Definition of done (every task)
 
