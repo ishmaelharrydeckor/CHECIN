@@ -85,7 +85,7 @@ test("register: a weekday with no scan, no leave and no holiday is absent; only 
   });
   const st = reg.rows[0].days.map((d) => d.status);
   assert.deepEqual(st, ["absent", "absent", "absent", "absent", "absent", "off", "off"]);
-  assert.deepEqual(reg.rows[0].totals, { presentDays: 0, lateDays: 0, absentDays: 5, leaveDays: 0, minutesWorked: 0 });
+  assert.deepEqual(reg.rows[0].totals, { presentDays: 0, lateDays: 0, absentDays: 5, leaveDays: 0, wfhDays: 0, minutesWorked: 0 });
 });
 
 test("register: times are in the organization's timezone, totals add up, late is counted on present days", () => {

@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   SHIFT_ASSIGNMENT_CAP_RANGE,
   WEEK_SUMMARY_CAP,
+  WFH_RANGE_CAP,
   loadOrgContext,
   loadScopedSummaries,
   loadShiftAssignments,
+  loadWfhRange,
 } from "@/lib/attendance-data.server";
 import { authorizeReportCaller, loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
 import { buildAttendanceRegister, parseReportRange } from "@/lib/report-data";
@@ -33,6 +35,11 @@ export const Route = createFileRoute("/api/reports/register")({
 
           const context = await loadOrgContext(scope);
           const { timezone, roster, shifts } = context;
+          // If work-from-home days cannot be read the register still works, and says it may be incomplete.
+          const wfhRead = await loadWfhRange(scope, range.from, range.to, WFH_RANGE_CAP).catch(() => ({
+            days: [] as { employeeId: string; dayKey: string }[],
+            truncated: true,
+          }));
 
           if (shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1") {
             try {
@@ -58,8 +65,9 @@ export const Route = createFileRoute("/api/reports/register")({
                 generatedAt: new Date().toISOString(),
                 from: range.from,
                 to: range.to,
-                readTruncated: summaries.truncated || leave.truncated || shiftResult.truncated,
+                readTruncated: summaries.truncated || leave.truncated || shiftResult.truncated || wfhRead.truncated,
                 shifts: shiftData,
+                wfh: wfhRead.days,
               });
               return Response.json(
                 { ok: true, report: register },
@@ -93,7 +101,8 @@ export const Route = createFileRoute("/api/reports/register")({
             generatedAt: new Date().toISOString(),
             from: range.from,
             to: range.to,
-            readTruncated: summaries.truncated || leave.truncated,
+            readTruncated: summaries.truncated || leave.truncated || wfhRead.truncated,
+            wfh: wfhRead.days,
           });
           return Response.json(
             { ok: true, report: register },

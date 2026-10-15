@@ -5,11 +5,13 @@ import {
   SHIFT_ASSIGNMENT_CAP_TODAY,
   SUMMARY_CAP,
   WEEK_SUMMARY_CAP,
+  WFH_TODAY_CAP,
   loadApprovedLeaveOnDay,
   loadOrgContext,
   loadScopedEvents,
   loadScopedSummaries,
   loadShiftAssignments,
+  loadWfhRange,
 } from "@/lib/attendance-data.server";
 import { dashboardCacheKey, resolveDashboardScope } from "@/lib/dashboard-scope";
 import { createCachedLoader } from "@/lib/ttl-cache.server";
@@ -23,6 +25,28 @@ import { buildTodayWithShifts } from "@/lib/shift-today";
 // Keep each answer for 45 s so several viewers, or one person refreshing, share one calculation.
 // The Refresh button asks for ?fresh=1, which recomputes (but not more than once every 5 s).
 const loadToday = createCachedLoader<TodaySummaryData>(45_000, 200, 5_000);
+
+/** Who declared work from home today. If it cannot be read the panel still works, with nobody working from home. */
+async function loadWfhIds(
+  scope: Parameters<typeof loadWfhRange>[0],
+  today: string,
+  request: Request,
+): Promise<string[]> {
+  try {
+    const { days } = await loadWfhRange(scope, today, today, WFH_TODAY_CAP);
+    return days.map((d) => d.employeeId);
+  } catch (err) {
+    logEvent({
+      action: "attendance.wfh_fallback",
+      outcome: "error",
+      correlationId: correlationId(request),
+      uid: scope.uid,
+      orgId: scope.orgId,
+      fields: { reason: err instanceof Error ? err.message.slice(0, 80) : "read_error" },
+    });
+    return [];
+  }
+}
 
 /**
  * GET /api/attendance/today
@@ -72,12 +96,14 @@ export const Route = createFileRoute("/api/attendance/today")({
                     leaveResult,
                     holidays,
                     { events: recentEvents },
+                    wfhIds,
                   ] = await Promise.all([
                     loadScopedSummaries(scope, yesterday, today, WEEK_SUMMARY_CAP),
                     loadShiftAssignments(scope, yesterday, today, SHIFT_ASSIGNMENT_CAP_TODAY),
                     loadScopedLeave(scope, "approved"),
                     loadHolidayDays(scope.orgId),
                     loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),
+                    loadWfhIds(scope, today, request),
                   ]);
 
                   if (assignments.length > 0) {
@@ -91,6 +117,7 @@ export const Route = createFileRoute("/api/attendance/today")({
                       settings: shifts,
                       timezone,
                       now,
+                      wfhEmployeeIds: wfhIds,
                       truncated: summariesTruncated || assignmentsTruncated || leaveResult.truncated,
                     });
                   }
@@ -106,7 +133,7 @@ export const Route = createFileRoute("/api/attendance/today")({
                 }
               }
 
-              const [{ summaries, truncated }, { events: recentEvents }, leaveResult] = await Promise.all([
+              const [{ summaries, truncated }, { events: recentEvents }, leaveResult, wfhIds] = await Promise.all([
                 loadScopedSummaries(scope, today, today, SUMMARY_CAP),
                 loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),
                 // People on approved leave are not expected. If leave cannot be read, the panel still works
@@ -122,6 +149,7 @@ export const Route = createFileRoute("/api/attendance/today")({
                   });
                   return { leaves: [], truncated: false };
                 }),
+                loadWfhIds(scope, today, request),
               ]);
               return buildTodayFromSummaries({
                 summaries,
@@ -131,6 +159,7 @@ export const Route = createFileRoute("/api/attendance/today")({
                 now,
                 truncated: truncated || leaveResult.truncated,
                 leaves: leaveResult.leaves,
+                wfhEmployeeIds: wfhIds,
               });
             },
             { fresh },

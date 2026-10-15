@@ -243,3 +243,35 @@ export async function loadShiftAssignments(
   }
   return { assignments, truncated: snap.size >= cap };
 }
+
+/** The most work-from-home days one dashboard or register read returns. */
+export const WFH_TODAY_CAP = 2000;
+export const WFH_RANGE_CAP = 6000;
+
+/**
+ * Work-from-home days for the caller's scope in [fromDay, toDay] (inclusive). An org admin sees the
+ * whole organization; a manager sees days filed under them. Needs the wfh_days (orgId, dayKey) and
+ * (orgId, managerId, dayKey) indexes.
+ */
+export async function loadWfhRange(
+  scope: DashboardScope,
+  fromDay: string,
+  toDay: string,
+  cap: number,
+): Promise<{ days: { employeeId: string; dayKey: string }[]; truncated: boolean }> {
+  let query: FirebaseFirestore.Query = firestoreAdmin.collection("wfh_days").where("orgId", "==", scope.orgId);
+  if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
+  query =
+    fromDay === toDay
+      ? query.where("dayKey", "==", fromDay)
+      : query.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay);
+  const snap = await query.limit(cap).get();
+  const days: { employeeId: string; dayKey: string }[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (typeof data.employeeId === "string" && typeof data.dayKey === "string") {
+      days.push({ employeeId: data.employeeId, dayKey: data.dayKey });
+    }
+  }
+  return { days, truncated: snap.size >= cap };
+}
