@@ -21,6 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ManagerShiftAccessCard } from "@/components/shifts/ManagerShiftAccessCard";
 import { ShiftFormDialog } from "@/components/shifts/ShiftFormDialog";
 import { ShiftSettingsCard } from "@/components/shifts/ShiftSettingsCard";
+import { RefusedScansTab } from "@/components/shifts/RefusedScansTab";
+import { RotaTab } from "@/components/shifts/RotaTab";
 import { ShiftsList } from "@/components/shifts/ShiftsList";
 import { authedFetch, type ShiftRow } from "@/components/shifts/shiftApi";
 
@@ -30,7 +32,9 @@ export const Route = createFileRoute("/_authenticated/shifts")({
 });
 
 function ShiftsPage() {
-  const { user, role, isOrgAdmin, canManageShifts } = useAuth();
+  const { user, role, isOrgAdmin, isManager, canManageShifts } = useAuth();
+  // Admins and managers can look; only those allowed to manage shifts can change anything.
+  const canView = isOrgAdmin || isManager;
 
   const [shifts, setShifts] = useState<ShiftRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,8 +67,8 @@ function ShiftsPage() {
   }, [showArchived, isOrgAdmin]);
 
   useEffect(() => {
-    if (canManageShifts) void load();
-  }, [canManageShifts, load]);
+    if (canView) void load();
+  }, [canView, load]);
 
   function openCreate() {
     setEditing(null);
@@ -93,7 +97,7 @@ function ShiftsPage() {
   }
 
   // Anyone else is sent away by the app shell; show nothing meanwhile.
-  if (!canManageShifts) return null;
+  if (!canView) return null;
 
   const shiftsSection = (
     <div className="space-y-4">
@@ -114,6 +118,7 @@ function ShiftsPage() {
         onEdit={openEdit}
         onArchive={setArchiving}
         onCreate={openCreate}
+        canCreate={canManageShifts}
       />
     </div>
   );
@@ -127,33 +132,43 @@ function ShiftsPage() {
             Plan who works when. Shifts only apply once an administrator switches them on.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="bg-[#0E2322] hover:bg-[#163331] text-white text-xs font-medium self-start sm:self-auto"
-        >
-          <Plus className="size-4 mr-1.5" /> New shift
-        </Button>
+        {canManageShifts && (
+          <Button
+            type="button"
+            onClick={openCreate}
+            className="bg-[#0E2322] hover:bg-[#163331] text-white text-xs font-medium self-start sm:self-auto"
+          >
+            <Plus className="size-4 mr-1.5" /> New shift
+          </Button>
+        )}
       </div>
 
-      {isOrgAdmin ? (
-        <Tabs defaultValue="shifts" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="shifts">Shifts</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="managers">Managers</TabsTrigger>
-          </TabsList>
-          <TabsContent value="shifts">{shiftsSection}</TabsContent>
+      <Tabs defaultValue="rota" className="space-y-4">
+        <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="rota">Rota</TabsTrigger>
+          <TabsTrigger value="shifts">Shifts</TabsTrigger>
+          <TabsTrigger value="refused">Refused check-ins</TabsTrigger>
+          {isOrgAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
+          {isOrgAdmin && <TabsTrigger value="managers">Managers</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="rota">
+          <RotaTab canAssign={canManageShifts} shifts={(shifts ?? []).filter((s) => !s.archived)} />
+        </TabsContent>
+        <TabsContent value="shifts">{shiftsSection}</TabsContent>
+        <TabsContent value="refused">
+          <RefusedScansTab />
+        </TabsContent>
+        {isOrgAdmin && (
           <TabsContent value="settings">
             <ShiftSettingsCard />
           </TabsContent>
+        )}
+        {isOrgAdmin && (
           <TabsContent value="managers">
             <ManagerShiftAccessCard />
           </TabsContent>
-        </Tabs>
-      ) : (
-        shiftsSection
-      )}
+        )}
+      </Tabs>
 
       <ShiftFormDialog open={formOpen} onOpenChange={setFormOpen} editing={editing} onSaved={() => void load()} />
 

@@ -105,7 +105,8 @@ test("the menu keeps its entries and gains Shifts and Departments", () => {
   for (const label of ["Roster", "History", "Reports", "Notices", "Leave", "Holidays", "Settings", "Shifts", "Departments"]) {
     assert.ok(shell.includes(`label: "${label}"`), `menu entry ${label}`);
   }
-  assert.ok(shell.includes('pathname.startsWith("/shifts")'), "people who cannot manage shifts are turned away from /shifts");
+  assert.ok(/MANAGER_ONLY_PATHS = \[[^\]]*"\/shifts"/.test(shell), "employees are turned away from /shifts");
+  assert.ok(shell.includes('label: "My Shifts"'), "employees get a My Shifts entry");
 });
 
 test("the permission is read from the login like the tablet permission", () => {

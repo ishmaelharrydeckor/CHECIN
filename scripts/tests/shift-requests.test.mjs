@@ -524,7 +524,7 @@ test("every route under src/routes/api/shifts verifies the token, rate-limits wr
   const files = readdirSync(dir).filter((f) => f.endsWith(".ts"));
   assert.deepEqual(
     files.sort(),
-    ["access.ts", "assignments.ts", "index.ts", "settings.ts"],
+    ["access.ts", "assignments.ts", "index.ts", "refused-scans.ts", "settings.ts"],
   );
 
   const forbidden = [
@@ -539,8 +539,13 @@ test("every route under src/routes/api/shifts verifies the token, rate-limits wr
   for (const file of files) {
     const src = readFileSync(`${dir}/${file}`, "utf8");
     assert.ok(src.includes("verifyCallerToken"), `${file} must call verifyCallerToken`);
-    assert.ok(src.includes("checkRateLimit"), `${file} must call checkRateLimit on writes`);
-    assert.ok(src.includes("logEvent"), `${file} must call logEvent on writes`);
+    // Rate limiting and a log line are for routes that CHANGE something. A route that only reads (the
+    // refused-scans list) has no write handler, so it has nothing to limit or log.
+    const hasWriteHandler = /\b(POST|PUT|DELETE|PATCH):\s*async/.test(src);
+    if (hasWriteHandler) {
+      assert.ok(src.includes("checkRateLimit"), `${file} must call checkRateLimit on writes`);
+      assert.ok(src.includes("logEvent"), `${file} must call logEvent on writes`);
+    }
     for (const bad of forbidden) {
       assert.equal(src.includes(bad), false, `${file} must never contain ${bad}`);
     }

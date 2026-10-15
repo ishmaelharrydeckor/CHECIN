@@ -26,6 +26,7 @@ import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
+import { Route as AuthenticatedMyShiftsRouteImport } from './routes/_authenticated/my-shifts'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
@@ -65,6 +66,7 @@ import { Route as ApiReportsRegisterRouteImport } from './routes/api/reports/reg
 import { Route as ApiShiftsIndexRouteImport } from './routes/api/shifts/index'
 import { Route as ApiShiftsAccessRouteImport } from './routes/api/shifts/access'
 import { Route as ApiShiftsAssignmentsRouteImport } from './routes/api/shifts/assignments'
+import { Route as ApiShiftsRefusedScansRouteImport } from './routes/api/shifts/refused-scans'
 import { Route as ApiShiftsSettingsRouteImport } from './routes/api/shifts/settings'
 
 const IndexRoute = IndexRouteImport.update({
@@ -153,6 +155,11 @@ const AuthenticatedLeaveRoute = AuthenticatedLeaveRouteImport.update({
 const AuthenticatedMeRoute = AuthenticatedMeRouteImport.update({
   id: '/me',
   path: '/me',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMyShiftsRoute = AuthenticatedMyShiftsRouteImport.update({
+  id: '/my-shifts',
+  path: '/my-shifts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
@@ -354,6 +361,11 @@ const ApiShiftsAssignmentsRoute = ApiShiftsAssignmentsRouteImport.update({
   path: '/api/shifts/assignments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiShiftsRefusedScansRoute = ApiShiftsRefusedScansRouteImport.update({
+  id: '/api/shifts/refused-scans',
+  path: '/api/shifts/refused-scans',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiShiftsSettingsRoute = ApiShiftsSettingsRouteImport.update({
   id: '/api/shifts/settings',
   path: '/api/shifts/settings',
@@ -377,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
+  '/my-shifts': typeof AuthenticatedMyShiftsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
@@ -411,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
@@ -435,6 +449,7 @@ export interface FileRoutesByTo {
   '/holidays': typeof AuthenticatedHolidaysRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
+  '/my-shifts': typeof AuthenticatedMyShiftsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
@@ -469,6 +484,7 @@ export interface FileRoutesByTo {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
   '/api/locations': typeof ApiLocationsIndexRoute
@@ -495,6 +511,7 @@ export interface FileRoutesById {
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
+  '/_authenticated/my-shifts': typeof AuthenticatedMyShiftsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
@@ -529,6 +546,7 @@ export interface FileRoutesById {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
   '/api/locations/': typeof ApiLocationsIndexRoute
@@ -555,6 +573,7 @@ export interface FileRouteTypes {
     | '/holidays'
     | '/leave'
     | '/me'
+    | '/my-shifts'
     | '/reports'
     | '/settings'
     | '/shifts'
@@ -589,6 +608,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements/'
     | '/api/locations/'
@@ -613,6 +633,7 @@ export interface FileRouteTypes {
     | '/holidays'
     | '/leave'
     | '/me'
+    | '/my-shifts'
     | '/reports'
     | '/settings'
     | '/shifts'
@@ -647,6 +668,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements'
     | '/api/locations'
@@ -672,6 +694,7 @@ export interface FileRouteTypes {
     | '/_authenticated/holidays'
     | '/_authenticated/leave'
     | '/_authenticated/me'
+    | '/_authenticated/my-shifts'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/shifts'
@@ -706,6 +729,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements/'
     | '/api/locations/'
@@ -751,6 +775,7 @@ export interface RootRouteChildren {
   ApiReportsRegisterRoute: typeof ApiReportsRegisterRoute
   ApiShiftsAccessRoute: typeof ApiShiftsAccessRoute
   ApiShiftsAssignmentsRoute: typeof ApiShiftsAssignmentsRoute
+  ApiShiftsRefusedScansRoute: typeof ApiShiftsRefusedScansRoute
   ApiShiftsSettingsRoute: typeof ApiShiftsSettingsRoute
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
   ApiLocationsIndexRoute: typeof ApiLocationsIndexRoute
@@ -878,6 +903,13 @@ declare module '@tanstack/react-router' {
       path: '/me'
       fullPath: '/me'
       preLoaderRoute: typeof AuthenticatedMeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/my-shifts': {
+      id: '/_authenticated/my-shifts'
+      path: '/my-shifts'
+      fullPath: '/my-shifts'
+      preLoaderRoute: typeof AuthenticatedMyShiftsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reports': {
@@ -1153,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiShiftsAssignmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shifts/refused-scans': {
+      id: '/api/shifts/refused-scans'
+      path: '/api/shifts/refused-scans'
+      fullPath: '/api/shifts/refused-scans'
+      preLoaderRoute: typeof ApiShiftsRefusedScansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/shifts/settings': {
       id: '/api/shifts/settings'
       path: '/api/shifts/settings'
@@ -1174,6 +1213,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
+  AuthenticatedMyShiftsRoute: typeof AuthenticatedMyShiftsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
@@ -1192,6 +1232,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
+  AuthenticatedMyShiftsRoute: AuthenticatedMyShiftsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
@@ -1239,6 +1280,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsRegisterRoute: ApiReportsRegisterRoute,
   ApiShiftsAccessRoute: ApiShiftsAccessRoute,
   ApiShiftsAssignmentsRoute: ApiShiftsAssignmentsRoute,
+  ApiShiftsRefusedScansRoute: ApiShiftsRefusedScansRoute,
   ApiShiftsSettingsRoute: ApiShiftsSettingsRoute,
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
   ApiLocationsIndexRoute: ApiLocationsIndexRoute,
