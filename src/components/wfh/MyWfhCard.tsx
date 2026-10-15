@@ -345,15 +345,18 @@ export function MyWfhCard({
                             Declared {formatDeclared(d.declaredAt)}
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          className="h-8 shrink-0 border-slate-200 text-xs"
-                          aria-label={`Cancel ${formatDay(d.dayKey)}`}
-                          disabled={busyNow}
-                          onClick={() => setCancelKey(d.dayKey)}
-                        >
-                          Cancel
-                        </Button>
+                        {/* Only today and later days can be cancelled; a day that has passed is history. */}
+                        {d.dayKey >= today && (
+                          <Button
+                            variant="outline"
+                            className="h-8 shrink-0 border-slate-200 text-xs"
+                            aria-label={`Cancel ${formatDay(d.dayKey)}`}
+                            disabled={busyNow}
+                            onClick={() => setCancelKey(d.dayKey)}
+                          >
+                            Cancel
+                          </Button>
+                        )}
                       </li>
                     ))}
                   </ul>
