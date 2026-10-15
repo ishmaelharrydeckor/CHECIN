@@ -31,6 +31,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AuthenticatedWfhPreviewRouteImport } from './routes/_authenticated/wfh-preview'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
+import { Route as ApiWfhRouteImport } from './routes/api/wfh'
 import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
 import { Route as ApiAdminKioskAccessRouteImport } from './routes/api/admin/kiosk-access'
 import { Route as ApiAdminResetLinkRouteImport } from './routes/api/admin/reset-link'
@@ -178,6 +179,11 @@ const AuthenticatedWfhPreviewRoute = AuthenticatedWfhPreviewRouteImport.update({
 const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
   id: '/accept-invite/$token',
   path: '/accept-invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWfhRoute = ApiWfhRouteImport.update({
+  id: '/api/wfh',
+  path: '/api/wfh',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedOwnerReportsRoute =
@@ -382,6 +388,7 @@ export interface FileRoutesByFullPath {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/wfh': typeof ApiWfhRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
@@ -440,6 +447,7 @@ export interface FileRoutesByTo {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/wfh': typeof ApiWfhRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
@@ -500,6 +508,7 @@ export interface FileRoutesById {
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/wfh': typeof ApiWfhRoute
   '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
   '/api/admin/reset-link': typeof ApiAdminResetLinkRoute
@@ -560,6 +569,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/wfh-preview'
     | '/accept-invite/$token'
+    | '/api/wfh'
     | '/owner/reports'
     | '/api/admin/kiosk-access'
     | '/api/admin/reset-link'
@@ -618,6 +628,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/wfh-preview'
     | '/accept-invite/$token'
+    | '/api/wfh'
     | '/owner/reports'
     | '/api/admin/kiosk-access'
     | '/api/admin/reset-link'
@@ -677,6 +688,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shifts'
     | '/_authenticated/wfh-preview'
     | '/accept-invite/$token'
+    | '/api/wfh'
     | '/_authenticated/owner/reports'
     | '/api/admin/kiosk-access'
     | '/api/admin/reset-link'
@@ -723,6 +735,7 @@ export interface RootRouteChildren {
   ScanRoute: typeof ScanRoute
   TermsRoute: typeof TermsRoute
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
+  ApiWfhRoute: typeof ApiWfhRoute
   ApiAdminKioskAccessRoute: typeof ApiAdminKioskAccessRoute
   ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
@@ -913,6 +926,13 @@ declare module '@tanstack/react-router' {
       path: '/accept-invite/$token'
       fullPath: '/accept-invite/$token'
       preLoaderRoute: typeof AcceptInviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/wfh': {
+      id: '/api/wfh'
+      path: '/api/wfh'
+      fullPath: '/api/wfh'
+      preLoaderRoute: typeof ApiWfhRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/owner/reports': {
@@ -1211,6 +1231,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScanRoute: ScanRoute,
   TermsRoute: TermsRoute,
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
+  ApiWfhRoute: ApiWfhRoute,
   ApiAdminKioskAccessRoute: ApiAdminKioskAccessRoute,
   ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
   ApiAdminRolesRoute: ApiAdminRolesRoute,
