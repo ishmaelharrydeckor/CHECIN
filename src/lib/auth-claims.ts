@@ -25,6 +25,8 @@ export interface ChecINClaimsState {
   managerId: string | null;
   /** Manager only: an org admin has allowed them to pair and revoke entrance tablets. */
   kioskAdmin: boolean;
+  /** Manager only: an org admin has allowed them to create shifts and assign their own team. */
+  shiftAdmin: boolean;
 }
 
 let current: ChecINClaimsState = {
@@ -33,6 +35,7 @@ let current: ChecINClaimsState = {
   orgId: null,
   managerId: null,
   kioskAdmin: false,
+  shiftAdmin: false,
 };
 
 let readyPromise: Promise<void> = Promise.resolve();
@@ -40,7 +43,7 @@ let readyPromise: Promise<void> = Promise.resolve();
 async function refreshClaims(forceRefresh = false): Promise<void> {
   const user = firebaseAuth.currentUser;
   if (!user) {
-    current = { uid: null, role: null, orgId: null, managerId: null, kioskAdmin: false };
+    current = { uid: null, role: null, orgId: null, managerId: null, kioskAdmin: false, shiftAdmin: false };
     return;
   }
   try {
@@ -49,10 +52,11 @@ async function refreshClaims(forceRefresh = false): Promise<void> {
     const orgId = (tokenResult.claims.orgId as string | undefined) ?? null;
     const managerId = (tokenResult.claims.managerId as string | undefined) ?? null;
     const kioskAdmin = tokenResult.claims.kioskAdmin === true;
-    current = { uid: user.uid, role, orgId, managerId, kioskAdmin };
+    const shiftAdmin = tokenResult.claims.shiftAdmin === true;
+    current = { uid: user.uid, role, orgId, managerId, kioskAdmin, shiftAdmin };
   } catch {
     // Brand new user or unassigned claims
-    current = { uid: user.uid, role: null, orgId: null, managerId: null, kioskAdmin: false };
+    current = { uid: user.uid, role: null, orgId: null, managerId: null, kioskAdmin: false, shiftAdmin: false };
   }
 }
 
@@ -105,6 +109,11 @@ export function isManagerRole(): boolean {
 /** Org admins, plus managers an admin has allowed to pair and revoke tablets. */
 export function canManageKiosksRole(): boolean {
   return current.role === "org_admin" || (current.role === "manager" && current.kioskAdmin);
+}
+
+/** Org admins, plus managers an admin has allowed to create shifts and assign their own team. */
+export function canManageShiftsRole(): boolean {
+  return current.role === "org_admin" || (current.role === "manager" && current.shiftAdmin);
 }
 
 export function isEmployeeRole(): boolean {
