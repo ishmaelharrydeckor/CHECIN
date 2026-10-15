@@ -29,3 +29,36 @@ jobs:
         run: npx tsc --noEmit
       - name: Unit tests
         run: npm test
+      - name: Refuse committed key files and env files
+        run: |
+          bad=$(git ls-files | grep -E '(^|/)\.env($|\.)|serviceAccount|service-account|adminsdk.*\.json$|\.pem$|id_rsa' | grep -v '\.env\.example$' || true)
+          if [ -n "$bad" ]; then
+            echo "These files must never be committed:"; echo "$bad"; exit 1
+          fi
+
+  e2e:
+    name: Browser test of the main path (staging)
+    # Runs only when the repository variable E2E_ENABLED is "true" (see e2e/README.md).
+    if: ${{ vars.E2E_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    needs: check
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report

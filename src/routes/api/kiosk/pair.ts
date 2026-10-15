@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import crypto from "node:crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { hashDeviceSecret } from "@/lib/kiosk-crypto.server";
+import { generateChannelId } from "@/lib/kiosk-channel.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 
 export const Route = createFileRoute("/api/kiosk/pair")({
@@ -69,8 +71,12 @@ export const Route = createFileRoute("/api/kiosk/pair")({
             locationId: pairing.locationId,
             locationName: pairing.locationName,
             kiosk_secret_hash: secretHash,
+            channelId: generateChannelId(), // re-pairing rotates the live-greeting address
+            channelRotatedAt: Date.now(),
             kiosk_paired_at: new Date().toISOString(),
-          });
+            kiosk_revoked_at: FieldValue.delete(),
+            kiosk_revoked_by: FieldValue.delete(),
+          }, { merge: true });
 
           logEvent({
             action: "kiosk.pair",

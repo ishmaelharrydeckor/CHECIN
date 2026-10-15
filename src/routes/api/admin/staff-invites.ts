@@ -10,6 +10,8 @@ import {
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import type { CorporateRole } from "@/lib/auth-claims";
+import { DEFAULT_DEPARTMENT, cleanDepartmentName, matchDepartment } from "@/lib/departments";
+import { loadOrgDepartments } from "@/lib/org-departments.server";
 
 const INVITE_TTL_DAYS = 14;
 
@@ -133,6 +135,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
                 role: data.role,
                 orgId: data.orgId,
                 orgName,
+                department: data.department || DEFAULT_DEPARTMENT,
                 expiresAt: data.expiresAt,
                 hasExistingAccount,
               },
@@ -189,7 +192,8 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
               email: data.email || "",
               photoURL: data.photoURL || null,
               role: data.role || "member",
-              department: data.department || (data.role === "org_admin" ? "Leadership" : data.role === "manager" ? "Management" : "Operations"),
+              department: data.department || DEFAULT_DEPARTMENT,
+              managerId: typeof data.managerId === "string" ? data.managerId : null,
             };
           });
 
@@ -317,6 +321,17 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             }
           }
 
+          // The department is chosen by whoever sends the invite, from the organization's list.
+          // Left out means "General". The invited person never picks their own.
+          let department = DEFAULT_DEPARTMENT;
+          if (cleanDepartmentName(body?.department)) {
+            const matched = matchDepartment(await loadOrgDepartments(ctx.orgId), body.department);
+            if (!matched) {
+              return Response.json({ error: "Please choose a department from your list." }, { status: 400 });
+            }
+            department = matched;
+          }
+
           const token = randomBytes(32).toString("hex");
           const now = new Date();
           const expiresAt = new Date(now.getTime() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -327,6 +342,7 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
             role,
             orgId: ctx.orgId,
             managerId: assignedManagerId,
+            department,
             invitedBy: ctx.uid,
             status: "pending",
             createdAt: now.toISOString(),
@@ -370,7 +386,6 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
           const body = await request.json();
           const token = (body?.token || "").trim();
           const fullName = (body?.fullName || "").trim();
-          const department = String(body?.department || "General").trim().slice(0, 60) || "General";
           const password = (body?.password || "").trim();
 
           if (!token) {
@@ -410,6 +425,10 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
           inviteRole = inviteData.role;
           inviteOrgId = inviteData.orgId;
           assignedManagerId = inviteData.managerId || null;
+          // The department was set by the inviter. Whatever the invited person sends is ignored. If
+          // that department has since left the list, they start in "General".
+          const department =
+            matchDepartment(await loadOrgDepartments(inviteOrgId), inviteData.department) ?? DEFAULT_DEPARTMENT;
 
           // 2. Check if user already exists in Firebase Auth
           let existingUser = null;

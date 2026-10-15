@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { dayKey } from "@/lib/attendance-day";
 import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
 import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
+import { TodayPanel } from "@/components/dashboard/TodayPanel";
+import { DEFAULT_DEPARTMENT } from "@/lib/departments";
 import {
   Users,
   Clock,
@@ -97,6 +99,29 @@ function DashboardPage() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [orgDepartments, setOrgDepartments] = useState<string[]>([DEFAULT_DEPARTMENT]);
+  const [inviteDepartment, setInviteDepartment] = useState(DEFAULT_DEPARTMENT);
+
+  // The department list is only needed while the invite form is open.
+  useEffect(() => {
+    if (!inviteModalOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await firebaseAuth.currentUser?.getIdToken();
+        const res = await fetch("/api/organization/departments", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && Array.isArray(data?.departments)) setOrgDepartments(data.departments);
+      } catch {
+        // The form still works with just "General".
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteModalOpen]);
 
   // Today's numbers and feed, computed on the server (see /api/attendance/today)
   const fetchToday = async (fresh = false) => {
@@ -396,6 +421,7 @@ function DashboardPage() {
         body: JSON.stringify({
           email: inviteEmail.trim(),
           role: inviteRole,
+          department: inviteDepartment,
         }),
       });
 
@@ -592,6 +618,15 @@ function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Today: counts, live activity, and the late and not-arrived lists. Every figure comes from
+          /api/attendance/today (the same answer as the tiles above), so nothing here can disagree. */}
+      <TodayPanel
+        data={today}
+        loading={refreshing || (!today && !todayError)}
+        error={todayError}
+        onRefresh={handleManualRefresh}
+      />
 
       {/* 3. Interactive Charts or Onboarding Telemetry Card */}
       {trendHasData || (today?.eventsTotal ?? 0) > 0 ? (
@@ -936,6 +971,23 @@ function DashboardPage() {
                       {isOrgAdmin && (
                         <option value="manager">Manager (Can manage their team & view roster)</option>
                       )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Department
+                    </label>
+                    <select
+                      value={inviteDepartment}
+                      onChange={(e) => setInviteDepartment(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
+                    >
+                      {orgDepartments.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

@@ -1,5 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { dayKey } from "@/lib/attendance-day";
+import { resolveDashboardScope } from "@/lib/dashboard-scope";
+import { loadOrgContext } from "@/lib/attendance-data.server";
+import { mergeEventsNewestFirst, movedInMembers } from "@/lib/manager-history";
+
+const DEFAULT_PAGE = 50;
+const MAX_PAGE = 100;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RANGE_MS: Record<string, number> = { today: DAY_MS, week: 7 * DAY_MS, month: 30 * DAY_MS };
 
 export const Route = createFileRoute("/api/attendance/history")({
   server: {
@@ -13,7 +22,12 @@ export const Route = createFileRoute("/api/attendance/history")({
 
           const url = new URL(request.url);
           const typeParam = url.searchParams.get("type"); // "in" | "out" | null
-          const searchParam = (url.searchParams.get("search") || "").trim().toLowerCase();
+          const rangeParam = url.searchParams.get("range") || "today"; // today | week | month | all
+          const cursor = url.searchParams.get("cursor"); // timestamp of the last record already shown
+          const pageSize = Math.min(
+            Math.max(parseInt(url.searchParams.get("limit") || "", 10) || DEFAULT_PAGE, 1),
+            MAX_PAGE,
+          );
 
           let orgId = caller.orgId;
           if (!orgId) {
@@ -46,22 +60,52 @@ export const Route = createFileRoute("/api/attendance/history")({
             query = query.where("employeeId", "==", caller.uid);
           }
 
-          let snap;
-          try {
-            snap = await query.orderBy("timestamp", "desc").limit(200).get();
-          } catch (queryErr: any) {
-            console.warn("[History] Index fallback:", queryErr?.message);
-            snap = await query.limit(200).get();
+          // The time range and event type are applied by the database, not after the fact, and one
+          // request reads at most one page. Needs the clock_events indexes in firestore.indexes.json.
+          const windowMs = RANGE_MS[rangeParam];
+          const page = (q: FirebaseFirestore.Query): FirebaseFirestore.Query => {
+            if (windowMs) q = q.where("timestamp", ">=", new Date(Date.now() - windowMs).toISOString());
+            if (typeParam === "in" || typeParam === "out") q = q.where("type", "==", typeParam);
+            q = q.orderBy("timestamp", "desc");
+            if (cursor) q = q.startAfter(cursor);
+            return q;
+          };
+
+          // One extra document tells us whether there is another page, without a second read.
+          const snap = await page(query).limit(pageSize + 1).get();
+          let found = snap.docs;
+
+          // A manager also sees the earlier events of people who joined their team during this
+          // window (filed under their previous manager). Two newest-first pages merge into one.
+          // A team where nobody has moved in reads nothing extra. (docs/MANAGER-CHANGE-DESIGN.md)
+          if (caller.role === "manager" && caller.orgId) {
+            const scope = resolveDashboardScope(caller);
+            if (scope) {
+              const { timezone, roster } = await loadOrgContext(scope);
+              const fromDay = (windowMs ? dayKey(Date.now() - windowMs, timezone) : null) ?? "0000-01-01";
+              const moved = movedInMembers(roster, timezone, fromDay).filter((m) => m.uid !== caller.uid);
+              if (moved.length > 0) {
+                const extra = await page(
+                  firestoreAdmin
+                    .collection("clock_events")
+                    .where("orgId", "==", orgId)
+                    .where("employeeId", "in", moved.map((m) => m.uid)),
+                )
+                  .limit(pageSize + 1)
+                  .get();
+                const wrap = (d: FirebaseFirestore.QueryDocumentSnapshot) => ({
+                  id: d.id,
+                  timestamp: String(d.data().timestamp ?? ""),
+                  doc: d,
+                });
+                found = mergeEventsNewestFirst(found.map(wrap), extra.docs.map(wrap), pageSize + 1).map((x) => x.doc);
+              }
+            }
           }
+          const hasMore = found.length > pageSize;
+          const docs = found.slice(0, pageSize);
 
-          let docs = snap.docs;
-          docs.sort((a, b) => {
-            const timeA = new Date(a.data().timestamp || 0).getTime();
-            const timeB = new Date(b.data().timestamp || 0).getTime();
-            return timeB - timeA;
-          });
-
-          let records = docs.map((doc) => {
+          const records = docs.map((doc) => {
             const d = doc.data();
             return {
               id: doc.id,
@@ -76,26 +120,15 @@ export const Route = createFileRoute("/api/attendance/history")({
               type: d.type === "out" ? "out" : "in",
               late: d.late === true,
               earlyDeparture: d.earlyDeparture === true,
+              voided: !!d.voidedAt,
               timestamp: d.timestamp,
               verifiedMethod: d.verifiedBy || "15s Dynamic QR · HMAC Verified",
             };
           });
 
-          // In-memory filters for type and search term
-          if (typeParam && (typeParam === "in" || typeParam === "out")) {
-            records = records.filter((r) => r.type === typeParam);
-          }
+          const nextCursor = hasMore && docs.length ? docs[docs.length - 1].data().timestamp : null;
 
-          if (searchParam) {
-            records = records.filter(
-              (r) =>
-                r.employeeName.toLowerCase().includes(searchParam) ||
-                r.email.toLowerCase().includes(searchParam) ||
-                r.locationName.toLowerCase().includes(searchParam),
-            );
-          }
-
-          return Response.json({ ok: true, records });
+          return Response.json({ ok: true, records, hasMore, nextCursor });
         } catch (err: any) {
           console.error("GET /api/attendance/history error:", err);
           return Response.json({ error: "Failed to fetch attendance history" }, { status: 500 });

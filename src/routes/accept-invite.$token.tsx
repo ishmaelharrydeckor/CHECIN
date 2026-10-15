@@ -37,18 +37,6 @@ export const Route = createFileRoute("/accept-invite/$token")({
   component: AcceptInvitePage,
 });
 
-const DEPARTMENTS = [
-  "Operations",
-  "Engineering",
-  "Product Design",
-  "Sales",
-  "Finance",
-  "Customer Support",
-  "Marketing",
-  "Human Resources",
-  "General",
-];
-
 function AcceptInvitePage() {
   const { token } = Route.useParams();
   const navigate = useNavigate();
@@ -61,12 +49,12 @@ function AcceptInvitePage() {
     role: string;
     orgId: string;
     orgName: string;
+    department?: string;
     expiresAt: string;
     hasExistingAccount?: boolean;
   } | null>(null);
 
   const [fullName, setFullName] = useState("");
-  const [department, setDepartment] = useState("Operations");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
@@ -83,7 +71,14 @@ function AcceptInvitePage() {
         const data = await res.json();
         if (!active) return;
 
-        if (res.ok && data.ok && data.invite) {
+        if (res.status === 429 || res.status >= 500) {
+          setInviteErrorTitle("Please try again");
+          setInviteError(
+            res.status === 429
+              ? data.error || "Too many attempts from this connection. Please wait a few minutes and open the link again."
+              : "We couldn't check this invitation just now. The link is probably fine. Please open it again in a minute.",
+          );
+        } else if (res.ok && data.ok && data.invite) {
           setInviteData(data.invite);
           const nameSuggestion = data.invite.email
             .split("@")[0]
@@ -221,7 +216,6 @@ function AcceptInvitePage() {
         body: JSON.stringify({
           token,
           fullName: fullName.trim(),
-          department,
           password: !isNowMatching ? password : undefined,
         }),
       });
@@ -378,23 +372,12 @@ function AcceptInvitePage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Department
-                    </label>
-                    <div className="relative">
-                      <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <select
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B] bg-white appearance-none cursor-pointer"
-                      >
-                        {DEPARTMENTS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
+                    <p className="block text-xs font-semibold text-slate-700 mb-1">Department</p>
+                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm text-slate-700">
+                      <Briefcase className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>{inviteData?.department || "General"}</span>
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Set by the person who invited you.</p>
                   </div>
 
                   {!isMatchingUser && (

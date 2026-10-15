@@ -23,6 +23,8 @@ export interface ChecINClaimsState {
   orgId: string | null;
   /** The assigned manager's uid (for employees), or own uid (for managers). */
   managerId: string | null;
+  /** Manager only: an org admin has allowed them to pair and revoke entrance tablets. */
+  kioskAdmin: boolean;
 }
 
 let current: ChecINClaimsState = {
@@ -30,6 +32,7 @@ let current: ChecINClaimsState = {
   role: null,
   orgId: null,
   managerId: null,
+  kioskAdmin: false,
 };
 
 let readyPromise: Promise<void> = Promise.resolve();
@@ -37,7 +40,7 @@ let readyPromise: Promise<void> = Promise.resolve();
 async function refreshClaims(forceRefresh = false): Promise<void> {
   const user = firebaseAuth.currentUser;
   if (!user) {
-    current = { uid: null, role: null, orgId: null, managerId: null };
+    current = { uid: null, role: null, orgId: null, managerId: null, kioskAdmin: false };
     return;
   }
   try {
@@ -45,10 +48,11 @@ async function refreshClaims(forceRefresh = false): Promise<void> {
     const role = (tokenResult.claims.role as CorporateRole | undefined) ?? null;
     const orgId = (tokenResult.claims.orgId as string | undefined) ?? null;
     const managerId = (tokenResult.claims.managerId as string | undefined) ?? null;
-    current = { uid: user.uid, role, orgId, managerId };
+    const kioskAdmin = tokenResult.claims.kioskAdmin === true;
+    current = { uid: user.uid, role, orgId, managerId, kioskAdmin };
   } catch {
     // Brand new user or unassigned claims
-    current = { uid: user.uid, role: null, orgId: null, managerId: null };
+    current = { uid: user.uid, role: null, orgId: null, managerId: null, kioskAdmin: false };
   }
 }
 
@@ -96,6 +100,11 @@ export function isOrgAdminRole(): boolean {
 
 export function isManagerRole(): boolean {
   return current.role === "manager";
+}
+
+/** Org admins, plus managers an admin has allowed to pair and revoke tablets. */
+export function canManageKiosksRole(): boolean {
+  return current.role === "org_admin" || (current.role === "manager" && current.kioskAdmin);
 }
 
 export function isEmployeeRole(): boolean {

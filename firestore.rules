@@ -59,13 +59,13 @@ service cloud.firestore {
         request.auth.uid == userId ||
         (inOrg(resource.data) && (isOrgAdmin() || (isManager() && resource.data.managerId == request.auth.uid)))
       );
-      // Create: display fields only. Tenancy/team fields (orgId, managerId) and anything
-      // role-like are set exclusively by the server (Admin SDK).
+      // Create: display fields only. Tenancy/team fields (orgId, managerId), the department and
+      // anything role-like are set exclusively by the server (Admin SDK).
       allow create: if isSignedIn() && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(["id", "email", "displayName", "photoURL", "department", "createdAt", "updatedAt"]);
+        && request.resource.data.keys().hasOnly(["id", "email", "displayName", "photoURL", "createdAt", "updatedAt"]);
       // Update: only the same display fields may change
       allow update: if isSignedIn() && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["id", "email", "displayName", "photoURL", "department", "createdAt", "updatedAt"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["id", "email", "displayName", "photoURL", "createdAt", "updatedAt"]);
       allow delete: if false;
     }
 
@@ -236,9 +236,26 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Recent Scans: Ephemeral scan notifications read exclusively by Admin SDK in /api/kiosk/token
+    // Recent Scans: the old greeting note (carried a name). No longer written; kept locked.
     match /recent_scans/{locationId} {
       allow read, write: if false;
+    }
+
+    // Kiosk channels: the live greeting. ONE deliberate exception to default-deny.
+    // Anyone who knows a channel's address (32 random bytes, known only to the server and that
+    // tablet) may READ that single document. They can never list the collection or write to it
+    // (the scan route writes with the Admin SDK). The document holds only { type, at, expireAt }: no name,
+    // no employee, no organization, no location. A test fails the build if its fields change.
+    match /kiosk_channels/{channelId} {
+      allow get: if true;
+      allow list, create, update, delete: if false;
+    }
+
+    // ---- Team changes (who moved from which manager to which, and when) ----
+    // Written by the server only (docs/MANAGER-CHANGE-DESIGN.md). The org admin can read the history.
+    match /team_changes/{changeId} {
+      allow read: if isOrgAdmin() && inOrg(resource.data);
+      allow create, update, delete: if false;
     }
 
     // Default Deny: Catch-all for any collection not explicitly matched above

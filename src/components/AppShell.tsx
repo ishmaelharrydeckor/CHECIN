@@ -90,6 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/settings", label: "Settings", icon: Settings },
       ]
     : [
+        { to: "/me", label: "My Page", icon: User },
         { to: "/history", label: "My History", icon: Clock },
         { to: "/announcements", label: "Notices", icon: Megaphone },
         { to: "/leave", label: "Leave", icon: Umbrella },

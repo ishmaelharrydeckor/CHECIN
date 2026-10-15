@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { verifyKioskToken } from "@/lib/kiosk-crypto.server";
 import { getKioskEntry } from "@/lib/kiosk-loader.server";
+import { publishScanNote } from "@/lib/kiosk-channel.server";
 import { computeScanFlags } from "@/lib/attendance-windows";
-import { dayKey, formatClock } from "@/lib/attendance-day";
+import { UNDO_WINDOW_MS, dayKey, formatClock } from "@/lib/attendance-day";
 import {
   applyEventToSummary,
   cooldownFromSummary,
@@ -148,6 +149,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
               const todays: SummaryEvent[] = [];
               for (const d of recent.docs) {
                 const e = d.data();
+                if (e.voidedAt) continue; // an undone scan counts for nothing
                 if ((e.dayKey ?? dayKey(e.timestamp, orgTimezone)) === today) {
                   todays.push({
                     type: e.type === "out" ? "out" : "in",
@@ -219,6 +221,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
               locationName: kiosk.locationName,
               deviceFingerprint: deviceFingerprint || "browser-client",
               verifiedBy: "kiosk_hmac_sha256",
+              // What the day looked like before this scan, so an undo can put it back exactly.
+              summaryBefore: prev,
               schemaVersion: 1,
             };
 
@@ -232,16 +236,6 @@ export const Route = createFileRoute("/api/check-in/scan")({
             t.create(eventRef, eventData); // fails with ALREADY_EXISTS if this scanId was used
             t.set(summaryRef, next);
 
-            // Greeting for the kiosk tablet, only where the location has it switched on.
-            if (kiosk.greeting) {
-              t.set(firestoreAdmin.collection("recent_scans").doc(locationId), {
-                employeeName,
-                type: nextType,
-                time: timeDisplay,
-                timestamp: now,
-              });
-            }
-
             return {
               eventId: eventRef.id,
               type: nextType,
@@ -251,9 +245,14 @@ export const Route = createFileRoute("/api/check-in/scan")({
               timeDisplay,
               employeeName,
               locationName: eventData.locationName,
+              undoSeconds: Math.floor(UNDO_WINDOW_MS / 1000),
               replayed: false,
             };
           });
+
+          // The check-in is saved. Now tell the tablet, as a separate best-effort step so a hiccup
+          // here can never slow or fail a check-in. Only where the greeting is on; no name is sent.
+          if (kiosk.greeting) await publishScanNote(kiosk.channelId, scanResult.type, now);
 
           logEvent({
             action: "scan.record",
@@ -322,6 +321,9 @@ async function replayOf(
       timeDisplay: formatClock(e.timestamp, kiosk?.timezone ?? "UTC"),
       employeeName: e.employeeName,
       locationName: e.locationName,
+      undoSeconds: e.voidedAt
+        ? 0
+        : Math.max(0, Math.floor((UNDO_WINDOW_MS - (Date.now() - new Date(e.timestamp).getTime())) / 1000)),
       replayed: true,
     };
   } catch {

@@ -68,9 +68,14 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 
 - Phone ([ScanResultOverlay.tsx](../src/components/scan/ScanResultOverlay.tsx)): full-screen result (mint for in, butter for out) with the time, location and "Marked late" / "Left early"; vibration and a short tone where the phone allows; every **failure** is a full-screen message that says the check-in was **not recorded**, in plain language ([scan-result.ts](../src/lib/scan-result.ts), tested). The idle screen shows "Last recorded: IN at 08:52" from the status endpoint.
 - A retry after a dropped connection reuses the same `scanId` (per entrance, for 60 s), so it records once; a cooldown answer says the earlier scan counts.
-- Kiosk greeting is a per-location setting (Settings > location hours), **off by default** (`kioskGreeting` on the location document). With it off the token route skips the `recent_scans` read, the scan route skips the write, and the tablet polls every 12 s (the QR-refresh ceiling) and shows "Your phone shows your check-in result".
-- **Not built:** the data-free "scan received" cue on the tablet. Any signal that a scan happened has to be read from the database on each poll, which is the cost the toggle removes. The phone is the confirmation.
-- Adaptive interval stays for locations with the greeting on: 4 s around reporting/closing time, 12 s otherwise.
+- Kiosk greeting is a per-location setting (Settings > location hours), **off by default**. With it off the tablet never asks for scans and shows "Your phone shows your check-in result".
+- **Live greeting (approach 7, decided after comparing ten options).** Where the greeting is on, each paired tablet has a private channel: one document `kiosk_channels/{channelId}` holding only `{ type, at }`. The scan route writes it **after** the check-in is saved (best effort, 400 ms cap, throttled to one write per 500 ms), and the tablet watches it, so the card appears in about a second. The card is **nameless** ("Welcome" / "Goodbye", "Clocked IN" / "Clocked OUT", the time).
+  - **Security.** The rules add ONE deliberate exception to default-deny: anyone who knows a channel's address may read that single document (`get` only; never list or write). The address is 32 random bytes, known only to the server and that tablet, never in the QR code. The note holds nothing identifying, and a test fails the build if its fields change or anything else writes to `kiosk_channels`. Re-pairing a tablet rotates its address. Anyone who can open developer tools on the tablet already holds its device secret, which is worse, so this adds no new reader.
+  - **Fallback.** If the live link is down (no connection within 10 s, or the browser reports it offline) the tablet asks the server every 4 s for any scan newer than the last one it showed, and returns to the live link when it recovers. Fallback costs one read per ask and only while down. It also fixes the old "12-second window" bug: the tablet says which scan it last saw, so none is lost between slow polls.
+  - **Cost.** About one read per scan (the tablet's listener), instead of 2,400 to 7,200 per tablet per day for polling. The QR refresh no longer reads anything for the greeting.
+  - **Stale and clock safety.** The tablet judges a note's age by the server's clock (sent with every QR refresh), shows nothing older than 15 s, and never shows a note twice.
+  - **Known risks (see the design discussion):** anyone with the address can run up reads (mitigate with App Check and a budget alert, both set up in the Firebase/Google Cloud consoles, not in code); a dead connection means no greeting (the status line on the tablet says "reconnecting"); not yet tested on a physical tablet or over days of uptime.
+  - **Rollout:** deploy `firestore.rules` to staging first, then merge. Tablets pick up their channel address on their next QR refresh (no re-pairing). The old `recent_scans` collection is no longer written; delete it when convenient.
 
 ### 3.5 P4: dashboard on summaries
 
@@ -79,7 +84,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 - One meaning changed: "average shift" is the mean of each person's total worked minutes for the day (it used to average each separate in-to-out session).
 - New composite indexes for the week range: `daily_summaries (orgId, dayKey)` and `(orgId, managerId, dayKey)`. Deploy `firestore.indexes.json` before the code; a missing index shows up as a failed weekly chart.
 - **Rollout order matters:** deploy rules and indexes, deploy the code, run `scripts/backfill-summaries.mjs` for the days you want history for. Until summaries exist for a day the dashboard shows that day as empty.
-- Not done: `/api/attendance/feed` is no longer called by any page. It can be deleted (it is a route that reads other people's data with no caller left); left in place because removing a route is the integrator's call.
+- Done: the unused `/api/attendance/feed` route (it read other people's data and had no caller left) was deleted.
 - Reports (task 2.1) should read summaries too: `loadScopedSummaries` in `attendance-data.server.ts` is the shared loader.
 
 ### 3.6 P5: only when a trigger fires
@@ -90,6 +95,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 | Any report over about 10 s | Background generation, BigQuery export |
 | More than about 100 kiosks | Replace greeting polling (push channel or drop it) |
 | First customer with residency needs | Regional database, tenant pinning by `region` |
+| First customer with offices in several timezones | Per-location timezone (design note above) |
 | First enterprise questionnaire | Penetration test, SOC 2 readiness |
 | Cost per seat above target | Re-examine access patterns before anything else |
 
@@ -102,6 +108,7 @@ Teammate tasks that do **not** depend on the above and can proceed now: 1.1 leav
 | **Payroll integrations** | How do exports stay exact and repeatable? | Rebuildable summaries plus a "lock this pay period" state after approval. |
 | **Scheduled reports (3.3)** | How do cron jobs avoid sending twice? | Idempotent per `(scheduleId, periodKey)` on Vercel Cron. |
 | **Per-seat pricing** | What does one employee cost per month? | Take reads/writes per employee from the P1 harness before setting a price. |
+| **Per-location timezone (future)** | A company with offices in several timezones (for example two countries) can only pick one timezone for the whole organization today. Should each location have its own? | Not built; decide when the first customer with offices in different timezones appears. The likely design: an optional `timezone` on each location, falling back to the organization's. The kiosk record already loads a timezone, so scans, late flags and the day a scan belongs to would follow the location. Questions to settle first: an employee who works at two locations in different timezones on the same day (two day labels), what a manager sees as "today" when their team spans timezones, and how reports group days. The timezone picker built for the organization can be reused for locations. |
 
 ## 5. Roadmap features against this plan
 

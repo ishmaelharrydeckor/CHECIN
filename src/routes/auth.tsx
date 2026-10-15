@@ -1,3 +1,6 @@
+import { TimezonePicker } from "@/components/TimezonePicker";
+import { DepartmentListEditor } from "@/components/DepartmentListEditor";
+import { DEFAULT_DEPARTMENT } from "@/lib/departments";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -39,11 +42,12 @@ function AuthPage() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirm, setRegConfirm] = useState("");
-  const [timezone, setTimezone] = useState(
-    typeof Intl !== "undefined"
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone
-      : "UTC",
-  );
+  // What this device reports. It is only the starting suggestion: the person can search and choose
+  // the zone their team actually works in.
+  const detectedTimezone =
+    typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+  const [timezone, setTimezone] = useState(detectedTimezone || "UTC");
+  const [departments, setDepartments] = useState<string[]>([DEFAULT_DEPARTMENT]);
 
   // Direct Login Form
   const [loginEmail, setLoginEmail] = useState("");
@@ -227,9 +231,10 @@ function AuthPage() {
     try {
       const user = firebaseAuth.currentUser;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      let body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         orgName: orgName.trim(),
         timezone,
+        departments,
       };
 
       if (user) {
@@ -654,13 +659,15 @@ function AuthPage() {
                       <Label htmlFor="timezone" className="text-xs font-medium text-[#0E2322]">
                         Primary Timezone
                       </Label>
-                      <Input
-                        id="timezone"
-                        type="text"
-                        value={timezone}
-                        onChange={(e) => setTimezone(e.target.value)}
-                        className="h-10 text-xs text-muted-foreground"
-                      />
+                      <TimezonePicker id="timezone" value={timezone} onChange={setTimezone} detected={detectedTimezone} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="departments" className="text-xs font-medium text-[#0E2322]">
+                        Your departments <span className="font-normal text-muted-foreground">(optional)</span>
+                      </Label>
+                      <DepartmentListEditor id="departments" value={departments} onChange={setDepartments} showSuggestions />
+                      <p className="text-xs text-muted-foreground">You can change these later on the Departments page.</p>
                     </div>
 
                     <Button

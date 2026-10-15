@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { canManageKiosks, firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
 import { parseHoursInput, DEFAULT_CHECKOUT_WINDOW_MINUTES } from "@/lib/attendance-windows";
 import { invalidateKiosk } from "@/lib/kiosk-cache.server";
 
@@ -28,7 +28,8 @@ export const Route = createFileRoute("/api/locations/")({
             // Check if kiosk is paired in Admin-only kiosks collection
             const kioskDoc = await firestoreAdmin.collection("kiosks").doc(doc.id).get();
             const isPaired = kioskDoc.exists && !!kioskDoc.data()?.kiosk_secret_hash;
-            const pairedAt = kioskDoc.data()?.kiosk_paired_at || null;
+            const pairedAt = isPaired ? kioskDoc.data()?.kiosk_paired_at || null : null;
+            const revokedAt = !isPaired ? kioskDoc.data()?.kiosk_revoked_at || null : null;
 
             locations.push({
               id: doc.id,
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/api/locations/")({
               kioskGreeting: data.kioskGreeting === true,
               isPaired,
               pairedAt,
+              revokedAt,
             });
           }
 
@@ -53,18 +55,24 @@ export const Route = createFileRoute("/api/locations/")({
 
       POST: async ({ request }) => {
         try {
-          const caller = await verifyCallerToken(request.headers.get("authorization"));
+          // checkRevoked so a manager whose permission was just removed is cut off at once
+          const caller = await verifyCallerToken(request.headers.get("authorization"), {
+            checkRevoked: true,
+          });
 
           const callerOrgId = caller?.orgId;
           const callerUid = caller?.uid;
 
-          if (!callerOrgId || !callerUid) {
+          if (!caller || !callerOrgId || !callerUid) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });
           }
 
-          // Only org_admin can add locations
-          if (caller.role !== "org_admin") {
-            return Response.json({ error: "Forbidden: Org Admin privileges required to create physical locations" }, { status: 403 });
+          // Org admins, or managers an admin has switched on
+          if (!canManageKiosks(caller)) {
+            return Response.json(
+              { error: "Forbidden: Your organization admin hasn't allowed you to add locations" },
+              { status: 403 },
+            );
           }
 
           const body = await request.json();

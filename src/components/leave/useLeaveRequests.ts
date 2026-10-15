@@ -33,7 +33,7 @@ function toDate(value: unknown): Date | null {
     : null;
 }
 
-function fromSnapshot(snap: QueryDocumentSnapshot<DocumentData>): LeaveRequest | null {
+export function fromSnapshot(snap: QueryDocumentSnapshot<DocumentData>): LeaveRequest | null {
   const d = snap.data();
   if (!isLeaveType(d.type)) return null;
   return {
@@ -85,7 +85,7 @@ function friendlyError(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function sortRequests(list: LeaveRequest[]): LeaveRequest[] {
+export function sortRequests(list: LeaveRequest[]): LeaveRequest[] {
   const rank = (s: LeaveStatus) => (s === "pending" ? 0 : 1);
   return [...list].sort((a, b) => {
     if (rank(a.status) !== rank(b.status)) return rank(a.status) - rank(b.status);
