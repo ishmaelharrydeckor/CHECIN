@@ -4,7 +4,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 
 **Before any task:** read [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md). Branch off `staging`, PR into `staging`. No GPS, ever.
 
-**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P8, 2.3b). Don't start the others.
+**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P8, 3.1-P3b, 2.3b). Don't start the others.
 
 **Augustine works with Claude Code** (he can run and test the code locally). His tasks below include server routes and tests, so they follow a stricter bar than screens-only tasks: write the tests first, run `npm run check`, and list in the PR every file you touched and every shared-file change you need (rules, indexes) for the integrator to make.
 
@@ -24,6 +24,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 3.1-P6 | Shifts phase 6: repeating patterns | L | Augustine | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 | 2.3b | Work-from-home diary | L | Augustine | todo. Starts after 3.1-P6 is merged. Design approved (docs/WFH-DIARY-DESIGN.md) | 2.3 (done), 3.1-P6 |
 | 3.1-P8 | Shifts phase 8: breaks (the calculation, no screens) | M | Cobberson | todo. Brief below; start now | shifts phases 1 to 5b (done) |
+| 3.1-P3b | Shifts phase 3b: Lenient mode, the decision rules only (no scan route, no screens) | M | Cobberson | todo. Brief below; start after 3.1-P8 | shifts phases 1 to 5b (done) |
 
 Next: nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
 
@@ -161,6 +162,29 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 **Not in this task (the integrator does these):** the database fields, the organization switch "Track breaks", the shift form field, routes, the register and exports, and anything on screen. You only deliver the calculation and its tests.
 
 **Done when:** CI is green (the tests run there; you cannot run them yourself, so read your tests twice) and the PR lists the cases covered.
+
+## 3.1-P3b Shifts phase 3b: Lenient mode, the rules only (M, Cobberson, after 3.1-P8)
+
+**What:** In **Lenient** mode a scan outside the shift's scan window is **accepted** instead of refused (today, Strict refuses it). The scan route is the busiest and most security-sensitive code in the product, so **you do not touch it**. You write only the **decision rules** as pure, tested functions; the integrator connects them to the scan route. Read the "Strict or Lenient" and "Refused-scans list" rows of `docs/SHIFTS-DESIGN.md` and `src/lib/shift-scan.ts` (`planShiftScan`) for the style.
+
+**The rules (from the design):**
+- Inside the window: counted as normal, in both modes.
+- Outside the window, **Strict**: refused (already built, do not change).
+- Outside the window, **Lenient**: recorded as a normal check-in marked **"outside shift window"**, with **no late and no early judgement**, and it **does not count as the start or end of the shift**.
+- An outside-window scan **must not change the direction of the person's next scan** and **must not change their hours**.
+- Both modes write one short refused-scan note.
+
+**Files (all new):** `src/lib/shift-lenient.ts` and `scripts/tests/shift-lenient.test.mjs`. Pure functions only: no Firebase, no `@/` imports (relative `.ts` imports), no clock reads.
+
+**What to write:**
+- `classifyScan({ mode, insideWindow })` returns `{ record: boolean, counted: boolean, note: boolean }`.
+- `countedEvents(events)` takes a day's events (each may have `outsideWindow: true`) and returns only the ones that count toward direction, first-in, last-out and hours.
+- `nextDirection(events)` returns `"in"` or `"out"` using only counted events (an outside-window scan is ignored).
+- A table of tests: every mode and window combination; a Lenient scan before the shift, then a normal scan (is the normal one an "in"?); an outside scan after the shift ends; two outside scans in a row; an empty day; only outside scans on a day (the day has no first-in); the order of events.
+
+**Not in this task (the integrator does these):** the scan route, the database field that marks an event, the summary builder, the Settings switch, anything on screen.
+
+**Done when:** CI is green and the PR lists the cases covered. Because you cannot run the tests yourself, read them twice.
 
 ## Definition of done (every task)
 
