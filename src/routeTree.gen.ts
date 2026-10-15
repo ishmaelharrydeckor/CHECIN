@@ -17,6 +17,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as AuthenticatedAnalyticsPreviewRouteImport } from './routes/_authenticated/analytics-preview'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAttendanceReportsRouteImport } from './routes/_authenticated/attendance-reports'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -27,6 +28,8 @@ import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
+import { Route as AuthenticatedWfhPreviewRouteImport } from './routes/_authenticated/wfh-preview'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
 import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
 import { Route as ApiAdminKioskAccessRouteImport } from './routes/api/admin/kiosk-access'
@@ -103,6 +106,12 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnalyticsPreviewRoute =
+  AuthenticatedAnalyticsPreviewRouteImport.update({
+    id: '/analytics-preview',
+    path: '/analytics-preview',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAnnouncementsRoute =
   AuthenticatedAnnouncementsRouteImport.update({
     id: '/announcements',
@@ -154,6 +163,16 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedShiftsRoute = AuthenticatedShiftsRouteImport.update({
+  id: '/shifts',
+  path: '/shifts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWfhPreviewRoute = AuthenticatedWfhPreviewRouteImport.update({
+  id: '/wfh-preview',
+  path: '/wfh-preview',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
@@ -349,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/scan': typeof ScanRoute
   '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/analytics-preview': typeof AuthenticatedAnalyticsPreviewRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -359,6 +379,8 @@ export interface FileRoutesByFullPath {
   '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/shifts': typeof AuthenticatedShiftsRoute
+  '/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
@@ -404,6 +426,7 @@ export interface FileRoutesByTo {
   '/scan': typeof ScanRoute
   '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/analytics-preview': typeof AuthenticatedAnalyticsPreviewRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -414,6 +437,8 @@ export interface FileRoutesByTo {
   '/me': typeof AuthenticatedMeRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/shifts': typeof AuthenticatedShiftsRoute
+  '/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
@@ -461,6 +486,7 @@ export interface FileRoutesById {
   '/scan': typeof ScanRoute
   '/terms': typeof TermsRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/analytics-preview': typeof AuthenticatedAnalyticsPreviewRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -471,6 +497,8 @@ export interface FileRoutesById {
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
+  '/_authenticated/wfh-preview': typeof AuthenticatedWfhPreviewRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
@@ -518,6 +546,7 @@ export interface FileRouteTypes {
     | '/scan'
     | '/terms'
     | '/account'
+    | '/analytics-preview'
     | '/announcements'
     | '/attendance-reports'
     | '/dashboard'
@@ -528,6 +557,8 @@ export interface FileRouteTypes {
     | '/me'
     | '/reports'
     | '/settings'
+    | '/shifts'
+    | '/wfh-preview'
     | '/accept-invite/$token'
     | '/owner/reports'
     | '/api/admin/kiosk-access'
@@ -573,6 +604,7 @@ export interface FileRouteTypes {
     | '/scan'
     | '/terms'
     | '/account'
+    | '/analytics-preview'
     | '/announcements'
     | '/attendance-reports'
     | '/dashboard'
@@ -583,6 +615,8 @@ export interface FileRouteTypes {
     | '/me'
     | '/reports'
     | '/settings'
+    | '/shifts'
+    | '/wfh-preview'
     | '/accept-invite/$token'
     | '/owner/reports'
     | '/api/admin/kiosk-access'
@@ -629,6 +663,7 @@ export interface FileRouteTypes {
     | '/scan'
     | '/terms'
     | '/_authenticated/account'
+    | '/_authenticated/analytics-preview'
     | '/_authenticated/announcements'
     | '/_authenticated/attendance-reports'
     | '/_authenticated/dashboard'
@@ -639,6 +674,8 @@ export interface FileRouteTypes {
     | '/_authenticated/me'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/shifts'
+    | '/_authenticated/wfh-preview'
     | '/accept-invite/$token'
     | '/_authenticated/owner/reports'
     | '/api/admin/kiosk-access'
@@ -780,6 +817,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analytics-preview': {
+      id: '/_authenticated/analytics-preview'
+      path: '/analytics-preview'
+      fullPath: '/analytics-preview'
+      preLoaderRoute: typeof AuthenticatedAnalyticsPreviewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/announcements': {
       id: '/_authenticated/announcements'
       path: '/announcements'
@@ -848,6 +892,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shifts': {
+      id: '/_authenticated/shifts'
+      path: '/shifts'
+      fullPath: '/shifts'
+      preLoaderRoute: typeof AuthenticatedShiftsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/wfh-preview': {
+      id: '/_authenticated/wfh-preview'
+      path: '/wfh-preview'
+      fullPath: '/wfh-preview'
+      preLoaderRoute: typeof AuthenticatedWfhPreviewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/accept-invite/$token': {
@@ -1107,6 +1165,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedAnalyticsPreviewRoute: typeof AuthenticatedAnalyticsPreviewRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAttendanceReportsRoute: typeof AuthenticatedAttendanceReportsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -1117,11 +1176,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
+  AuthenticatedWfhPreviewRoute: typeof AuthenticatedWfhPreviewRoute
   AuthenticatedOwnerReportsRoute: typeof AuthenticatedOwnerReportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedAnalyticsPreviewRoute: AuthenticatedAnalyticsPreviewRoute,
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAttendanceReportsRoute: AuthenticatedAttendanceReportsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -1132,6 +1194,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
+  AuthenticatedWfhPreviewRoute: AuthenticatedWfhPreviewRoute,
   AuthenticatedOwnerReportsRoute: AuthenticatedOwnerReportsRoute,
 }
 
