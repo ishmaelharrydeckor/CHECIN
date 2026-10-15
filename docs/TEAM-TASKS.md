@@ -4,7 +4,9 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 
 **Before any task:** read [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md). Branch off `staging`, PR into `staging`. No GPS, ever.
 
-**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything. Don't start these.
+**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you. Don't start the others.
+
+**Augustine works with Claude Code** (he can run and test the code locally). His tasks below include server routes and tests, so they follow a stricter bar than screens-only tasks: write the tests first, run `npm run check`, and list in the PR every file you touched and every shared-file change you need (rules, indexes) for the integrator to make.
 
 ## Board
 
@@ -19,6 +21,8 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 1.6 | Manager dashboard: Today panel | M | Augustine (#13) | on staging as a screen with sample data; the integrator connects it to the real data next | none |
 | 2.3 | Work from home: employee card and manager list | M | Cobberson (#17, #98) | on staging with real data (card on My page, Today panel, register); not yet tested | 1.1 (done) |
 | 2.4 | Dashboard analytics | M | Augustine (#97) | on staging with real numbers (Dashboard, under Today); not yet tested | daily summaries (done) |
+| 3.1-P6 | Shifts phase 6: repeating patterns | L | Augustine | todo. Brief below; start now | shifts phases 1 to 5b (done) |
+| 2.3b | Work-from-home diary | L | Augustine | todo. Starts after 3.1-P6 is merged. Design approved (docs/WFH-DIARY-DESIGN.md) | 2.3 (done), 3.1-P6 |
 
 Next: nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
 
@@ -110,6 +114,35 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 **Needs integrator:** a rule for the new collection, and sign-off on how reports count it.
 
 ---
+
+## 3.1-P6 Shifts phase 6: repeating patterns (L, Augustine)
+
+**What:** Today a manager fills a range by hand ("Mon to Fri, 8 weeks"). A **pattern** saves that rule so it keeps going: "Day shift, Monday to Friday, until further notice", or a **rotation** ("two weeks Day, two weeks Night"). Read `docs/SHIFTS-DESIGN.md` (the sections on assignments and repeating patterns) and the merged phases first: `src/lib/shift-requests.ts`, `src/routes/api/shifts/assignments.ts`, `src/components/shifts/RotaTab.tsx`, `AssignShiftsDialog.tsx`.
+
+**The rule that must not change:** the **daily assignments stay the single source of truth** (`shift_assignments`, one per person per day). Everything that reads them (the scan route, Today panel, register, analytics) must keep working unchanged. A pattern only **writes** those daily documents ahead of time.
+
+**Build in this order, one PR per step, tell the integrator when each is ready:**
+1. **Pure engine and tests (no database):** given a pattern (weekdays, or a rotation of shifts and week lengths), a start day and optional end day, list the days it produces; "fill from X to Y" never exceeds the existing 62-day limit per run; a pattern never overwrites a day that already has a **manual** assignment or attendance already recorded for today; editing a pattern changes **future days only**. Put it in a new `src/lib/shift-patterns.ts` with `scripts/tests/shift-patterns.test.mjs` (copy the style of `shift-requests.test.mjs`). Include a table of edge cases: month ends, daylight saving, a person with leave, a holiday, an archived shift, rotation week boundaries.
+2. **Routes:** `src/routes/api/shifts/patterns.ts` (create, list, end, edit) using the same checks as `assignments.ts` (verified token, `canCallerManageShifts`, a manager only for their own team, rate limit, `logEvent`, bounded queries). The server keeps assignments filled **at least 62 days ahead**: on create and edit, and by a top-up when the Rota loads (bounded, idempotent: a retry cannot duplicate). No scheduled jobs in this version.
+3. **Screens:** a "Repeat" option in the assign dialog and a small patterns list on the Rota tab (see, end, edit a pattern). Mobile layout, loading, empty and error states, plain-language errors.
+
+**Data:** collection `shift_patterns/{id}`: `orgId`, `employeeId`, `managerId`, the rule, `startDay`, `endDay` (or none), `filledThrough`, `createdBy`. Written by the server only. **Needs from the integrator:** a default-deny rule (same read scopes as `shift_assignments`) and indexes. Write the exact rule and index text in the PR description; do not edit `firestore.rules` or `firestore.indexes.json`.
+
+**Do not touch:** the scan route (`src/routes/api/check-in/`), `shift-engine.ts`, `shift-scan.ts`, `shift-today.ts`, or the Firestore rules. If a pattern needs something from them, say so in the PR.
+
+**Done when:** the tests above pass and `npm run check` is green; a pattern fills ahead and a retried request creates no duplicates; a manager cannot create patterns for someone outside their team; manual assignments are never overwritten; the PR says plainly what was tried by hand and what was not.
+
+## 2.3b Work-from-home diary (L, Augustine, after 3.1-P6)
+
+**What:** An optional diary for declared work-from-home days: a started work session, random "still here?" checks, 10-minute intervals, manager approval. The approved design is `docs/WFH-DIARY-DESIGN.md`: read all of it, especially the sections on what a web page can and cannot see, and on making it hard to fake. **Hours come from verified presence, never from activity counts.**
+
+**Phases (section 8 of the design), one PR each; do not start the next until the integrator has reviewed the last:**
+1. **Pure engine and tests** (interval validation, liveness scheduling, verified-hours calculation, the pattern flags, day summary). No database, no screens.
+2. Data, rules, indexes and routes (the integrator makes the rule and index changes from your PR description).
+3. Employee work-session page and consent screen.
+4. Manager review and the report column (the design note's later phases).
+
+**Hard rules:** counts and timings only, never content, applications or websites. The **server clock** decides all times. Nothing is punished automatically: flags are shown to the manager. No GPS, ever. Anything that touches pay (overtime) stays off unless the admin switches it on, and that switch is the integrator's work.
 
 ## Definition of done (every task)
 
