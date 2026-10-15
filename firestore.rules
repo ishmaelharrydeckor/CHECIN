@@ -274,6 +274,17 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Work from home (docs/WFH-DESIGN.md) ----
+    // One self-declared day per person. Written by the server only; clients can only read.
+    match /wfh_days/{dayId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // ---- Refused scans (a short note when a check-in was turned away) ----
     // Written by the server only (docs/SHIFTS-DESIGN.md). Not an attendance record.
     match /refused_scans/{noteId} {

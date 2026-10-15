@@ -7,6 +7,7 @@ export interface WfhDay {
 export interface MyWfh {
   days: WfhDay[];
   maxAheadDays: number; // 30
+  today?: string; // the organization's day, YYYY-MM-DD
 }
 
 export interface WfhTodayPerson {

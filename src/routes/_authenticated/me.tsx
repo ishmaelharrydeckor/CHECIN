@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MyLeave } from "@/components/me/MyLeave";
 import { MyNotices } from "@/components/me/MyNotices";
 import { MyTimesheet } from "@/components/me/MyTimesheet";
+import { MyWfhSection } from "@/components/wfh/MyWfhSection";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/me")({
@@ -40,6 +41,7 @@ function MePage() {
         <>
           <MyTimesheet uid={user.id} />
           <MyLeave uid={user.id} orgId={orgId} />
+          <MyWfhSection />
           <MyNotices uid={user.id} />
         </>
       )}
