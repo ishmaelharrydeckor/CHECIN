@@ -408,3 +408,68 @@ export function planTrim(input: {
   const after = maxDay(keepThrough, today);
   return existing.filter((e) => e.patternId === patternId && e.dayKey > after).map((e) => e.dayKey);
 }
+
+/** Stored as `nextFillDay` when a pattern with an end day is completely filled. Sorts after every real day. */
+export const NO_MORE_FILL = "9999-12-31";
+
+/**
+ * The first day a pattern still needs filled, stored on the pattern so the top-up and the
+ * nightly job can ask the database for "patterns due by the target day" with one indexed query.
+ */
+export function nextFillDay(pattern: Pick<PatternState, "startDay" | "endDay" | "filledThrough">): string {
+  if (pattern.endDay !== null && pattern.filledThrough !== null && pattern.filledThrough >= pattern.endDay) {
+    return NO_MORE_FILL;
+  }
+  return pattern.filledThrough === null
+    ? pattern.startDay
+    : maxDay(pattern.startDay, addDays(pattern.filledThrough, 1));
+}
+
+/**
+ * True when two patterns could give the same person a shift on the same day: their date ranges
+ * meet and they share a weekday. Two patterns for one person on different weekdays are fine.
+ */
+export function patternsOverlap(
+  a: Pick<PatternState, "rule" | "startDay" | "endDay">,
+  b: Pick<PatternState, "rule" | "startDay" | "endDay">,
+): boolean {
+  const aEnd = a.endDay ?? NO_MORE_FILL;
+  const bEnd = b.endDay ?? NO_MORE_FILL;
+  if (a.startDay > bEnd || b.startDay > aEnd) return false;
+  return a.rule.weekdays.some((w) => b.rule.weekdays.includes(w));
+}
+
+/**
+ * What an edit does to a stored pattern. `keepThrough` is the last day whose assignments stay
+ * (null = remove nothing); the caller trims after it with `planTrim`, saves `next`, then runs a fill.
+ * A new rule applies from tomorrow; a new end day removes this pattern's days after it.
+ */
+export function planEdit(
+  pattern: PatternState,
+  edit: PatternEdit,
+  today: string,
+): Parsed<{ keepThrough: string | null; next: PatternState }> {
+  if (!isRealDay(today)) return { ok: false, error: "Today's date is required." };
+  const ruleChanged = edit.rule !== undefined;
+  const endDay = edit.endDay !== undefined ? edit.endDay : pattern.endDay;
+  if (endDay !== null && endDay < pattern.startDay) {
+    return { ok: false, error: "The end date cannot be before the pattern's start date." };
+  }
+
+  let keepThrough: string | null = null;
+  if (ruleChanged) keepThrough = today;
+  else if (endDay !== null) keepThrough = endDay;
+
+  const filledThrough =
+    pattern.filledThrough !== null && keepThrough !== null
+      ? minDay(pattern.filledThrough, maxDay(keepThrough, today))
+      : pattern.filledThrough;
+
+  return {
+    ok: true,
+    value: {
+      keepThrough,
+      next: { rule: edit.rule ?? pattern.rule, startDay: pattern.startDay, endDay, filledThrough },
+    },
+  };
+}

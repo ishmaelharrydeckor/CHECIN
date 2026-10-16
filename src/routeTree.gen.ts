@@ -66,6 +66,7 @@ import { Route as ApiReportsRegisterRouteImport } from './routes/api/reports/reg
 import { Route as ApiShiftsIndexRouteImport } from './routes/api/shifts/index'
 import { Route as ApiShiftsAccessRouteImport } from './routes/api/shifts/access'
 import { Route as ApiShiftsAssignmentsRouteImport } from './routes/api/shifts/assignments'
+import { Route as ApiShiftsPatternsRouteImport } from './routes/api/shifts/patterns'
 import { Route as ApiShiftsRefusedScansRouteImport } from './routes/api/shifts/refused-scans'
 import { Route as ApiShiftsSettingsRouteImport } from './routes/api/shifts/settings'
 
@@ -361,6 +362,11 @@ const ApiShiftsAssignmentsRoute = ApiShiftsAssignmentsRouteImport.update({
   path: '/api/shifts/assignments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiShiftsPatternsRoute = ApiShiftsPatternsRouteImport.update({
+  id: '/api/shifts/patterns',
+  path: '/api/shifts/patterns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiShiftsRefusedScansRoute = ApiShiftsRefusedScansRouteImport.update({
   id: '/api/shifts/refused-scans',
   path: '/api/shifts/refused-scans',
@@ -424,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/patterns': typeof ApiShiftsPatternsRoute
   '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
@@ -484,6 +491,7 @@ export interface FileRoutesByTo {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/patterns': typeof ApiShiftsPatternsRoute
   '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
@@ -546,6 +554,7 @@ export interface FileRoutesById {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/patterns': typeof ApiShiftsPatternsRoute
   '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
@@ -608,6 +617,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/patterns'
     | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements/'
@@ -668,6 +678,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/patterns'
     | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements'
@@ -729,6 +740,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/patterns'
     | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements/'
@@ -776,6 +788,7 @@ export interface RootRouteChildren {
   ApiReportsRegisterRoute: typeof ApiReportsRegisterRoute
   ApiShiftsAccessRoute: typeof ApiShiftsAccessRoute
   ApiShiftsAssignmentsRoute: typeof ApiShiftsAssignmentsRoute
+  ApiShiftsPatternsRoute: typeof ApiShiftsPatternsRoute
   ApiShiftsRefusedScansRoute: typeof ApiShiftsRefusedScansRoute
   ApiShiftsSettingsRoute: typeof ApiShiftsSettingsRoute
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
@@ -1186,6 +1199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiShiftsAssignmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shifts/patterns': {
+      id: '/api/shifts/patterns'
+      path: '/api/shifts/patterns'
+      fullPath: '/api/shifts/patterns'
+      preLoaderRoute: typeof ApiShiftsPatternsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/shifts/refused-scans': {
       id: '/api/shifts/refused-scans'
       path: '/api/shifts/refused-scans'
@@ -1280,6 +1300,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsRegisterRoute: ApiReportsRegisterRoute,
   ApiShiftsAccessRoute: ApiShiftsAccessRoute,
   ApiShiftsAssignmentsRoute: ApiShiftsAssignmentsRoute,
+  ApiShiftsPatternsRoute: ApiShiftsPatternsRoute,
   ApiShiftsRefusedScansRoute: ApiShiftsRefusedScansRoute,
   ApiShiftsSettingsRoute: ApiShiftsSettingsRoute,
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
