@@ -24,8 +24,12 @@ export const FILL_AHEAD_DAYS = 62;
 export const FILL_RUN_MAX_DAYS = MAX_ASSIGNMENT_RANGE_DAYS;
 export const MAX_ROTATION_STEPS = 8;
 export const MAX_STEP_WEEKS = 8;
-/** People per create request: each gets a pattern and one fill run, all in one 500-write batch. */
-export const MAX_PATTERN_PEOPLE_PER_REQUEST = 8;
+/**
+ * People per create request: each gets a pattern document plus one fill run of up to FILL_RUN_MAX_DAYS
+ * assignments (a seven-day pattern fills every day), all in one 500-write batch.
+ * 7 x (62 + 1) = 441. With 8 it would be 504, over Firestore's limit.
+ */
+export const MAX_PATTERN_PEOPLE_PER_REQUEST = 7;
 const MAX_REQUEST_ID_LENGTH = 64;
 
 export interface RotationStep {
