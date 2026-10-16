@@ -69,3 +69,23 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
     return { ok: false, error: "Could not reach the server. Check your connection and try again." };
   }
 }
+
+/** A repeating pattern's rule as the server stores it (see src/lib/shift-patterns.ts). */
+export type PatternRuleData =
+  | { kind: "weekly"; shiftId: string; weekdays: number[] }
+  | { kind: "rotation"; weekdays: number[]; steps: { shiftId: string; weeks: number }[] };
+
+/** One repeating pattern as the server lists it (GET /api/shifts/patterns). */
+export interface PatternRow {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  managerId: string | null;
+  rule: PatternRuleData;
+  startDay: string;
+  endDay: string | null;
+  filledThrough: string | null;
+  status: "active" | "ended";
+  createdBy: string;
+  lastFill: { at?: string; written?: number; skipped?: Record<string, number> } | null;
+}

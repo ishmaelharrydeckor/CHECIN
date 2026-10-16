@@ -137,6 +137,11 @@ test("the assign form checks the request with the server's rules before sending"
   const checkAt = src.indexOf("parseAssignRequest(");
   const sendAt = src.search(/authedFetch</);
   assert.ok(checkAt > 0 && sendAt > checkAt, "validate first, then send");
+  // The Repeat path (3.1-P6) also checks with the server's rules before it sends.
+  const patternAt = src.indexOf("async function submitPattern(");
+  const patternCheckAt = src.indexOf("parsePatternCreate(", patternAt);
+  const patternSendAt = src.indexOf('authedFetch<', patternAt);
+  assert.ok(patternAt > 0 && patternCheckAt > patternAt && patternSendAt > patternCheckAt, "repeat: validate first, then send");
 });
 
 test("no new screen file uses browser storage, console output, inline styles or untyped data", () => {
@@ -145,6 +150,9 @@ test("no new screen file uses browser storage, console output, inline styles or 
     "src/components/shifts/AssignShiftsDialog.tsx",
     "src/components/shifts/RefusedScansTab.tsx",
     "src/routes/_authenticated/my-shifts.tsx",
+    "src/components/shifts/PatternFields.tsx",
+    "src/components/shifts/PatternsList.tsx",
+    "src/components/shifts/EditPatternDialog.tsx",
   ]) {
     const src = readFileSync(f, "utf8");
     assert.ok(!src.includes("localStorage"), `${f}: localStorage`);
