@@ -66,7 +66,8 @@ test("shift-patterns keeps the existing 62-day and batch limits", () => {
   assert.equal(MAX_ROTATION_STEPS, 8);
   assert.equal(MAX_STEP_WEEKS, 8);
   // One create request fills at most this many people x one run, inside one Firestore batch.
-  assert.ok(MAX_PATTERN_PEOPLE_PER_REQUEST * FILL_RUN_MAX_DAYS <= MAX_WRITES_PER_REQUEST);
+  // Worst case: every person gets a pattern document plus a full fill run (a seven-day pattern).
+  assert.ok(MAX_PATTERN_PEOPLE_PER_REQUEST * (FILL_RUN_MAX_DAYS + 1) <= MAX_WRITES_PER_REQUEST);
 });
 
 // ---------------------------------------------------------------- parsePatternRule
