@@ -4,7 +4,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 
 **Before any task:** read [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md). Branch off `staging`, PR into `staging`. No GPS, ever.
 
-**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P8, 3.1-P3b, 2.3b). Don't start the others.
+**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P7, 3.1-P8, 3.1-P3b, 2.3b). Don't start the others.
 
 **Augustine works with Claude Code** (he can run and test the code locally). His tasks below include server routes and tests, so they follow a stricter bar than screens-only tasks: write the tests first, run `npm run check`, and list in the PR every file you touched and every shared-file change you need (rules, indexes) for the integrator to make.
 
@@ -23,6 +23,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 2.4 | Dashboard analytics | M | Augustine (#97) | on staging with real numbers (Dashboard, under Today); not yet tested | daily summaries (done) |
 | 3.1-P6 | Shifts phase 6: repeating patterns | L | Augustine | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 | 2.3b | Work-from-home diary | L | Augustine | todo. Starts after 3.1-P6 is merged. Design approved (docs/WFH-DIARY-DESIGN.md) | 2.3 (done), 3.1-P6 |
+| 3.1-P7 | Shifts phase 7: shift swaps | L | Augustine | todo. Starts after 3.1-P6 is merged. Brief below | 3.1-P6 |
 | 3.1-P8 | Shifts phase 8: breaks (the calculation, no screens) | M | Cobberson | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 | 3.1-P3b | Shifts phase 3b: Lenient mode, the decision rules only (no scan route, no screens) | M | Cobberson | todo. Brief below; start after 3.1-P8 | shifts phases 1 to 5b (done) |
 
@@ -145,6 +146,29 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 4. Manager review and the report column (the design note's later phases).
 
 **Hard rules:** counts and timings only, never content, applications or websites. The **server clock** decides all times. Nothing is punished automatically: flags are shown to the manager. No GPS, ever. Anything that touches pay (overtime) stays off unless the admin switches it on, and that switch is the integrator's work.
+
+## 3.1-P7 Shifts phase 7: shift swaps (L, Augustine, after 3.1-P6)
+
+**What:** An employee proposes swapping their shift on one date with a colleague's. The colleague accepts. The manager of both (or the admin) approves. On approval the server swaps the two assignments **atomically**. It is an **organization setting, off by default** ("Allow shift swaps"). Read `docs/SHIFTS-DESIGN.md` (the "Shift swaps" row and `shift_swaps` in the data section) and the merged phases, especially `src/routes/api/shifts/assignments.ts` and `src/lib/shift-requests.ts`.
+
+**Rules (decided in the design; ask in the PR rather than guess if something is unclear):**
+- A swap is for **one date**, between **two people who both have an assignment that day**. Past dates cannot be swapped. Today can be swapped only while neither person has attendance recorded.
+- Status moves only in this order: `pending` (proposed) then `accepted` (colleague) then `approved` (manager or admin); or `declined` / `cancelled` at the allowed points. Nothing else.
+- Only the **colleague** can accept or decline. Only the **proposer** can cancel before approval. Only the **manager of both people** (or an org admin) can approve or decline after acceptance. If the two people have different managers, only an org admin can approve.
+- Each person's **approved leave and the holiday calendar are checked** at proposal and again at approval (state can change in between).
+- Approval swaps the two assignment documents in **one transaction** and writes a record to `shift_swaps`. A retried approval must not swap twice (check the status inside the transaction).
+- Nothing about who the caller is, their role, organization or manager is read from the request: it all comes from the verified token (see `assignments.ts`).
+
+**Build in this order, one PR per step, tell the integrator when each is ready:**
+1. **Pure engine and tests:** `src/lib/shift-swaps.ts` and `scripts/tests/shift-swaps.test.mjs`. The status machine (every allowed and refused move, who may do each), the checks (past date, leave, holiday, same person, a person without an assignment, two people on the same shift), and the swap itself as a pure function on two assignments. Table of edge cases.
+2. **Routes:** `src/routes/api/shifts/swaps.ts` (propose, list, accept, decline, cancel, approve) with the same standard as `assignments.ts`: verified token, per-role checks, rate limit, `logEvent`, bounded indexed queries, idempotent. Plus the organization switch (admin only through the server, like the other shift settings).
+3. **Screens:** propose from My Shifts, the colleague's inbox, the manager's approval list, the admin switch in Shifts settings. Phone first; loading, empty, error states; plain-language errors.
+
+**Data:** `shift_swaps/{id}`, written by the server only. **Needs from the integrator:** a default-deny rule (read for the two people, their manager and org admins; no client writes) and indexes. Put the exact rule and index text in the PR description; do not edit `firestore.rules` or `firestore.indexes.json`.
+
+**Do not touch:** the scan route, `shift-engine.ts`, `shift-scan.ts`, `shift-today.ts`, the Firestore rules. If swaps need something from them, say so in the PR.
+
+**Done when:** tests and `npm run check` are green; a retried approval swaps once; a manager cannot approve a swap involving someone outside their team; a stale proposal (leave added meanwhile) is refused at approval; the PR says plainly what was tried by hand and what was not.
 
 ## 3.1-P8 Shifts phase 8: breaks, the calculation only (M, Cobberson)
 
