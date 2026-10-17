@@ -27,6 +27,7 @@ import {
   type RotaAssignment,
 } from "@/lib/shift-rota";
 import { AssignShiftsDialog, type AssignPreset } from "./AssignShiftsDialog";
+import { PatternsList } from "./PatternsList";
 import { authedFetch, type RotaMember, type ShiftContext, type ShiftRow } from "./shiftApi";
 
 const PEOPLE_SHOWN = 100;
@@ -51,6 +52,7 @@ export function RotaTab({ canAssign, shifts }: RotaTabProps) {
   const [preset, setPreset] = useState<AssignPreset | null>(null);
   const [clearing, setClearing] = useState<{ member: RotaMember; day: string } | null>(null);
   const [clearBusy, setClearBusy] = useState(false);
+  const [patternsKey, setPatternsKey] = useState(0);
 
   // The organization's today and the people in scope, once.
   const loadBase = useCallback(async () => {
@@ -177,6 +179,7 @@ export function RotaTab({ canAssign, shifts }: RotaTabProps) {
   const loadingBase = context === null && loadError === null;
 
   return (
+    <div className="space-y-6">
     <Card className="border-border/80 shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -376,6 +379,7 @@ export function RotaTab({ canAssign, shifts }: RotaTabProps) {
           weekStart={monday ?? context.today}
           preset={preset}
           onDone={() => void loadWeek()}
+          onPatternSaved={() => setPatternsKey((k) => k + 1)}
         />
       )}
 
@@ -403,5 +407,16 @@ export function RotaTab({ canAssign, shifts }: RotaTabProps) {
         </AlertDialogContent>
       </AlertDialog>
     </Card>
+
+    {context && (
+      <PatternsList
+        canAssign={canAssign}
+        shifts={shifts}
+        today={context.today}
+        reloadKey={patternsKey}
+        onRotaChanged={() => void loadWeek()}
+      />
+    )}
+    </div>
   );
 }

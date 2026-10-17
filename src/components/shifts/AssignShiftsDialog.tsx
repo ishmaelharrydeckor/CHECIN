@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { MAX_PEOPLE_PER_REQUEST, parseAssignRequest } from "@/lib/shift-requests";
-import { WEEKDAY_NAMES, formatDayMonth, weekdaysLabel } from "@/lib/shift-rota";
+import { MAX_PATTERN_PEOPLE_PER_REQUEST, parsePatternCreate } from "@/lib/shift-patterns";
+import { describeFillSkips, describePatternRule, formatDayMonth, weekdaysLabel } from "@/lib/shift-rota";
 import { describeShiftTimes } from "@/lib/shift-ui";
 import { authedFetch, type RotaMember, type ShiftRow } from "./shiftApi";
+import { PatternFields, WeekdayPicker, draftToRule, newRuleDraft, type RuleDraft } from "./PatternFields";
 import { addDays } from "@/lib/attendance-today";
 
 /** What to start the form with when it is opened from a cell or from the week. */
@@ -40,9 +43,18 @@ interface AssignShiftsDialogProps {
   weekStart: string;
   preset: AssignPreset | null;
   onDone: () => void;
+  /** Called after a repeating pattern is saved, so the patterns list can reload. */
+  onPatternSaved?: () => void;
 }
 
 const WORKDAYS = [0, 1, 2, 3, 4];
+
+/** A fresh id per distinct pattern request: a resend of the same form reuses it, so no duplicate. */
+function newRequestId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 export function AssignShiftsDialog({
   open,
@@ -53,6 +65,7 @@ export function AssignShiftsDialog({
   weekStart,
   preset,
   onDone,
+  onPatternSaved,
 }: AssignShiftsDialogProps) {
   const [shiftId, setShiftId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -62,6 +75,10 @@ export function AssignShiftsDialog({
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [repeat, setRepeat] = useState(false);
+  const [rule, setRule] = useState<RuleDraft>(() => newRuleDraft(shifts));
+  const [endDay, setEndDay] = useState("");
+  const lastRequest = useRef<{ key: string; id: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +86,9 @@ export function AssignShiftsDialog({
     setSaving(false);
     setSearch("");
     setShiftId(shifts[0]?.id ?? "");
+    setRepeat(false);
+    setRule(newRuleDraft(shifts));
+    setEndDay("");
     if (preset) {
       setSelected(new Set(preset.employeeIds));
       setFromDay(preset.fromDay);
@@ -92,12 +112,9 @@ export function AssignShiftsDialog({
   }, [members, search]);
 
   const chosenShift = shifts.find((s) => s.id === shiftId) ?? null;
-  const tooMany = selected.size > MAX_PEOPLE_PER_REQUEST;
-
-  function toggleWeekday(w: number) {
-    setWeekdays((prev) => (prev.includes(w) ? prev.filter((x) => x !== w) : [...prev, w]));
-    setError(null);
-  }
+  const maxPeople = repeat ? MAX_PATTERN_PEOPLE_PER_REQUEST : MAX_PEOPLE_PER_REQUEST;
+  const tooMany = selected.size > maxPeople;
+  const nameOf = (id: string) => shifts.find((s) => s.id === id)?.name ?? "a shift";
 
   function toggleMember(uid: string, on: boolean) {
     setSelected((prev) => {
@@ -112,6 +129,10 @@ export function AssignShiftsDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (repeat) {
+      await submitPattern();
+      return;
+    }
 
     // The same checks the server makes, so a mistake is explained here in plain words.
     const payload = { shiftId, employeeIds: [...selected], fromDay, toDay, weekdays };
@@ -142,9 +163,52 @@ export function AssignShiftsDialog({
     onDone();
   }
 
-  const summary =
-    chosenShift && selected.size > 0 && fromDay && toDay
-      ? `${selected.size} ${selected.size === 1 ? "person" : "people"}, ${chosenShift.name}, ${weekdaysLabel(weekdays)}, ${formatDayMonth(fromDay)} to ${formatDayMonth(toDay)}.`
+  async function submitPattern() {
+    const base = {
+      action: "create",
+      employeeIds: [...selected],
+      rule: draftToRule(rule),
+      startDay: fromDay,
+      endDay: endDay || null,
+    };
+    const key = JSON.stringify(base);
+    if (lastRequest.current?.key !== key) lastRequest.current = { key, id: newRequestId() };
+    const payload = { ...base, requestId: lastRequest.current.id };
+
+    const checked = parsePatternCreate(payload, today);
+    if (!checked.ok) {
+      setError(checked.error);
+      return;
+    }
+
+    setSaving(true);
+    const result = await authedFetch<{ written: number; skipped: Record<string, number> }>("/api/shifts/patterns", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    lastRequest.current = null;
+    const note = describeFillSkips(result.data.skipped);
+    toast.success(
+      `Pattern saved. ${result.data.written} ${result.data.written === 1 ? "day was" : "days were"} filled for the next 9 weeks; it keeps going after that.` +
+        (note ? ` ${note}` : ""),
+    );
+    onOpenChange(false);
+    onDone();
+    onPatternSaved?.();
+  }
+
+  const people = `${selected.size} ${selected.size === 1 ? "person" : "people"}`;
+  const summary = repeat
+    ? selected.size > 0 && fromDay
+      ? `${people}, ${describePatternRule(draftToRule(rule), nameOf)}, from ${formatDayMonth(fromDay)}${endDay ? ` to ${formatDayMonth(endDay)}` : ", until further notice"}.`
+      : null
+    : chosenShift && selected.size > 0 && fromDay && toDay
+      ? `${people}, ${chosenShift.name}, ${weekdaysLabel(weekdays)}, ${formatDayMonth(fromDay)} to ${formatDayMonth(toDay)}.`
       : null;
 
   return (
@@ -153,35 +217,66 @@ export function AssignShiftsDialog({
         <DialogHeader>
           <DialogTitle>Assign shifts</DialogTitle>
           <DialogDescription className="text-xs">
-            Choose a shift, the people, the days of the week and the dates. A day that already has a shift is replaced.
-            You can assign from today onwards, up to 62 days at a time.
+            {repeat
+              ? "Save a pattern that keeps going: the same shift every week, or a rotation. The shifts are filled about 9 weeks ahead and kept topped up. Days already assigned by hand are never changed."
+              : "Choose a shift, the people, the days of the week and the dates. A day that already has a shift is replaced. You can assign from today onwards, up to 62 days at a time."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assign-shift" className="text-xs font-medium text-[#0E2322]">
-              Shift
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+            <Label htmlFor="assign-repeat" className="min-w-0 cursor-pointer font-normal">
+              <span className="block text-sm font-medium text-[#0E2322]">Repeat</span>
+              <span className="block text-xs text-muted-foreground">Keep assigning this every week, with no end date needed.</span>
             </Label>
-            <Select value={shiftId} onValueChange={setShiftId} disabled={saving}>
-              <SelectTrigger id="assign-shift" className="h-10 text-sm">
-                <SelectValue placeholder="Choose a shift" />
-              </SelectTrigger>
-              <SelectContent>
-                {shifts.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}, {describeShiftTimes(s)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Switch
+              id="assign-repeat"
+              checked={repeat}
+              disabled={saving}
+              onCheckedChange={(v) => {
+                setRepeat(v);
+                setError(null);
+              }}
+            />
           </div>
+
+          {!repeat && (
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-shift" className="text-xs font-medium text-[#0E2322]">
+                Shift
+              </Label>
+              <Select value={shiftId} onValueChange={setShiftId} disabled={saving}>
+                <SelectTrigger id="assign-shift" className="h-10 text-sm">
+                  <SelectValue placeholder="Choose a shift" />
+                </SelectTrigger>
+                <SelectContent>
+                  {shifts.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}, {describeShiftTimes(s)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {repeat && (
+            <PatternFields
+              value={rule}
+              onChange={(next) => {
+                setRule(next);
+                setError(null);
+              }}
+              shifts={shifts}
+              disabled={saving}
+            />
+          )}
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-medium text-[#0E2322]">People</Label>
               <span className={`text-xs ${tooMany ? "text-destructive" : "text-muted-foreground"}`}>
-                {selected.size} chosen (up to {MAX_PEOPLE_PER_REQUEST})
+                {selected.size} chosen (up to {maxPeople})
               </span>
             </div>
             <div className="relative">
@@ -217,34 +312,21 @@ export function AssignShiftsDialog({
             </ul>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-[#0E2322]">Days of the week</Label>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days of the week">
-              {WEEKDAY_NAMES.map((name, i) => (
-                <Button
-                  key={name}
-                  type="button"
-                  size="sm"
-                  variant={weekdays.includes(i) ? "default" : "outline"}
-                  aria-pressed={weekdays.includes(i)}
-                  disabled={saving}
-                  onClick={() => toggleWeekday(i)}
-                  className={
-                    weekdays.includes(i)
-                      ? "h-9 w-12 bg-[#0E2322] hover:bg-[#163331] text-white text-xs"
-                      : "h-9 w-12 border-slate-200 text-xs"
-                  }
-                >
-                  {name}
-                </Button>
-              ))}
-            </div>
-          </div>
+          {!repeat && (
+            <WeekdayPicker
+              value={weekdays}
+              onChange={(w) => {
+                setWeekdays(w);
+                setError(null);
+              }}
+              disabled={saving}
+            />
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="assign-from" className="text-xs font-medium text-[#0E2322]">
-                From
+                {repeat ? "Starts" : "From"}
               </Label>
               <Input
                 id="assign-from"
@@ -261,20 +343,22 @@ export function AssignShiftsDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="assign-to" className="text-xs font-medium text-[#0E2322]">
-                To
+                {repeat ? "Ends (optional)" : "To"}
               </Label>
               <Input
                 id="assign-to"
                 type="date"
                 min={fromDay || today}
-                value={toDay}
+                value={repeat ? endDay : toDay}
                 onChange={(e) => {
-                  setToDay(e.target.value);
+                  if (repeat) setEndDay(e.target.value);
+                  else setToDay(e.target.value);
                   setError(null);
                 }}
                 className="h-10 text-sm"
                 disabled={saving}
               />
+              {repeat && !endDay && <p className="text-xs text-muted-foreground">Leave empty to keep going.</p>}
             </div>
           </div>
 
@@ -304,6 +388,8 @@ export function AssignShiftsDialog({
                 <>
                   <Loader2 className="size-3.5 mr-1.5 animate-spin" /> Saving...
                 </>
+              ) : repeat ? (
+                "Save pattern"
               ) : (
                 "Assign"
               )}

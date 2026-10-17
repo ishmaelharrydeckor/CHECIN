@@ -144,3 +144,58 @@ export function parseRefusedQuery(
   }
   return { ok: true, pageSize, cursor };
 }
+
+// ---------------------------------------------------------------- repeating patterns (3.1-P6)
+
+/** "13 Oct 2026" for a day key. */
+export function formatDayMonthYear(day: string): string {
+  return `${formatDayMonth(day)} ${day.slice(0, 4)}`;
+}
+
+type PatternRuleLike =
+  | { kind: "weekly"; shiftId: string; weekdays: readonly number[] }
+  | { kind: "rotation"; weekdays: readonly number[]; steps: readonly { shiftId: string; weeks: number }[] };
+
+/** "Day, Monday to Friday" or "2 weeks Day, then 2 weeks Night, repeating (Monday to Friday)". */
+export function describePatternRule(rule: PatternRuleLike, nameOf: (shiftId: string) => string): string {
+  if (rule.kind === "weekly") return `${nameOf(rule.shiftId)}, ${weekdaysLabel(rule.weekdays)}`;
+  const steps = rule.steps.map((s) => `${s.weeks} ${s.weeks === 1 ? "week" : "weeks"} ${nameOf(s.shiftId)}`);
+  return `${steps.join(", then ")}, repeating (${weekdaysLabel(rule.weekdays)})`;
+}
+
+/** "From 13 Oct 2026, until further notice" or "13 Oct 2026 to 30 Jun 2027". */
+export function describePatternDates(startDay: string, endDay: string | null): string {
+  if (endDay === null) return `From ${formatDayMonthYear(startDay)}, until further notice`;
+  return `${formatDayMonthYear(startDay)} to ${formatDayMonthYear(endDay)}`;
+}
+
+function countOf(skipped: Record<string, unknown>, key: string): number {
+  const n = skipped[key];
+  return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+function days(n: number): string {
+  return `${n} ${n === 1 ? "day" : "days"}`;
+}
+
+/**
+ * The days a pattern did not fill, in plain words, or null when there is nothing to say.
+ * "Already filled" is normal and never mentioned.
+ */
+export function describeFillSkips(skipped: Record<string, unknown> | null | undefined): string | null {
+  if (!skipped || typeof skipped !== "object") return null;
+  const manual = countOf(skipped, "manual");
+  const other = countOf(skipped, "other_pattern");
+  const recorded = countOf(skipped, "attendance_recorded");
+  const noShift = countOf(skipped, "shift_archived") + countOf(skipped, "shift_missing");
+  const parts: string[] = [];
+  if (manual) parts.push(`${days(manual)} kept the shift assigned by hand.`);
+  if (other) parts.push(`${days(other)} ${other === 1 ? "is" : "are"} covered by another pattern.`);
+  if (recorded) {
+    parts.push(`${days(recorded)} ${recorded === 1 ? "was" : "were"} skipped because attendance is already recorded.`);
+  }
+  if (noShift) {
+    parts.push(`${days(noShift)} ${noShift === 1 ? "was" : "were"} skipped because a shift in the pattern was archived or removed.`);
+  }
+  return parts.length > 0 ? parts.join(" ") : null;
+}
