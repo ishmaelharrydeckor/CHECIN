@@ -169,3 +169,52 @@ test("history keeps the newest ten, oldest dropped, and never mutates the input"
   assert.equal(appendHistory(frozen, { action: "excused", by: "m", at: "t", reason: "rr" }).length, 1);
   assert.equal(appendHistory(undefined, { action: "excused", by: "m", at: "t", reason: "rr" }).length, 1);
 });
+
+import { buildReviewRows, REVIEW_ROW_CAP } from "../../src/lib/late-excuse.ts";
+
+test("review rows: only real late days, excused ones included, ordered newest day then earliest arrival", () => {
+  const clock = (iso) => iso.slice(11, 16);
+  const sum = (employeeId, dayKey, hhmm, extra = {}) => ({
+    employeeId, employeeName: employeeId.toUpperCase(), department: "Ops", dayKey,
+    firstIn: `${dayKey}T${hhmm}:00.000Z`, late: true, ...extra,
+  });
+  const excuses = new Map([
+    ["b_2026-10-16", { employeeNote: "Waited at the door", reason: "Tablet late", decidedByName: "Adwoa" }],
+    ["c_2026-10-16", { employeeNote: "Bus", reason: "should not show: not excused" }],
+  ]);
+  const { rows, truncated } = buildReviewRows({
+    summaries: [
+      sum("a", "2026-10-15", "09:10"),
+      sum("c", "2026-10-16", "10:30"),
+      sum("b", "2026-10-16", "08:41", { lateExcused: true }),
+      { ...sum("d", "2026-10-16", "08:00"), late: false },
+      { ...sum("e", "2026-10-16", "08:05"), firstIn: null },
+      { ...sum("f", "bad-day", "08:05") },
+      { employeeName: "no id", dayKey: "2026-10-16", firstIn: "x", late: true },
+    ],
+    excuses, clock,
+  });
+  assert.equal(truncated, false);
+  assert.deepEqual(rows.map((r) => `${r.dayKey} ${r.arrivedAt} ${r.employeeId}`), [
+    "2026-10-16 08:41 b", "2026-10-16 10:30 c", "2026-10-15 09:10 a",
+  ]);
+  const b = rows[0];
+  assert.equal(b.excused, true);
+  assert.equal(b.reason, "Tablet late");
+  assert.equal(b.decidedByName, "Adwoa");
+  assert.equal(b.note, "Waited at the door");
+  const c = rows[1];
+  assert.equal(c.excused, false);
+  assert.equal(c.reason, "", "a reason is only shown for an excused day");
+  assert.equal(c.note, "Bus", "the employee's note is shown either way");
+});
+
+test("review rows: capped, and says so", () => {
+  const many = Array.from({ length: REVIEW_ROW_CAP + 5 }, (_, i) => ({
+    employeeId: `e${i}`, dayKey: "2026-10-16", firstIn: "2026-10-16T08:00:00.000Z", late: true,
+  }));
+  const r = buildReviewRows({ summaries: many, excuses: new Map(), clock: () => "08:00" });
+  assert.equal(r.rows.length, REVIEW_ROW_CAP);
+  assert.equal(r.truncated, true);
+  assert.equal(r.rows[0].name, "Employee", "a missing name never shows an id");
+});
