@@ -102,7 +102,7 @@ function ShiftSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger id={id} aria-label={label} className="h-10 text-sm">
+      <SelectTrigger id={id} aria-label={label} className="h-10 w-full min-w-0 text-sm [&>span]:truncate">
         <SelectValue placeholder="Choose a shift" />
       </SelectTrigger>
       <SelectContent>
@@ -176,9 +176,10 @@ export function PatternFields({
           </p>
           <ol className="space-y-2">
             {value.steps.map((step, i) => (
-              <li key={i} className="flex items-center gap-2">
+              <li key={i} className="flex flex-wrap items-center gap-2">
                 <span className="w-5 shrink-0 text-xs text-muted-foreground">{i + 1}.</span>
-                <div className="min-w-0 flex-1">
+                {/* On a phone the shift takes the first line and weeks + remove wrap under it. */}
+                <div className="min-w-0 flex-1 basis-48">
                   <ShiftSelect
                     id={`pattern-step-${i}`}
                     label={`Shift for step ${i + 1}`}
@@ -188,29 +189,31 @@ export function PatternFields({
                     disabled={disabled}
                   />
                 </div>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={MAX_STEP_WEEKS}
-                  value={step.weeks}
-                  aria-label={`Weeks for step ${i + 1}`}
-                  onChange={(e) => setStep(i, { weeks: Number(e.target.value) })}
-                  className="h-10 w-16 text-sm"
-                  disabled={disabled}
-                />
-                <span className="text-xs text-muted-foreground">{step.weeks === 1 ? "week" : "weeks"}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove step ${i + 1}`}
-                  disabled={disabled || value.steps.length <= 2}
-                  onClick={() => set({ steps: value.steps.filter((_, j) => j !== i) })}
-                  className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
-                >
-                  <Minus className="size-4" />
-                </Button>
+                <div className="ml-7 flex items-center gap-2 sm:ml-0">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_STEP_WEEKS}
+                    value={step.weeks}
+                    aria-label={`Weeks for step ${i + 1}`}
+                    onChange={(e) => setStep(i, { weeks: Number(e.target.value) })}
+                    className="h-10 w-16 text-sm"
+                    disabled={disabled}
+                  />
+                  <span className="text-xs text-muted-foreground">{step.weeks === 1 ? "week" : "weeks"}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove step ${i + 1}`}
+                    disabled={disabled || value.steps.length <= 2}
+                    onClick={() => set({ steps: value.steps.filter((_, j) => j !== i) })}
+                    className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
+                  >
+                    <Minus className="size-4" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ol>
