@@ -1,6 +1,6 @@
 # Design note: excusing a late mark (task 2.7)
 
-Status: **proposed, needs owner sign-off** (decisions in section 9).
+Status: **updated 2026-10-17 with the owner's decisions** (bulk, scan screen); still needs final owner sign-off on the remaining points in section 9.
 Why a note first: it changes what "late" means, and that feeds the Today panel, the register, analytics, exports and later payroll.
 
 ## 1. The problem
@@ -17,8 +17,8 @@ A manager (or admin) can **excuse** a late mark with a short reason, for one per
 | Who can excuse? | **The person's manager (their team only) and org admins.** A manager **cannot excuse their own** late mark: only an admin can | Stops self-forgiveness. The Friday case (the manager was the cause) is handled by the admin |
 | Can the employee excuse themself? | **No.** They can add a **note** only, which the manager sees when deciding | The employee is not the decider; the note gives the manager context and gives the employee a voice |
 | Reason required? | **Yes**, 3 to 200 characters, plain text | A reason is the point of the trail. An empty or one-word reason is refused |
-| One person or many? | **Both.** "Excuse all late arrivals on this day" (optionally for one location) with one reason, up to 200 people in one request | Friday: everyone was late for the same reason. Doing it one by one would never get used |
-| How far back? | **Today and the previous 14 days** (organization setting later). Older days are locked | A later payroll period lock will tighten this. Stops quietly rewriting last quarter |
+| One person or many? | **Many, but never "everyone".** The manager sees the day's late arrivals in order of arrival time and **ticks the people** to excuse, then gives one reason. A helper "tick everyone who arrived by HH:MM" does the common case in one move (for example, everyone who arrived before the tablet was switched on). People who arrived long after stay unticked and keep their late mark. Up to 200 people per request | Owner decision 2026-10-17: people waiting at the door deserve the excuse, people who came very late do not. The arrival-time helper makes that quick, and the manager still reviews each name |
+| How far back? | **Today and the previous 14 days** (organization setting later). Older days are locked: a late mark from 15 or more days ago can no longer be excused | Past records, and later pay, cannot be quietly changed long after the fact. Two weeks is long enough for a manager to catch up after leave or a busy spell |
 | Can an excuse be undone? | **Yes**, by the person who made it or an admin, with the reason kept in the history | Mistakes happen; undo is also logged |
 | Does it change hours? | **No.** It only changes the late judgement. Hours come from the scans | Keeps time and money untouched |
 | What about early departure? | **Not in v1.** Same mechanism can be added later | Nobody has asked yet |
@@ -51,7 +51,7 @@ All rate limited, all logged with one `logEvent` line (action, outcome, org, ver
 ## 6. Screens
 - **Manager and admin:** a "Late arrivals" review list (this week by default, a date picker for the allowed window), grouped by day, showing name, arrival time, the employee's note, and an **Excuse** button; a "Select all on this day" bulk action with one reason box; excused rows show who excused and why, with an Undo.
 - **Employee, on My page:** a late day shows "Late" with an **Add a note** button; once excused it reads "Late, excused: {reason}".
-- **Scan screen:** unchanged by this note. Whether the scan screen should show "late" at all is a separate decision (section 9, decision 5).
+- **Scan screen:** shows only that the person is **checked in or out** (time and place). It does **not** show "late" or "left early" (decided 2026-10-17; built in #113). Late is seen on the person's own page and by managers.
 - Register, Today panel, analytics: "late" counts drop excused days; an "Excused" count is shown beside it so nothing is hidden.
 
 ## 7. Risks and how we handle them
@@ -72,10 +72,12 @@ All rate limited, all logged with one `logEvent` line (action, outcome, org, ver
 
 ## 9. Decisions for the owner
 1. **Excuse model instead of a "tablet must be live" rule?** Decided 2026-10-17: yes.
+   **Bulk: choose people, not "everyone"?** Decided 2026-10-17: yes (with the arrival-time helper).
+   **Scan screen shows no late label?** Decided 2026-10-17: yes.
 2. **A manager cannot excuse their own late mark; only an admin can?** Recommended: yes.
-3. **Reason required (3 to 200 characters) and bulk "everyone late on this day" in one action?** Recommended: yes.
+3. **Reason required (3 to 200 characters)?** Recommended: yes.
 4. **A 14-day window for excusing?** Recommended: yes.
-5. **Should the scan result screen show "late" to the employee at the moment of scanning, or only show "Checked in at 08:12" with the late status on their own page?** Not decided; recommended: neutral at the scan, late status on their page.
+5. _(Settled above: the scan screen is neutral.)_
 6. **Early-departure excuses?** Recommended: not in v1.
 
 Open for later: an organization setting for the window, notifying the employee when excused, tablet-uptime display on the manager's screen as an extra hint (not a rule).
