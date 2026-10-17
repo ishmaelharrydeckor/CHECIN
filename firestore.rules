@@ -102,6 +102,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Late excuses (docs/LATE-EXCUSE-DESIGN.md) ----
+    // One document per person per day: the employee's note and a manager's excuse with its reason.
+    // Written by the server only; the person, their manager and org admins can read.
+    match /late_excuses/{excuseId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // ---- 5. Leave Requests ----
     match /leave_requests/{requestId} {
       // Employee reads own; Manager reads team; Admin reads org

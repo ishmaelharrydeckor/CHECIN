@@ -231,3 +231,84 @@ export function appendHistory(history: readonly HistoryEntry[] | undefined, entr
 export function stampFor(action: "excused" | "revoked"): { lateExcused: true } | null {
   return action === "excused" ? { lateExcused: true } : null;
 }
+
+// ---------------------------------------------------------------------------
+// The review list
+// ---------------------------------------------------------------------------
+
+/** The most rows one review answer returns; a longer list says it is partial. */
+export const REVIEW_ROW_CAP = 500;
+
+export interface ReviewSummary {
+  employeeId?: unknown;
+  employeeName?: unknown;
+  department?: unknown;
+  dayKey?: unknown;
+  firstIn?: unknown;
+  late?: unknown;
+  lateExcused?: unknown;
+}
+
+/** What the excuse document adds to a row (the employee's note, and the manager's reason). */
+export interface ExcuseDetail {
+  employeeNote?: unknown;
+  reason?: unknown;
+  decidedBy?: unknown;
+  decidedByName?: unknown;
+  decidedAt?: unknown;
+}
+
+export interface ReviewRow {
+  employeeId: string;
+  name: string;
+  department: string;
+  dayKey: string;
+  /** "HH:MM" in the organization's timezone. */
+  arrivedAt: string;
+  excused: boolean;
+  /** Only when excused. */
+  reason: string;
+  decidedByName: string;
+  note: string;
+}
+
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
+/**
+ * The late arrivals a reviewer sees: days that really have a first scan and were late (whether or
+ * not already excused, so an excuse can be undone), newest day first and earliest arrival first
+ * within a day. The stamp on the summary is the truth for "excused"; the excuse document only adds
+ * the words. `clock` formats an ISO instant as "HH:MM" in the organization's timezone.
+ */
+export function buildReviewRows(input: {
+  summaries: readonly ReviewSummary[];
+  excuses: ReadonlyMap<string, ExcuseDetail>;
+  clock: (iso: string) => string;
+}): { rows: ReviewRow[]; truncated: boolean } {
+  const rows: (ReviewRow & { sortKey: string })[] = [];
+  for (const s of input.summaries) {
+    const employeeId = str(s.employeeId);
+    const dayKey = str(s.dayKey);
+    if (!employeeId || !isRealDay(dayKey) || !s.firstIn || s.late !== true) continue;
+    const arrivedAt = input.clock(str(s.firstIn));
+    const excused = s.lateExcused === true;
+    const detail = input.excuses.get(`${employeeId}_${dayKey}`);
+    rows.push({
+      employeeId,
+      name: str(s.employeeName).trim() || "Employee",
+      department: str(s.department).trim(),
+      dayKey,
+      arrivedAt,
+      excused,
+      reason: excused ? str(detail?.reason) : "",
+      decidedByName: excused ? str(detail?.decidedByName) : "",
+      note: str(detail?.employeeNote),
+      sortKey: arrivedAt,
+    });
+  }
+  rows.sort((a, b) =>
+    a.dayKey !== b.dayKey ? (a.dayKey < b.dayKey ? 1 : -1) : a.sortKey.localeCompare(b.sortKey) || a.name.localeCompare(b.name),
+  );
+  const truncated = rows.length > REVIEW_ROW_CAP;
+  return { rows: rows.slice(0, REVIEW_ROW_CAP).map(({ sortKey: _k, ...r }) => r), truncated };
+}
