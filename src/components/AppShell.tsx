@@ -15,6 +15,7 @@ import {
   X,
   Inbox,
   CalendarClock,
+  AlarmClock,
   Building2,
 } from "lucide-react";
 import { firebaseAuth, fbSignOut } from "@/integrations/firebase/config";
@@ -32,7 +33,7 @@ import { toast } from "sonner";
 import { clearUserAppCache } from "@/lib/query-client";
 
 // Pages employees must never see (management views); they are sent to their own history instead
-const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings", "/shifts"];
+const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings", "/shifts", "/late-arrivals"];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, isOrgAdmin, isManager, loading } = useAuth();
@@ -86,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/dashboard", label: "Roster", icon: Home },
         { to: "/history", label: "History", icon: Clock },
         { to: "/reports", label: "Reports", icon: FileBarChart },
+        { to: "/late-arrivals", label: "Late arrivals", icon: AlarmClock },
         { to: "/announcements", label: "Notices", icon: Megaphone },
         { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },

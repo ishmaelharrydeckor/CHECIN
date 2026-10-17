@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MyLateDays } from "@/components/me/MyLateDays";
 import { MyLeave } from "@/components/me/MyLeave";
 import { MyNotices } from "@/components/me/MyNotices";
 import { MyTimesheet } from "@/components/me/MyTimesheet";
@@ -41,6 +42,7 @@ function MePage() {
         <>
           <MyTimesheet uid={user.id} />
           <MyLeave uid={user.id} orgId={orgId} />
+          <MyLateDays />
           <MyWfhSection />
           <MyNotices uid={user.id} />
         </>
