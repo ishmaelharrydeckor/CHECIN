@@ -54,6 +54,11 @@ export interface DailySummary extends SummaryIdentity {
   eventCount: number;
   /** The first check-in of the day was after the reporting window. */
   late: boolean;
+  /**
+   * A manager excused the late mark (docs/LATE-EXCUSE-DESIGN.md). Set only by the excuse route. `late` stays
+   * exactly as recorded; every count uses late AND NOT excused.
+   */
+  lateExcused?: boolean;
   /** The latest check-out was before the closing time. */
   earlyDeparture: boolean;
   schemaVersion: number;

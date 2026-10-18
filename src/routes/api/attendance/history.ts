@@ -105,8 +105,32 @@ export const Route = createFileRoute("/api/attendance/history")({
           const hasMore = found.length > pageSize;
           const docs = found.slice(0, pageSize);
 
+          // Late marks a manager excused (docs/LATE-EXCUSE-DESIGN.md): one bounded read by id for the
+          // late check-ins on this page. If it fails, the page still loads and shows the stored flag.
+          const excusedKeys = new Set<string>();
+          const lateKeys = new Set<string>();
+          for (const doc of docs) {
+            const d = doc.data();
+            if (d.late === true && d.type !== "out" && d.employeeId && typeof d.dayKey === "string") {
+              lateKeys.add(`${d.employeeId}_${d.dayKey}`);
+            }
+          }
+          if (lateKeys.size > 0 && orgId) {
+            try {
+              const excuseSnaps = await firestoreAdmin.getAll(
+                ...[...lateKeys].map((id) => firestoreAdmin.collection("late_excuses").doc(id)),
+              );
+              for (const s of excuseSnaps) {
+                if (s.exists && s.data()?.orgId === orgId && s.data()?.status === "excused") excusedKeys.add(s.id);
+              }
+            } catch (excuseErr) {
+              console.error("History: could not read late excuses:", excuseErr);
+            }
+          }
+
           const records = docs.map((doc) => {
             const d = doc.data();
+            const excused = d.late === true && excusedKeys.has(`${d.employeeId}_${d.dayKey}`);
             return {
               id: doc.id,
               employeeId: d.employeeId || "",
@@ -118,7 +142,8 @@ export const Route = createFileRoute("/api/attendance/history")({
               locationId: d.locationId || "",
               locationName: d.locationName || "Main Entrance Terminal",
               type: d.type === "out" ? "out" : "in",
-              late: d.late === true,
+              late: d.late === true && !excused,
+              lateExcused: excused,
               earlyDeparture: d.earlyDeparture === true,
               voided: !!d.voidedAt,
               timestamp: d.timestamp,

@@ -75,6 +75,7 @@ export interface ReportSummary {
   lastOut?: unknown;
   minutesWorked?: unknown;
   late?: unknown;
+  lateExcused?: unknown;
   earlyDeparture?: unknown;
 }
 
@@ -111,7 +112,8 @@ function presentDay(d: string, s: ReportSummary, timezone: string): RegisterDay 
     firstIn: clock(s.firstIn, timezone),
     lastOut: clock(s.lastOut, timezone),
     minutesWorked: typeof s.minutesWorked === "number" && s.minutesWorked > 0 ? Math.round(s.minutesWorked) : 0,
-    late: s.late === true,
+    late: s.late === true && s.lateExcused !== true,
+    lateExcused: s.late === true && s.lateExcused === true,
     earlyDeparture: s.earlyDeparture === true,
   };
 }

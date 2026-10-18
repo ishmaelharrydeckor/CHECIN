@@ -309,6 +309,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Shift swaps (docs/SHIFTS-DESIGN.md) ----
+    // Written by the server only. The two people, either person's manager and org admins can read.
+    match /shift_swaps/{swapId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        resource.data.proposerId == request.auth.uid ||
+        resource.data.colleagueId == request.auth.uid ||
+        (isManager() && request.auth.uid in resource.data.managerIds)
+      );
+      allow create, update, delete: if false;
+    }
+
     // ---- Refused scans (a short note when a check-in was turned away) ----
     // Written by the server only (docs/SHIFTS-DESIGN.md). Not an attendance record.
     match /refused_scans/{noteId} {

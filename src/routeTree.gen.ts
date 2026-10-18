@@ -23,6 +23,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDepartmentsRouteImport } from './routes/_authenticated/departments'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
+import { Route as AuthenticatedLateArrivalsRouteImport } from './routes/_authenticated/late-arrivals'
 import { Route as AuthenticatedLeaveRouteImport } from './routes/_authenticated/leave'
 import { Route as AuthenticatedMeRouteImport } from './routes/_authenticated/me'
 import { Route as AuthenticatedMyShiftsRouteImport } from './routes/_authenticated/my-shifts'
@@ -39,6 +40,10 @@ import { Route as ApiAdminRolesRouteImport } from './routes/api/admin/roles'
 import { Route as ApiAdminStaffInvitesRouteImport } from './routes/api/admin/staff-invites'
 import { Route as ApiAnnouncementsIndexRouteImport } from './routes/api/announcements/index'
 import { Route as ApiAttendanceHistoryRouteImport } from './routes/api/attendance/history'
+import { Route as ApiAttendanceLateExcuseRouteImport } from './routes/api/attendance/late-excuse'
+import { Route as ApiAttendanceLateMineRouteImport } from './routes/api/attendance/late-mine'
+import { Route as ApiAttendanceLateNoteRouteImport } from './routes/api/attendance/late-note'
+import { Route as ApiAttendanceLateReviewRouteImport } from './routes/api/attendance/late-review'
 import { Route as ApiAttendanceMeRouteImport } from './routes/api/attendance/me'
 import { Route as ApiAttendanceTodayRouteImport } from './routes/api/attendance/today'
 import { Route as ApiAttendanceWeekRouteImport } from './routes/api/attendance/week'
@@ -142,6 +147,12 @@ const AuthenticatedHolidaysRoute = AuthenticatedHolidaysRouteImport.update({
   path: '/holidays',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLateArrivalsRoute =
+  AuthenticatedLateArrivalsRouteImport.update({
+    id: '/late-arrivals',
+    path: '/late-arrivals',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLeaveRoute = AuthenticatedLeaveRouteImport.update({
   id: '/leave',
   path: '/leave',
@@ -221,6 +232,26 @@ const ApiAnnouncementsIndexRoute = ApiAnnouncementsIndexRouteImport.update({
 const ApiAttendanceHistoryRoute = ApiAttendanceHistoryRouteImport.update({
   id: '/api/attendance/history',
   path: '/api/attendance/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceLateExcuseRoute = ApiAttendanceLateExcuseRouteImport.update({
+  id: '/api/attendance/late-excuse',
+  path: '/api/attendance/late-excuse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceLateMineRoute = ApiAttendanceLateMineRouteImport.update({
+  id: '/api/attendance/late-mine',
+  path: '/api/attendance/late-mine',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceLateNoteRoute = ApiAttendanceLateNoteRouteImport.update({
+  id: '/api/attendance/late-note',
+  path: '/api/attendance/late-note',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAttendanceLateReviewRoute = ApiAttendanceLateReviewRouteImport.update({
+  id: '/api/attendance/late-review',
+  path: '/api/attendance/late-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAttendanceMeRoute = ApiAttendanceMeRouteImport.update({
@@ -391,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
+  '/late-arrivals': typeof AuthenticatedLateArrivalsRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
   '/my-shifts': typeof AuthenticatedMyShiftsRoute
@@ -406,6 +438,10 @@ export interface FileRoutesByFullPath {
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/late-excuse': typeof ApiAttendanceLateExcuseRoute
+  '/api/attendance/late-mine': typeof ApiAttendanceLateMineRoute
+  '/api/attendance/late-note': typeof ApiAttendanceLateNoteRoute
+  '/api/attendance/late-review': typeof ApiAttendanceLateReviewRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
   '/api/attendance/week': typeof ApiAttendanceWeekRoute
@@ -452,6 +488,7 @@ export interface FileRoutesByTo {
   '/departments': typeof AuthenticatedDepartmentsRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/holidays': typeof AuthenticatedHolidaysRoute
+  '/late-arrivals': typeof AuthenticatedLateArrivalsRoute
   '/leave': typeof AuthenticatedLeaveRoute
   '/me': typeof AuthenticatedMeRoute
   '/my-shifts': typeof AuthenticatedMyShiftsRoute
@@ -467,6 +504,10 @@ export interface FileRoutesByTo {
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/late-excuse': typeof ApiAttendanceLateExcuseRoute
+  '/api/attendance/late-mine': typeof ApiAttendanceLateMineRoute
+  '/api/attendance/late-note': typeof ApiAttendanceLateNoteRoute
+  '/api/attendance/late-review': typeof ApiAttendanceLateReviewRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
   '/api/attendance/week': typeof ApiAttendanceWeekRoute
@@ -515,6 +556,7 @@ export interface FileRoutesById {
   '/_authenticated/departments': typeof AuthenticatedDepartmentsRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
+  '/_authenticated/late-arrivals': typeof AuthenticatedLateArrivalsRoute
   '/_authenticated/leave': typeof AuthenticatedLeaveRoute
   '/_authenticated/me': typeof AuthenticatedMeRoute
   '/_authenticated/my-shifts': typeof AuthenticatedMyShiftsRoute
@@ -530,6 +572,10 @@ export interface FileRoutesById {
   '/api/admin/roles': typeof ApiAdminRolesRoute
   '/api/admin/staff-invites': typeof ApiAdminStaffInvitesRoute
   '/api/attendance/history': typeof ApiAttendanceHistoryRoute
+  '/api/attendance/late-excuse': typeof ApiAttendanceLateExcuseRoute
+  '/api/attendance/late-mine': typeof ApiAttendanceLateMineRoute
+  '/api/attendance/late-note': typeof ApiAttendanceLateNoteRoute
+  '/api/attendance/late-review': typeof ApiAttendanceLateReviewRoute
   '/api/attendance/me': typeof ApiAttendanceMeRoute
   '/api/attendance/today': typeof ApiAttendanceTodayRoute
   '/api/attendance/week': typeof ApiAttendanceWeekRoute
@@ -578,6 +624,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/history'
     | '/holidays'
+    | '/late-arrivals'
     | '/leave'
     | '/me'
     | '/my-shifts'
@@ -593,6 +640,10 @@ export interface FileRouteTypes {
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
     | '/api/attendance/history'
+    | '/api/attendance/late-excuse'
+    | '/api/attendance/late-mine'
+    | '/api/attendance/late-note'
+    | '/api/attendance/late-review'
     | '/api/attendance/me'
     | '/api/attendance/today'
     | '/api/attendance/week'
@@ -639,6 +690,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/history'
     | '/holidays'
+    | '/late-arrivals'
     | '/leave'
     | '/me'
     | '/my-shifts'
@@ -654,6 +706,10 @@ export interface FileRouteTypes {
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
     | '/api/attendance/history'
+    | '/api/attendance/late-excuse'
+    | '/api/attendance/late-mine'
+    | '/api/attendance/late-note'
+    | '/api/attendance/late-review'
     | '/api/attendance/me'
     | '/api/attendance/today'
     | '/api/attendance/week'
@@ -701,6 +757,7 @@ export interface FileRouteTypes {
     | '/_authenticated/departments'
     | '/_authenticated/history'
     | '/_authenticated/holidays'
+    | '/_authenticated/late-arrivals'
     | '/_authenticated/leave'
     | '/_authenticated/me'
     | '/_authenticated/my-shifts'
@@ -716,6 +773,10 @@ export interface FileRouteTypes {
     | '/api/admin/roles'
     | '/api/admin/staff-invites'
     | '/api/attendance/history'
+    | '/api/attendance/late-excuse'
+    | '/api/attendance/late-mine'
+    | '/api/attendance/late-note'
+    | '/api/attendance/late-review'
     | '/api/attendance/me'
     | '/api/attendance/today'
     | '/api/attendance/week'
@@ -765,6 +826,10 @@ export interface RootRouteChildren {
   ApiAdminRolesRoute: typeof ApiAdminRolesRoute
   ApiAdminStaffInvitesRoute: typeof ApiAdminStaffInvitesRoute
   ApiAttendanceHistoryRoute: typeof ApiAttendanceHistoryRoute
+  ApiAttendanceLateExcuseRoute: typeof ApiAttendanceLateExcuseRoute
+  ApiAttendanceLateMineRoute: typeof ApiAttendanceLateMineRoute
+  ApiAttendanceLateNoteRoute: typeof ApiAttendanceLateNoteRoute
+  ApiAttendanceLateReviewRoute: typeof ApiAttendanceLateReviewRoute
   ApiAttendanceMeRoute: typeof ApiAttendanceMeRoute
   ApiAttendanceTodayRoute: typeof ApiAttendanceTodayRoute
   ApiAttendanceWeekRoute: typeof ApiAttendanceWeekRoute
@@ -898,6 +963,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHolidaysRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/late-arrivals': {
+      id: '/_authenticated/late-arrivals'
+      path: '/late-arrivals'
+      fullPath: '/late-arrivals'
+      preLoaderRoute: typeof AuthenticatedLateArrivalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/leave': {
       id: '/_authenticated/leave'
       path: '/leave'
@@ -1008,6 +1080,34 @@ declare module '@tanstack/react-router' {
       path: '/api/attendance/history'
       fullPath: '/api/attendance/history'
       preLoaderRoute: typeof ApiAttendanceHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/late-excuse': {
+      id: '/api/attendance/late-excuse'
+      path: '/api/attendance/late-excuse'
+      fullPath: '/api/attendance/late-excuse'
+      preLoaderRoute: typeof ApiAttendanceLateExcuseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/late-mine': {
+      id: '/api/attendance/late-mine'
+      path: '/api/attendance/late-mine'
+      fullPath: '/api/attendance/late-mine'
+      preLoaderRoute: typeof ApiAttendanceLateMineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/late-note': {
+      id: '/api/attendance/late-note'
+      path: '/api/attendance/late-note'
+      fullPath: '/api/attendance/late-note'
+      preLoaderRoute: typeof ApiAttendanceLateNoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/attendance/late-review': {
+      id: '/api/attendance/late-review'
+      path: '/api/attendance/late-review'
+      fullPath: '/api/attendance/late-review'
+      preLoaderRoute: typeof ApiAttendanceLateReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/attendance/me': {
@@ -1231,6 +1331,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDepartmentsRoute: typeof AuthenticatedDepartmentsRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
+  AuthenticatedLateArrivalsRoute: typeof AuthenticatedLateArrivalsRoute
   AuthenticatedLeaveRoute: typeof AuthenticatedLeaveRoute
   AuthenticatedMeRoute: typeof AuthenticatedMeRoute
   AuthenticatedMyShiftsRoute: typeof AuthenticatedMyShiftsRoute
@@ -1248,6 +1349,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDepartmentsRoute: AuthenticatedDepartmentsRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
+  AuthenticatedLateArrivalsRoute: AuthenticatedLateArrivalsRoute,
   AuthenticatedLeaveRoute: AuthenticatedLeaveRoute,
   AuthenticatedMeRoute: AuthenticatedMeRoute,
   AuthenticatedMyShiftsRoute: AuthenticatedMyShiftsRoute,
@@ -1276,6 +1378,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminRolesRoute: ApiAdminRolesRoute,
   ApiAdminStaffInvitesRoute: ApiAdminStaffInvitesRoute,
   ApiAttendanceHistoryRoute: ApiAttendanceHistoryRoute,
+  ApiAttendanceLateExcuseRoute: ApiAttendanceLateExcuseRoute,
+  ApiAttendanceLateMineRoute: ApiAttendanceLateMineRoute,
+  ApiAttendanceLateNoteRoute: ApiAttendanceLateNoteRoute,
+  ApiAttendanceLateReviewRoute: ApiAttendanceLateReviewRoute,
   ApiAttendanceMeRoute: ApiAttendanceMeRoute,
   ApiAttendanceTodayRoute: ApiAttendanceTodayRoute,
   ApiAttendanceWeekRoute: ApiAttendanceWeekRoute,
