@@ -416,8 +416,6 @@ function ScanPage() {
         type: isCheckIn ? "in" : "out",
         time: data.timeDisplay || "",
         location: data.locationName || "",
-        late: data.late === true,
-        earlyDeparture: data.earlyDeparture === true,
       });
       scanFeedback(true);
       if (typeof data.eventId === "string" && Number(data.undoSeconds) > 0) {
