@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChecIN dashboard redesign: design mock (task 4.1)</title>
+<style>
+:root{
+  --forest:#0E2322; --forest-2:#163331; --lime:#C0FD9B; --mint:#CBEED3; --butter:#FCF2CB; --amber:#FDE7A6; --amber-ink:#7A4B00;
+  --lav:#E9E3FA; --lav-ink:#4A3A8A; --rose:#FADFDC; --rose-ink:#8C2B22; --slate:#F1F5F9; --slate-ink:#475569;
+  --ink:#0E2322; --muted:#5B6B6A; --line:#E3E8E8; --bg:#F6F8F7; --card:#fff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.4}
+.note{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px;font-size:12px;color:var(--muted)}
+.note b{color:var(--ink)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink)}
+.tab[aria-pressed=true]{background:var(--forest);color:#fff;border-color:var(--forest)}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:760px}
+aside{background:#fff;border-right:1px solid var(--line);padding:14px 12px}
+.brand{font-weight:800;font-size:16px;padding:4px 8px 12px;display:flex;align-items:center;gap:8px}
+.brand i{width:22px;height:22px;border-radius:7px;background:var(--forest);display:inline-block;position:relative}
+.brand i:after{content:"";position:absolute;inset:6px;border-radius:3px;background:var(--lime)}
+.jump{display:block;width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;color:var(--muted);font-size:12px;text-align:left;margin-bottom:10px}
+.grp{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 8px 4px}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:9px;font-size:13px;color:var(--ink)}
+.nav.on{background:var(--lime);font-weight:700}
+.nav .badge{background:var(--slate);color:var(--slate-ink);border-radius:999px;font-size:11px;font-weight:700;padding:1px 8px}
+.nav .badge.act{background:var(--amber);color:var(--amber-ink)}
+.me{position:absolute;bottom:0}
+main{padding:0 22px 28px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.crumbs{font-size:12px;color:var(--muted)} .crumbs b{color:var(--ink)}
+.seg{display:inline-flex;background:var(--slate);border-radius:10px;padding:2px}
+.seg span{padding:5px 11px;font-size:12px;font-weight:600;border-radius:8px;color:var(--slate-ink)}
+.seg span.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg span.off{opacity:.45}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600}
+.btn.pri{background:var(--forest);color:#fff;border-color:var(--forest)}
+h1{font-size:22px;margin:16px 0 2px;letter-spacing:-.01em}
+.sub{font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.chip{border:1px dashed #cfd8d6;border-radius:999px;padding:4px 11px;font-size:12px;background:#fff}
+.chip.on{background:var(--lime);border:1px solid var(--lime);font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:8px 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.k .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.k .v{font-size:30px;font-weight:800;margin:4px 0 2px;letter-spacing:-.02em}
+.k .v small{font-size:14px;font-weight:600;color:var(--muted)}
+.k .d{font-size:12px;color:var(--muted)}
+.k .d.up{color:#12703A} .k .d.dn{color:var(--rose-ink)}
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:14px}
+.card h3{margin:0 0 2px;font-size:14px} .card .hint{font-size:12px;color:var(--muted);margin-bottom:10px}
+.bars{display:flex;align-items:flex-end;gap:14px;height:150px;padding:6px 4px 0;border-bottom:1px solid var(--line)}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%}
+.bar .stack{width:100%;max-width:56px;display:flex;flex-direction:column-reverse;border-radius:8px 8px 0 0;overflow:hidden}
+.bar .p{background:var(--mint)} .bar .lt{background:var(--amber)}
+.bar span.n{font-size:11px;color:var(--muted)}
+.bar.partial .stack{opacity:.75;outline:2px dashed #b8c7c4;outline-offset:2px}
+.axis{display:flex;gap:14px;padding:6px 4px 0}
+.axis div{flex:1;text-align:center;font-size:11px;color:var(--muted)}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:11px 10px;border-bottom:1px solid #eef2f1;font-size:13px;vertical-align:middle}
+tr.row:hover td{background:#fafcfb}
+td.num,th.num{text-align:right}
+td:first-child{white-space:nowrap}
+.meter{display:inline-flex;align-items:center;gap:8px}
+.meter i{display:block;width:70px;height:6px;border-radius:99px;background:var(--slate);position:relative;overflow:hidden}
+.meter i b{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:#6EC38A}
+.meter.p i b{background:#2A8FA6}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.pill b{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:5px;font-size:10px;background:rgba(0,0,0,.08)}
+.s-p{background:var(--mint);color:var(--ink)} .s-w{background:var(--lav);color:var(--lav-ink)}
+.s-l{background:var(--butter);color:var(--amber-ink)} .s-a{background:var(--rose);color:var(--rose-ink)}
+.s-o{background:var(--slate);color:var(--slate-ink)} .s-h{background:#fff;color:var(--slate-ink);border:1px solid #b8c3c2}
+.tag{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:var(--amber);color:var(--amber-ink)}
+.tag.ex{background:var(--mint);color:var(--ink)}
+.av{width:30px;height:30px;border-radius:50%;background:var(--forest);color:var(--lime);display:inline-grid;place-items:center;font-size:11px;font-weight:800;margin-right:10px;vertical-align:middle}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal .h{font-size:11px;color:var(--muted);text-align:center}
+.day{border-radius:10px;min-height:52px;padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between;font-size:11px}
+.day b{font-size:13px}
+.person-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.stats{display:flex;gap:22px;margin-left:auto;flex-wrap:wrap}
+.stats div{text-align:left} .stats .v{font-size:22px;font-weight:800} .stats .l{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tl{list-style:none;margin:0;padding:0} .tl li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #eef2f1;font-size:13px}
+.tl time{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--muted);margin-right:10px}
+.reports{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.rc .cat{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 8px;background:var(--slate);color:var(--slate-ink);margin-bottom:8px}
+.rc h4{margin:0 0 4px;font-size:15px} .rc p{margin:0 0 14px;font-size:12px;color:var(--muted)}
+.rc .acts{display:flex;gap:8px}
+.cards-m{display:none}
+.hidden{display:none}
+.guide{margin-top:18px;font-size:12px;color:var(--muted)}
+.guide ul{margin:6px 0 0 18px;padding:0}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr} aside{display:none}
+  .kpis{grid-template-columns:repeat(2,1fr)} .grid2,.reports{grid-template-columns:1fr}
+  table.wide{display:none} .cards-m{display:block}
+  main{padding:0 14px 24px}
+}
+.mrow{border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px;margin-bottom:8px}
+.mrow .t{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.mrow .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px}
+</style>
+</head>
+<body>
+<div class="note"><b>Design mock for task 4.1.</b> Not built, not connected to real data. ChecIN palette and wording only. Every figure below adds up (see the "Numbers check" at the bottom of each screen). Status is always a colour <b>and</b> a letter.</div>
+<div class="tabs" role="group" aria-label="Screens">
+  <button class="tab" data-s="org" aria-pressed="true">Organization</button>
+  <button class="tab" data-s="team" aria-pressed="false">Team roster</button>
+  <button class="tab" data-s="person" aria-pressed="false">Person</button>
+  <button class="tab" data-s="reports" aria-pressed="false">Reports hub</button>
+</div>
+
+<div class="app">
+<aside>
+  <div class="brand"><i></i> ChecIN</div>
+  <button class="jump">Jump to…  Ctrl K</button>
+  <div class="grp">Dashboards</div>
+  <div class="nav on">Organization</div><div class="nav">Teams</div><div class="nav">People</div>
+  <div class="grp">My workspace</div>
+  <div class="nav">My page</div><div class="nav">My shifts</div>
+  <div class="grp">Manage</div>
+  <div class="nav">Late arrivals <span class="badge act">3</span></div>
+  <div class="nav">Leave <span class="badge act">2</span></div>
+  <div class="nav">Work from home <span class="badge">2</span></div>
+  <div class="nav">Shifts</div><div class="nav">Holidays</div><div class="nav">Departments</div>
+  <div class="grp">Reports</div>
+  <div class="nav">Reports</div><div class="nav">Analytics</div>
+  <div class="grp">Admin</div>
+  <div class="nav">Settings</div>
+</aside>
+
+<main>
+<!-- ============ ORGANIZATION ============ -->
+<section id="s-org">
+  <div class="top">
+    <div class="crumbs">Home / Dashboards / <b>Organization</b></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="seg" role="group" aria-label="Period"><span class="on">Today</span><span>Week</span><span>Month</span><span class="off" title="Appears once there is a quarter of history">Quarter</span><span class="off" title="Appears once there is a year of history">YTD</span></div>
+      <button class="btn">Export</button>
+    </div>
+  </div>
+  <h1>Organization overview</h1>
+  <div class="sub">Live snapshot · Friday 16 Oct · 11:42 (Africa/Accra) · 40 people</div>
+  <div class="chips"><span class="chip on">All teams ×</span><span class="chip">Location: All</span><span class="chip">Shift: Any</span><span class="chip">+ Add filter</span></div>
+
+  <div class="kpis">
+    <div class="card k"><div class="l">Present today</div><div class="v">34 <small>/ 38 expected</small></div><div class="d">28 on site now</div></div>
+    <div class="card k"><div class="l">Late</div><div class="v">3</div><div class="d">1 more excused by a manager</div></div>
+    <div class="card k"><div class="l">Away</div><div class="v">4</div><div class="d">2 working from home · 2 on leave</div></div>
+    <div class="card k"><div class="l">Absent</div><div class="v">2</div><div class="d dn">Expected, not arrived</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>This week</h3><div class="hint">People who checked in, and how many of them were late. Only finished days and today so far.</div>
+      <div class="bars" id="bars"></div>
+      <div class="axis"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri · today so far</div></div>
+      <div class="legend"><span><i class="sw" style="background:var(--mint)"></i>On time</span><span><i class="sw" style="background:var(--amber)"></i>Late</span><span>Weekend and future days are not drawn</span></div>
+    </div>
+    <div class="card">
+      <h3>Away today</h3><div class="hint">Same four people as the tile.</div>
+      <div style="display:grid;gap:12px;margin-top:6px">
+        <div><div style="display:flex;justify-content:space-between;font-size:13px"><span><span class="pill s-w"><b>W</b>Working from home</span></span><b>2</b></div><div class="meter" style="width:100%"><i style="width:100%"><b style="width:50%;background:#9C8BD9"></b></i></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:13px"><span><span class="pill s-l"><b>L</b>On leave</span></span><b>2</b></div><div class="meter" style="width:100%"><i style="width:100%"><b style="width:50%;background:#E0B94A"></b></i></div></div>
+      </div>
+      <div class="hint" style="margin-top:14px">Self-declared work from home is not checked at the entrance.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Teams <span class="hint" style="font-weight:400">click a row to open the team</span></h3>
+    <table class="wide">
+      <thead><tr><th>Team</th><th>Lead</th><th class="num">Size</th><th class="num">Present</th><th class="num">WFH</th><th class="num">Leave</th><th class="num">Absent</th><th>Attendance</th><th>On time</th><th></th></tr></thead>
+      <tbody id="teams"></tbody>
+    </table>
+    <div class="cards-m" id="teams-m"></div>
+  </div>
+  <div class="guide"><b>Numbers check:</b> sizes 14 + 12 + 9 + 5 = 40 · present 12 + 10 + 8 + 4 = 34 · WFH 1 + 1 + 0 + 0 = 2 · leave 1 + 0 + 1 + 0 = 2 · absent 0 + 1 + 0 + 1 = 2 · expected 40 − 2 on leave = 38 = 34 + 2 + 2. Attendance = (present + WFH) ÷ expected. A tile and the table can never disagree because they come from the same server answer.</div>
+</section>
+
+<!-- ============ TEAM ============ -->
+<section id="s-team" class="hidden">
+  <div class="top"><div class="crumbs">Home / Organization / <b>Operations</b></div>
+    <div style="display:flex;gap:8px"><div class="seg"><span class="on">Today</span><span>Week</span><span>Month</span></div><button class="btn">Export roster</button></div></div>
+  <h1>Operations team</h1><div class="sub">Lead: Adwoa Mensah · 14 people · live snapshot 11:42</div>
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-top:12px">
+    <div class="card k"><div class="l">Present now</div><div class="v">12 <small>/ 13</small></div><div class="d">11 on site now</div></div>
+    <div class="card k"><div class="l">Late</div><div class="v">1</div><div class="d">Arrived 08:41</div></div>
+    <div class="card k"><div class="l">Working from home</div><div class="v">1</div><div class="d">Self-declared</div></div>
+    <div class="card k"><div class="l">On leave</div><div class="v">1</div><div class="d">Approved leave</div></div>
+  </div>
+  <div class="card">
+    <h3>Team roster <span class="hint" style="font-weight:400">14 people</span></h3>
+    <div class="chips" style="margin:6px 0 10px"><span class="chip on">All</span><span class="chip">Present</span><span class="chip">Working from home</span><span class="chip">On leave</span><span class="chip">Absent</span></div>
+    <table class="wide"><thead><tr><th>Person</th><th>Status</th><th>Shift</th><th>Check-in</th><th class="num">Hours this month</th><th>Attendance</th><th>On time</th></tr></thead><tbody id="roster"></tbody></table>
+    <div class="cards-m" id="roster-m"></div>
+  </div>
+  <div class="guide"><b>Numbers check:</b> 14 people: 12 present + 1 working from home + 1 on leave = 14; absent 0; expected 13 (leave is not expected). Late is a note on a present person, not a separate status.</div>
+</section>
+
+<!-- ============ PERSON ============ -->
+<section id="s-person" class="hidden">
+  <div class="top"><div class="crumbs">Home / Operations / <b>Ama Boateng</b></div><div style="display:flex;gap:8px"><button class="btn">Message</button></div></div>
+  <div class="card" style="margin-top:14px">
+    <div class="person-head">
+      <span class="av" style="width:56px;height:56px;font-size:18px;margin:0">AB</span>
+      <div><h1 style="margin:0">Ama Boateng</h1><div class="sub">Cashier · Operations · Manager: Adwoa Mensah</div>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span class="pill s-p"><b>P</b>Present today</span><span class="pill s-o">Day shift 09:00 to 17:00</span></div></div>
+      <div class="stats">
+        <div><div class="v">95%</div><div class="l">Attendance, 30 days</div></div>
+        <div><div class="v">90%</div><div class="l">On time</div></div>
+        <div><div class="v">142.5</div><div class="l">Hours this month</div></div>
+        <div><div class="v">2</div><div class="l">Late days (1 excused)</div></div>
+        <div><div class="v">3</div><div class="l">WFH days</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:12px">
+    <div class="card">
+      <h3>October</h3><div class="hint">Each day is a colour and a letter. Future days are left blank.</div>
+      <div class="cal" id="cal"></div>
+      <div class="legend" style="margin-top:12px">
+        <span class="pill s-p"><b>P</b>Present</span><span class="pill s-w"><b>W</b>Working from home</span><span class="pill s-l"><b>L</b>On leave</span><span class="pill s-a"><b>A</b>Absent</span><span class="pill s-o"><b>–</b>Weekend</span><span class="pill s-h"><b>H</b>Holiday</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Today's timeline</h3><div class="hint">Fri 16 Oct</div>
+      <ul class="tl">
+        <li><span><time>08:41</time>Checked in · Main entrance</span><span><span class="tag ex">Late, excused</span></span></li>
+        <li><span><time>12:30</time>Checked out · Main entrance</span></li>
+        <li><span><time>13:05</time>Checked in · Main entrance</span></li>
+        <li><span><time>—</time>Currently on site</span><span class="pill s-p"><b>P</b>Active</span></li>
+      </ul>
+      <div class="hint" style="margin-top:10px">Late, excused: "Tablet switched on late" (Adwoa Mensah). The scan itself is unchanged.</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Recent leave</h3><div class="hint">Leave balances by type appear once leave types exist.</div>
+      <table><thead><tr><th>Type</th><th>Dates</th><th class="num">Days</th><th>Status</th></tr></thead><tbody>
+        <tr><td>Annual</td><td>12 – 14 Oct</td><td class="num">3</td><td><span class="pill s-p">Approved</span></td></tr>
+        <tr><td>Sick</td><td>3 Sep</td><td class="num">1</td><td><span class="pill s-p">Approved</span></td></tr>
+      </tbody></table></div>
+    <div class="card"><h3>Hours, last 8 weeks</h3><div class="hint">Scanned hours only. Work-from-home days carry no hours.</div>
+      <div class="bars" style="height:110px" id="hrs"></div></div>
+  </div>
+</section>
+
+<!-- ============ REPORTS ============ -->
+<section id="s-reports" class="hidden">
+  <div class="top"><div class="crumbs">Home / Reports / <b>Reports</b></div></div>
+  <h1>Reports</h1><div class="sub">Preview a report on screen, then generate it as a CSV or PDF.</div>
+  <div class="reports" style="margin-top:14px">
+    <div class="card rc"><span class="cat">Attendance</span><h4>Attendance register</h4><p>Every person, every day, in your organization's timezone. Present, late, work from home, leave, holiday, absent.</p><div class="acts"><button class="btn">Preview</button><button class="btn pri">Generate</button></div></div>
+    <div class="card rc"><span class="cat">Leave</span><h4>Leave ledger</h4><p>Every leave request in the period with its decision, who decided and when.</p><div class="acts"><button class="btn">Preview</button><button class="btn pri">Generate</button></div></div>
+    <div class="card rc"><span class="cat">Attendance</span><h4>Late arrivals and excuses</h4><p>Who was late, who was excused, by whom and why. Nothing is deleted.</p><div class="acts"><button class="btn">Preview</button><button class="btn pri">Generate</button></div></div>
+    <div class="card rc"><span class="cat">Analytics</span><h4>Attendance trend</h4><p>Attendance rate, on-time rate and average hours by day and by team, for the period you choose.</p><div class="acts"><button class="btn">Preview</button><button class="btn pri">Generate</button></div></div>
+  </div>
+  <div class="guide"><b>Left out on purpose (not built yet, so not faked):</b> scheduled delivery by email, overtime and pay-period exports, and leave balances. Their cards appear when the feature exists.</div>
+</section>
+</main>
+</div>
+
+<script>
+const teams=[
+ {n:"Operations",l:"Adwoa Mensah",s:14,p:12,w:1,v:1,a:0,att:100,ot:92,c:"#2A8FA6"},
+ {n:"Sales",l:"Kofi Asante",s:12,p:10,w:1,v:0,a:1,att:92,ot:90,c:"#9C8BD9"},
+ {n:"Support",l:"Esi Owusu",s:9,p:8,w:0,v:1,a:0,att:100,ot:88,c:"#E0B94A"},
+ {n:"Finance",l:"Yaw Darko",s:5,p:4,w:0,v:0,a:1,att:80,ot:100,c:"#6EC38A"}];
+const ini=n=>n.split(" ").map(x=>x[0]).join("").slice(0,2);
+const meter=(v,c)=>`<span class="meter ${c||""}"><i><b style="width:${v}%"></b></i>${v}%</span>`;
+document.getElementById("teams").innerHTML=teams.map(t=>`<tr class="row"><td><span class="av" style="background:${t.c};color:#0E2322">${ini(t.n)}</span><b>${t.n}</b></td><td>${t.l}</td><td class="num">${t.s}</td><td class="num">${t.p}</td><td class="num">${t.w}</td><td class="num">${t.v}</td><td class="num">${t.a}</td><td>${meter(t.att)}</td><td>${meter(t.ot,"p")}</td><td>›</td></tr>`).join("");
+document.getElementById("teams-m").innerHTML=teams.map(t=>`<div class="mrow"><div class="t"><b>${t.n}</b><span class="sub">${t.l}</span></div><div class="meta"><span>${t.p}/${t.s} present</span><span>${t.w} WFH</span><span>${t.v} leave</span><span>${t.a} absent</span></div><div style="margin-top:8px">${meter(t.att)}</div></div>`).join("");
+const days=[["Mon",35,2],["Tue",37,1],["Wed",33,4],["Thu",36,2],["Fri",34,3]];
+document.getElementById("bars").innerHTML=days.map((d,i)=>{const h=v=>Math.round(v/40*125);return `<div class="bar ${i==4?"partial":""}"><span class="n">${d[1]}</span><div class="stack"><div class="lt" style="height:${h(d[2])}px"></div><div class="p" style="height:${h(d[1]-d[2])}px"></div></div></div>`}).join("");
+const people=[
+ ["Ama Boateng","Cashier","P","Day","08:41","142.5","95","90","late-ex"],["Kwesi Adjei","Supervisor","P","Day","08:02","151.0","98","96",""],
+ ["Efua Mensah","Cashier","P","Day","08:55","138.4","92","88","late"],["Nana Yeboah","Stock","W","Day","—","120.0","90","93",""],
+ ["Akosua Frimpong","Cashier","L","Day","—","110.5","88","95",""],["Yaa Osei","Stock","P","Early","06:58","149.2","97","100",""],
+ ["Kojo Appiah","Driver","P","Early","07:03","147.0","96","98",""],["Abena Sarpong","Cashier","P","Day","08:12","140.2","94","95",""]];
+const st={P:["s-p","Present"],W:["s-w","Working from home"],L:["s-l","On leave"],A:["s-a","Absent"]};
+const pill=(c)=>`<span class="pill ${st[c][0]}"><b>${c}</b>${st[c][1]}</span>`;
+const extra=x=>x==="late"?` <span class="tag">Late</span>`:x==="late-ex"?` <span class="tag ex">Late, excused</span>`:"";
+document.getElementById("roster").innerHTML=people.map(p=>`<tr class="row"><td><span class="av">${ini(p[0])}</span><b>${p[0]}</b><div class="sub" style="margin-left:40px">${p[1]}</div></td><td>${pill(p[2])}${extra(p[8])}</td><td><span class="pill s-o">${p[3].toUpperCase()}</span></td><td style="font-family:ui-monospace,Consolas,monospace">${p[4]}</td><td class="num">${p[5]}</td><td>${meter(+p[6])}</td><td>${meter(+p[7],"p")}</td></tr>`).join("")+`<tr><td colspan="7" class="sub" style="padding:12px 10px">Showing 8 of 14 · <b>Show more</b></td></tr>`;
+document.getElementById("roster-m").innerHTML=people.map(p=>`<div class="mrow"><div class="t"><span><span class="av">${ini(p[0])}</span><b>${p[0]}</b></span>${pill(p[2])}</div><div class="meta"><span>${p[1]}</span><span>${p[3]}</span><span>In ${p[4]}</span>${extra(p[8])}</div></div>`).join("");
+// Month view: Oct 2026 starts on a Thursday (index 3 if Sunday=0)
+const cal=document.getElementById("cal");
+let html=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<div class="h">${d}</div>`).join("");
+for(let i=0;i<4;i++) html+=`<div></div>`;
+// 1 Oct 2026 is a Thursday (Sunday = 0, so Thursday = 4): 4 blank cells, then the days.
+const special={5:"W",8:"W",15:"W",12:"L",13:"L",14:"L",9:"H",16:"P"};
+for(let d=1;d<=31;d++){
+  const dow=(4+d-1)%7, weekend=dow===0||dow===6;
+  let c; if(d>16) c=null; else if(weekend) c="O"; else c=special[d]||"P";
+  const cls=c===null?"":({P:"s-p",W:"s-w",L:"s-l",A:"s-a",O:"s-o",H:"s-h"})[c];
+  const label=c===null?"":({O:"–"})[c]||c;
+  html+=`<div class="day ${cls}" ${c===null?'style="background:#fff;border:1px dashed var(--line)"':""}><b>${d}</b><span>${label}</span></div>`;
+}
+cal.innerHTML=html;
+document.getElementById("hrs").innerHTML=[38,41,40,36,42,39,40,22].map((h,i)=>`<div class="bar ${i==7?"partial":""}"><span class="n">${h}</span><div class="stack"><div class="p" style="height:${Math.round(h/45*85)}px"></div></div></div>`).join("");
+// tabs
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  ["org","team","person","reports"].forEach(s=>document.getElementById("s-"+s).classList.toggle("hidden",s!==b.dataset.s));
+});
+</script>
+</body>
+</html>
