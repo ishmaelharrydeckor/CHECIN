@@ -52,7 +52,7 @@ test("the fill step is one transaction per run, bounded, and safe to repeat", ()
   assert.ok(/const MAX_RUNS_PER_FILL = 2;/.test(server));
   // Assignment ids are deterministic, and pattern-written assignments carry their pattern.
   assert.ok(server.includes("assignmentId(employeeId, w.dayKey)"));
-  assert.ok(/tx\.set\([\s\S]*?patternId,\n\s*\}\);/.test(server));
+  assert.ok(/tx\.set\([\s\S]*?patternId,\r?\n\s*\}\);/.test(server)); // \r? so it also passes in a Windows checkout
   // Counts are returned from the transaction body, not added inside it (a retried body would double them).
   assert.ok(!/runTransaction[\s\S]*?result\.written \+=[\s\S]*?\}\);\n\s*if \(!outcome\)/.test(server));
 });
