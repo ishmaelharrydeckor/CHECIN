@@ -13,6 +13,7 @@
  * can be tested directly with the Node test runner.
  */
 import type { ShiftSnapshot } from "./shift-engine.ts";
+import { describeAssignment } from "./shift-rota.ts";
 
 export const SWAP_STATUSES = ["pending", "accepted", "approved", "declined", "cancelled"] as const;
 export type SwapStatus = (typeof SWAP_STATUSES)[number];
@@ -298,4 +299,129 @@ export function swapAssignments(input: {
     };
   };
   return { ok: true, value: { proposer: take(p, c), colleague: take(c, p) } };
+}
+
+// ---------------------------------------------------------------- step 2: settings and the stored record
+
+/** The organization switch "Allow shift swaps": off unless it is exactly true. */
+export function readSwapsEnabled(orgData: unknown): boolean {
+  return !!orgData && typeof orgData === "object" && (orgData as Record<string, unknown>).shiftSwapsEnabled === true;
+}
+
+/** What an admin sends to switch swaps on or off. Nothing else is accepted. */
+export function parseSwapSettingsInput(raw: unknown): Parsed<{ shiftSwapsEnabled: boolean }> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "Choose whether shift swaps are on or off." };
+  }
+  const r = raw as Record<string, unknown>;
+  if (Object.keys(r).some((k) => k !== "shiftSwapsEnabled") || typeof r.shiftSwapsEnabled !== "boolean") {
+    return { ok: false, error: "Choose whether shift swaps are on or off." };
+  }
+  return { ok: true, value: { shiftSwapsEnabled: r.shiftSwapsEnabled } };
+}
+
+/** One side of a swap as the server resolved it (identity and manager from claims, never the request). */
+export interface SwapParty {
+  uid: string;
+  name: string;
+  managerId: string | null;
+  assignment: { shiftId: string; shift: ShiftSnapshot };
+}
+
+function shiftLabel(shift: ShiftSnapshot): string {
+  return describeAssignment(shift);
+}
+
+/**
+ * The `shift_swaps` document written when a swap is proposed. `managerIds` lists each person's
+ * manager once, so a manager's list is one indexed query; the shift ids are kept so approval can
+ * refuse a swap whose shifts changed after it was proposed.
+ */
+export function buildSwapDoc(input: {
+  orgId: string;
+  dayKey: string;
+  proposer: SwapParty;
+  colleague: SwapParty;
+  note: string;
+  requestId: string;
+  at: string;
+}) {
+  const { orgId, dayKey, proposer, colleague, note, requestId, at } = input;
+  const managerIds = [...new Set([proposer.managerId, colleague.managerId].filter((m): m is string => !!m))];
+  return {
+    orgId,
+    dayKey,
+    status: "pending" as SwapStatus,
+    proposerId: proposer.uid,
+    proposerName: proposer.name.slice(0, 80),
+    proposerManagerId: proposer.managerId,
+    proposerAssignmentId: `${proposer.uid}_${dayKey}`,
+    proposerShiftId: proposer.assignment.shiftId,
+    proposerShiftLabel: shiftLabel(proposer.assignment.shift),
+    colleagueId: colleague.uid,
+    colleagueName: colleague.name.slice(0, 80),
+    colleagueManagerId: colleague.managerId,
+    colleagueAssignmentId: `${colleague.uid}_${dayKey}`,
+    colleagueShiftId: colleague.assignment.shiftId,
+    colleagueShiftLabel: shiftLabel(colleague.assignment.shift),
+    managerIds,
+    note,
+    requestId,
+    createdAt: at,
+    updatedAt: at,
+  };
+}
+
+/** Approval goes ahead only if both people are still on the shifts the swap was proposed for. */
+export function shiftsStillAsProposed(
+  swap: { proposerShiftId: unknown; colleagueShiftId: unknown },
+  proposerNow: { shiftId: unknown } | null,
+  colleagueNow: { shiftId: unknown } | null,
+): boolean {
+  return (
+    !!proposerNow &&
+    !!colleagueNow &&
+    proposerNow.shiftId === swap.proposerShiftId &&
+    colleagueNow.shiftId === swap.colleagueShiftId
+  );
+}
+
+export interface SwapRow {
+  id: string;
+  dayKey: string;
+  status: SwapStatus;
+  proposerId: string;
+  proposerName: string;
+  proposerShiftLabel: string;
+  colleagueId: string;
+  colleagueName: string;
+  colleagueShiftLabel: string;
+  note: string;
+  createdAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+}
+
+/** What the screens get for one swap: display fields only, or null for a damaged record. */
+export function swapRowFromDoc(id: string, doc: unknown): SwapRow | null {
+  if (!doc || typeof doc !== "object") return null;
+  const d = doc as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  if (!str(d.proposerId) || !str(d.colleagueId) || !isRealDay(d.dayKey)) return null;
+  if (!(SWAP_STATUSES as readonly string[]).includes(str(d.status))) return null;
+  return {
+    id,
+    dayKey: d.dayKey as string,
+    status: d.status as SwapStatus,
+    proposerId: str(d.proposerId),
+    proposerName: str(d.proposerName) || "Employee",
+    proposerShiftLabel: str(d.proposerShiftLabel),
+    colleagueId: str(d.colleagueId),
+    colleagueName: str(d.colleagueName) || "Employee",
+    colleagueShiftLabel: str(d.colleagueShiftLabel),
+    note: str(d.note),
+    createdAt: str(d.createdAt),
+    decidedBy: str(d.decidedBy) || null,
+    decidedAt: str(d.decidedAt) || null,
+  };
 }

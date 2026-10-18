@@ -1,0 +1,67 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+// Source checks for the swap routes (3.1-P7 step 2). The rules themselves are tested in
+// shift-swaps.test.mjs; these make sure the route keeps the security and scale rules.
+const route = readFileSync("src/routes/api/shifts/swaps.ts", "utf8");
+const server = readFileSync("src/lib/shift-swaps.server.ts", "utf8");
+
+test("every swap handler verifies the ID token, with revocation, through one function", () => {
+  const handlers = route.match(/(GET|POST|PUT|PATCH|DELETE): async/g) ?? [];
+  assert.deepEqual(handlers.sort(), ["GET: async", "POST: async", "PUT: async"]);
+  assert.equal((route.match(/verifyCallerToken\(/g) ?? []).length, 1);
+  assert.ok(route.includes('verifyCallerToken(request.headers.get("authorization"), { checkRevoked: true })'));
+  assert.equal((route.match(/await authCaller\(request\)/g) ?? []).length, 3, "GET, POST and PUT all authenticate");
+});
+
+test("the proposer, organization, role and managers come from the token and claims, never the body", () => {
+  for (const field of ["orgId", "proposerId", "managerId", "role", "status", "decidedBy"]) {
+    assert.ok(!new RegExp(String.raw`(body|b|rest)\??\.${field}\b`).test(route), `${field} must not be read from the request`);
+  }
+  assert.ok(route.includes("loadClaimedPeople(orgId, [caller.uid, colleagueId])"));
+  assert.ok(route.includes("proposerManagerId: people.get(stored.proposerId)?.managerId ?? null"), "managers are re-read from claims at decision time");
+  assert.ok(server.includes("claims.orgId !== orgId"), "people outside the organization are ignored");
+});
+
+test("every move is decided by the tested rules inside the transaction, on the freshly read swap", () => {
+  assert.ok(/runTransaction\(async \(tx\) => \{\s*const snap = await tx\.get\(ref\);/.test(route));
+  assert.ok(route.includes("decideSwapAction(fresh, me, action)"));
+  assert.ok(route.includes("canSeeSwap(partiesOf(firstData), me)"));
+});
+
+test("approval re-checks everything inside the transaction and swaps both documents there", () => {
+  const approve = route.slice(route.indexOf('if (action === "approve") {'));
+  assert.ok(approve.includes("tx.getAll(pRef, cRef, pSum, cSum)"));
+  assert.ok(approve.includes("tx.get(leaveQuery(fresh.proposerId))"));
+  assert.ok(approve.includes("shiftsStillAsProposed("), "a swap whose shifts changed is refused");
+  assert.ok(approve.includes("checkSwapEligibility("), "leave, holiday and attendance are checked again");
+  assert.ok(approve.includes("swapAssignments("));
+  assert.ok(approve.includes("tx.set(pRef, swapped.value.proposer)") && approve.includes("tx.set(cRef, swapped.value.colleague)"));
+});
+
+test("writes are rate limited and logged; the switch is admin only", () => {
+  for (const key of ["shift_swaps_propose_", "shift_swaps_act_", "shift_swaps_settings_"]) assert.ok(route.includes(key), key);
+  assert.ok(route.includes('action: "shift.swap.propose"'));
+  assert.ok(route.includes("action: `shift.swap.${action}`"));
+  assert.ok(route.includes('action: "shift.swap.settings"'));
+  assert.ok(/caller\.role !== "org_admin"\) return refuse\(403, "Only an organization admin can switch shift swaps/.test(route));
+});
+
+test("a retried proposal cannot make a second swap, and one person cannot have two open swaps for a day", () => {
+  assert.ok(route.includes("swapDocId(caller.uid, dayKey, requestId)"));
+  assert.ok(/const existing = await tx\.get\(ref\);\s*if \(!existing\.exists\) tx\.set\(ref, doc\);/.test(route));
+  assert.ok(route.includes("One of you already has a swap waiting for that day"));
+});
+
+test("swaps are off unless the organization switched them on", () => {
+  assert.ok(route.includes("if (!org.swapsEnabled) return refuse(403"));
+  assert.ok(route.includes('(action === "accept" || action === "approve") && !org.swapsEnabled'));
+});
+
+test("the swap routes do not touch the scan route or use location", () => {
+  for (const src of [route, server]) {
+    assert.ok(!src.includes("check-in/"));
+    assert.ok(!src.includes("geolocation"));
+  }
+});

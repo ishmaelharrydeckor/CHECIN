@@ -4,14 +4,19 @@ import {
   SWAP_NOTE_MAX_LENGTH,
   SWAP_STATUSES,
   approverRule,
+  buildSwapDoc,
   canSeeSwap,
   checkSwapEligibility,
   decideSwapAction,
   isOpenSwap,
   parseProposeRequest,
   parseSwapActionRequest,
+  parseSwapSettingsInput,
+  readSwapsEnabled,
+  shiftsStillAsProposed,
   swapAssignments,
   swapDocId,
+  swapRowFromDoc,
 } from "../../src/lib/shift-swaps.ts";
 
 const TODAY = "2026-10-13";
@@ -342,4 +347,81 @@ test("swapAssignments refuses documents that do not belong together", () => {
   ];
   for (const [input, label] of cases) assert.equal(swapAssignments(input).ok, false, label);
   assert.equal(swapAssignments({ ...args(ANN_DOC, BEN_DOC), approvedBy: "" }).ok, false, "no approver");
+});
+
+// ---------------------------------------------------------------- step 2 helpers
+
+test("readSwapsEnabled: off unless the organization has switched it on", () => {
+  for (const org of [undefined, null, {}, "x", { shiftSwapsEnabled: "yes" }, { shiftSwapsEnabled: 1 }]) {
+    assert.equal(readSwapsEnabled(org), false, JSON.stringify(org));
+  }
+  assert.equal(readSwapsEnabled({ shiftSwapsEnabled: true }), true);
+  assert.equal(readSwapsEnabled({ shiftSwapsEnabled: false }), false);
+});
+
+test("parseSwapSettingsInput takes only a true/false switch", () => {
+  assert.deepEqual(parseSwapSettingsInput({ shiftSwapsEnabled: true }), { ok: true, value: { shiftSwapsEnabled: true } });
+  assert.deepEqual(parseSwapSettingsInput({ shiftSwapsEnabled: false }), { ok: true, value: { shiftSwapsEnabled: false } });
+  for (const raw of [null, {}, { shiftSwapsEnabled: "true" }, { shiftSwapsEnabled: true, orgId: "x" }, []]) {
+    assert.equal(parseSwapSettingsInput(raw).ok, false, JSON.stringify(raw));
+  }
+});
+
+const PARTY = (uid, name, managerId, shift) => ({ uid, name, managerId, assignment: { shiftId: shift.shiftId, shift } });
+
+test("buildSwapDoc records both people, their managers and shifts, and starts pending", () => {
+  const doc = buildSwapDoc({
+    orgId: "org1",
+    dayKey: "2026-10-15",
+    proposer: PARTY("ann", "Ann", "mgr", DAY_SHIFT),
+    colleague: PARTY("ben", "Ben", "mgr2", NIGHT_SHIFT),
+    note: "Doctor",
+    requestId: REQ,
+    at: AT,
+  });
+  assert.equal(doc.status, "pending");
+  assert.equal(doc.orgId, "org1");
+  assert.equal(doc.proposerId, "ann");
+  assert.equal(doc.colleagueId, "ben");
+  assert.equal(doc.proposerManagerId, "mgr");
+  assert.equal(doc.colleagueManagerId, "mgr2");
+  assert.deepEqual(doc.managerIds, ["mgr", "mgr2"]);
+  assert.equal(doc.proposerShiftId, "day");
+  assert.equal(doc.colleagueShiftId, "night");
+  assert.equal(doc.proposerAssignmentId, "ann_2026-10-15");
+  assert.equal(doc.colleagueAssignmentId, "ben_2026-10-15");
+  assert.equal(doc.proposerShiftLabel, "Day, 08:00 to 16:00");
+  assert.equal(doc.colleagueShiftLabel, "Night, 22:00 to 06:00");
+  assert.equal(doc.createdAt, AT);
+  assert.equal(doc.note, "Doctor");
+});
+
+test("buildSwapDoc lists one manager once and leaves out a missing manager", () => {
+  const same = buildSwapDoc({ orgId: "o", dayKey: "2026-10-15", proposer: PARTY("ann", "Ann", "mgr", DAY_SHIFT), colleague: PARTY("ben", "Ben", "mgr", NIGHT_SHIFT), note: "", requestId: REQ, at: AT });
+  assert.deepEqual(same.managerIds, ["mgr"]);
+  const none = buildSwapDoc({ orgId: "o", dayKey: "2026-10-15", proposer: PARTY("ann", "Ann", null, DAY_SHIFT), colleague: PARTY("ben", "Ben", "mgr", NIGHT_SHIFT), note: "", requestId: REQ, at: AT });
+  assert.deepEqual(none.managerIds, ["mgr"]);
+  assert.equal(none.proposerManagerId, null);
+});
+
+test("shiftsStillAsProposed refuses an approval when either shift changed since the proposal", () => {
+  const swap = { proposerShiftId: "day", colleagueShiftId: "night" };
+  assert.equal(shiftsStillAsProposed(swap, { shiftId: "day" }, { shiftId: "night" }), true);
+  assert.equal(shiftsStillAsProposed(swap, { shiftId: "late" }, { shiftId: "night" }), false);
+  assert.equal(shiftsStillAsProposed(swap, { shiftId: "day" }, null), false);
+  assert.equal(shiftsStillAsProposed(swap, null, { shiftId: "night" }), false);
+});
+
+test("swapRowFromDoc returns only the display fields, with safe defaults", () => {
+  const doc = buildSwapDoc({ orgId: "org1", dayKey: "2026-10-15", proposer: PARTY("ann", "Ann", "mgr", DAY_SHIFT), colleague: PARTY("ben", "Ben", "mgr", NIGHT_SHIFT), note: "", requestId: REQ, at: AT });
+  const row = swapRowFromDoc("sw1", doc);
+  assert.equal(row.id, "sw1");
+  assert.equal(row.status, "pending");
+  assert.equal(row.proposerName, "Ann");
+  assert.equal(row.colleagueName, "Ben");
+  assert.equal(row.dayKey, "2026-10-15");
+  assert.equal("managerIds" in row, false, "internal routing fields are not sent to the screen");
+  assert.equal("requestId" in row, false);
+  assert.equal(swapRowFromDoc("x", null), null);
+  assert.equal(swapRowFromDoc("x", { status: "pending" }), null, "a damaged record is skipped");
 });
