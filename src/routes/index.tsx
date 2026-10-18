@@ -1,7 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
+import {
+  ActivityPanel,
+  DashboardPreview,
+  DoorPairing,
+  LeavePanel,
+  NoticePanel,
+  PhoneCheckIn,
+  QrTablet,
+  RecordsPanel,
+  TeamList,
+} from "@/components/landing/ProductVisuals";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,30 +46,30 @@ type CapabilityKey = "attendance" | "leave" | "announcements" | "records";
 
 const CAPABILITY_DATA: Record<
   CapabilityKey,
-  { title: string; image: string; alt: string; description: string }
+  { title: string; Visual: () => ReactElement; alt: string; description: string }
 > = {
   attendance: {
     title: "Real-Time Attendance",
-    image: "https://framerusercontent.com/images/PdCbUkepQPMwsqLNqnMFOhMlk.jpg",
-    alt: "Workforce Visibility Interface",
+    Visual: ActivityPanel,
+    alt: "A live list of check-ins and check-outs with who arrived late",
     description: "Live live attendance tracking showing clock-ins, verified doors, and real-time status.",
   },
   leave: {
     title: "Leave & Absence Management",
-    image: "https://framerusercontent.com/images/rDrThS7T8gy6JcC143xhaX5D5w4.png",
-    alt: "Leave requests and approvals view",
+    Visual: LeavePanel,
+    alt: "A list of leave requests with approved and pending status",
     description: "Streamlined leave requests, balance tracking, and team manager approvals.",
   },
   announcements: {
     title: "Announcements & Team Updates",
-    image: "https://framerusercontent.com/images/JhkDQnOZHJUfSwC2jfLzLjxrjI.jpg",
-    alt: "Team updates and notifications",
+    Visual: NoticePanel,
+    alt: "A company notice and the phone notification that goes with it",
     description: "Keep whole teams informed with broadcast company updates and push notifications.",
   },
   records: {
     title: "Tamper-Resistant Records",
-    image: "https://framerusercontent.com/images/PZhh8usK41VfjRZFlBmcldnrNo.jpg",
-    alt: "Audit logs and verified records",
+    Visual: RecordsPanel,
+    alt: "An attendance register with a letter and colour for each day, and an export button",
     description: "Cryptographically verified presence logs, automated timesheets, and exportable reports.",
   },
 };
@@ -198,14 +209,13 @@ function LandingPage() {
             </Link>
           </div>
 
-          {/* Framer Hero Dashboard Mockup */}
-          <div className="relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden">
-            <img
-              src="https://framerusercontent.com/images/7EKiDY1Dnw1gb2S7E1Mej2ws.svg"
-              alt="ChecIN entrance tablet showing a rotating QR code, with an employee's phone scanning it"
-              className="w-full rounded-t-[20px] object-cover"
-              loading="eager"
-            />
+          {/* The manager dashboard, drawn from the real components with sample numbers */}
+          <div
+            role="img"
+            aria-label="The ChecIN manager dashboard: how many people are in, late, away or absent today"
+            className="relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+          >
+            <DashboardPreview className="h-[460px] sm:h-[560px]" />
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0E2322] to-transparent pointer-events-none" />
           </div>
         </div>
@@ -229,12 +239,11 @@ function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
           {/* Card 1: 15 sec */}
           <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <img
-              src="https://framerusercontent.com/images/VU1SuO5yfzG9ySp7MMgBg8MFlbY.jpg"
-              alt="Every code expires in 15 seconds"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
+            <div className="absolute inset-x-0 top-[128px] flex justify-center px-4">
+              <QrTablet compact onDark />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
               <div>
                 <div className="text-[54px] font-medium text-[#C0FD9B] tracking-tight leading-none mb-2">
                   15 sec
@@ -254,12 +263,11 @@ function LandingPage() {
 
           {/* Card 2: One-tap check-in */}
           <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <img
-              src="https://framerusercontent.com/images/ao2qDHyGSusoHRHkHOoT4ADGOVs.jpg"
-              alt="One-tap check-in"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
+            <div className="absolute inset-x-0 top-6 flex justify-center scale-[0.85] origin-top">
+              <PhoneCheckIn />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -275,12 +283,11 @@ function LandingPage() {
 
           {/* Card 3: Live team view */}
           <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <img
-              src="https://framerusercontent.com/images/98puRycJIIGDcH3mYEiwoeSPqk8.jpg"
-              alt="Live team view"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
+            <div className="absolute inset-x-0 top-8 flex justify-center px-6">
+              <TeamList />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -314,11 +321,9 @@ function LandingPage() {
             {/* Bento 1: Butter Card */}
             <div className="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-amber-200/60 bg-white">
-                <img
-                  src="https://framerusercontent.com/images/rDrThS7T8gy6JcC143xhaX5D5w4.png"
-                  alt="A code that expires UI"
-                  className="w-full object-cover"
-                />
+                <div role="img" aria-label="A tablet showing a code with a fifteen second countdown" className="h-[232px] bg-gradient-to-br from-amber-50 to-white flex items-center justify-center">
+                  <QrTablet compact />
+                </div>
               </div>
               <div>
                 <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0A0A0A] mb-3 leading-tight">
@@ -334,11 +339,9 @@ function LandingPage() {
             {/* Bento 2: Soft Mint Card */}
             <div className="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-emerald-200/60 bg-white">
-                <img
-                  src="https://framerusercontent.com/images/JhkDQnOZHJUfSwC2jfLzLjxrjI.jpg"
-                  alt="A tablet with a secret handshake UI"
-                  className="w-full object-cover"
-                />
+                <div role="img" aria-label="A tablet paired to one entrance and to your account" className="h-[232px] bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center">
+                  <DoorPairing />
+                </div>
               </div>
               <div>
                 <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0A0A0A] mb-3 leading-tight">
@@ -402,12 +405,15 @@ function LandingPage() {
 
           {/* Right Large Preview Card */}
           <div className="lg:col-span-7 bg-[#FFFDF5] border border-amber-200/50 rounded-[32px] p-6 sm:p-8 shadow-md">
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200/80">
-              <img
-                src={CAPABILITY_DATA[activeCap].image}
-                alt={CAPABILITY_DATA[activeCap].alt}
-                className="w-full object-cover transition-opacity duration-300"
-              />
+            <div
+              role="img"
+              aria-label={CAPABILITY_DATA[activeCap].alt}
+              className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200/80 h-[360px] sm:h-[455px]"
+            >
+              {(() => {
+                const Visual = CAPABILITY_DATA[activeCap].Visual;
+                return <Visual />;
+              })()}
             </div>
             <p className="mt-4 text-sm sm:text-base text-[#6D6D6D] font-medium">
               {CAPABILITY_DATA[activeCap].description}
@@ -432,11 +438,9 @@ function LandingPage() {
 
         <div className="max-w-4xl mx-auto relative px-4 py-8">
           <div className="rounded-3xl border border-slate-200 shadow-2xl overflow-hidden bg-white p-2">
-            <img
-              src="https://framerusercontent.com/images/PZhh8usK41VfjRZFlBmcldnrNo.jpg"
-              alt="ChecIN Desktop Mockup"
-              className="w-full rounded-2xl"
-            />
+            <div role="img" aria-label="The ChecIN manager dashboard on a desktop computer" className="rounded-2xl overflow-hidden">
+              <DashboardPreview className="h-[430px] sm:h-[520px]" />
+            </div>
           </div>
 
           {/* Floating Team Chips */}
