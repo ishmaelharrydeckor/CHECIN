@@ -17,7 +17,7 @@ export function AnalyticsKpiTiles({ data }: AnalyticsKpiTilesProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Tile
-        tone="mint"
+        tone="white"
         label="Attendance rate"
         icon={<CheckCircle2 className="size-4" />}
         value={formatPercent(attendanceRate.percent)}

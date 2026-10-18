@@ -17,7 +17,8 @@ import { Calendar, CheckCircle2, ChevronDown, ChevronUp, Clock, Home, RefreshCw,
 
 const LATE_LIST_LIMIT = 20;
 const NOT_ARRIVED_COLLAPSE_AT = 8;
-const TILE_GRID = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4";
+// Two tiles per row on a phone, four on a desktop: the page stays short and the four numbers sit together.
+const TILE_GRID = "grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4";
 
 interface TodayPanelProps {
   data: TodaySummaryData | null;
@@ -26,6 +27,8 @@ interface TodayPanelProps {
   onRefresh?: () => void;
   /** Remove one person's work-from-home day for today. Provided by the page, which does the fetching. */
   onRemoveWfh?: (employeeId: string) => Promise<void>;
+  /** Show the live activity list beside the late and not-arrived lists. The dashboard shows it lower down instead. */
+  showActivity?: boolean;
 }
 
 /** "Tuesday, 6 Oct" from the server's day key. Only formats the date, no clock involved. */
@@ -38,7 +41,7 @@ function formatDayLabel(dayKey: string): string {
   });
 }
 
-export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: TodayPanelProps) {
+export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showActivity = true }: TodayPanelProps) {
   if (!data && loading) return <TodayLoading onRefresh={onRefresh} />;
   if (!data) return <TodayUnavailable message={error} onRefresh={onRefresh} />;
 
@@ -75,7 +78,7 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: Tod
       {/* Count tiles */}
       <div className={TILE_GRID}>
         <Tile
-          tone="mint"
+          tone="white"
           label="Present"
           icon={<CheckCircle2 className="size-4" />}
           value={
@@ -100,20 +103,13 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: Tod
         />
         <Tile
           tone="white"
-          label="On leave"
+          label="Away"
           icon={<Calendar className="size-4" />}
-          value={counts.onLeave}
-          note="Approved leave today"
+          value={counts.onLeave + counts.wfh}
+          note={`${counts.wfh} working from home · ${counts.onLeave} on leave`}
         />
         <Tile
-          tone="white"
-          label="Working from home"
-          icon={<Home className="size-4" />}
-          value={counts.wfh}
-          note="Working remotely today"
-        />
-        <Tile
-          tone="white"
+          tone={counts.absent > 0 ? "butter" : "white"}
           label="Absent"
           icon={<UserX className="size-4" />}
           value={counts.absent}
@@ -123,6 +119,7 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: Tod
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Live activity */}
+        {showActivity && (
         <Card className="border-border/80 shadow-sm lg:col-span-7">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Live activity</CardTitle>
@@ -157,7 +154,13 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: Tod
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-5 space-y-6">
+        )}
+
+        <div
+          className={
+            showActivity ? "lg:col-span-5 space-y-6" : "lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
+          }
+        >
           {/* Late today */}
           <Card className="border-border/80 shadow-sm">
             <CardHeader className="pb-3">
