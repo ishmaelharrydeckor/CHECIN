@@ -28,6 +28,8 @@ export interface MyDay {
   lastOut: string | null;
   minutesWorked: number;
   late: boolean;
+  /** Was late, and a manager excused it (`late` is then false). */
+  lateExcused: boolean;
   earlyDeparture: boolean;
   /** Checked in and not out right now (today only). */
   stillIn: boolean;
@@ -44,6 +46,7 @@ interface SummaryLike {
   state?: unknown;
   minutesWorked?: unknown;
   late?: unknown;
+  lateExcused?: unknown;
   earlyDeparture?: unknown;
 }
 
@@ -68,7 +71,8 @@ export function buildMyDays(
       firstIn: clock(s.firstIn),
       lastOut: clock(s.lastOut),
       minutesWorked: typeof s.minutesWorked === "number" && s.minutesWorked > 0 ? Math.round(s.minutesWorked) : 0,
-      late: s.late === true,
+      late: s.late === true && s.lateExcused !== true,
+      lateExcused: s.late === true && s.lateExcused === true,
       earlyDeparture: s.earlyDeparture === true,
       stillIn: stillIn && s.dayKey === today,
       noCheckOut: stillIn && today !== null && s.dayKey < today,

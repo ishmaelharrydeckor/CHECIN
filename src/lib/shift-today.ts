@@ -215,7 +215,7 @@ export function buildTodayWithShifts(input: {
       if (relevantSummary) {
         presentSummaries.push(relevantSummary);
         if (relevantSummary.state === "in") onSiteCount++;
-        if (relevantSummary.firstIn && relevantSummary.late === true) {
+        if (relevantSummary.firstIn && relevantSummary.late === true && relevantSummary.lateExcused !== true) {
           const arrivedAt = formatClock(relevantSummary.firstIn as string, timezone);
           lateList.push({
             employeeId: member.uid,
@@ -250,7 +250,9 @@ export function buildTodayWithShifts(input: {
 
   // On-time rate from relevant shift-day summaries of people with status "present"
   const withFirstIn = presentSummaries.filter((s) => s.firstIn).length;
-  const lateSummaries = presentSummaries.filter((s) => s.firstIn && s.late === true);
+  const lateSummaries = presentSummaries.filter((s) => s.firstIn && s.late === true && s.lateExcused !== true);
+  const lateExcusedCount = presentSummaries.filter((s) => s.firstIn && s.late === true && s.lateExcused === true).length;
+  const excusedIds = new Set(presentSummaries.filter((s) => s.lateExcused === true).map((s) => s.employeeId));
   const onTimeRate = {
     percent: withFirstIn > 0 ? Math.round(((withFirstIn - lateSummaries.length) / withFirstIn) * 100) : null,
     onTime: withFirstIn - lateSummaries.length,
@@ -272,7 +274,8 @@ export function buildTodayWithShifts(input: {
 
   const events = todaysEvents
     .slice(0, eventLimit)
-    .map((e) => toEventRow(e, rosterById, timezone));
+    .map((e) => toEventRow(e, rosterById, timezone))
+    .map((row) => (row.late && excusedIds.has(row.employeeId) ? { ...row, late: false, lateExcused: true } : row));
 
   return {
     dayKey: today,
@@ -283,6 +286,7 @@ export function buildTodayWithShifts(input: {
       present: presentCount,
       onSite: onSiteCount,
       late: lateList.length,
+      ...(lateExcusedCount > 0 ? { lateExcused: lateExcusedCount } : {}),
       onLeave: onLeaveCount,
       wfh: wfhList.length,
       absent: absentCount,

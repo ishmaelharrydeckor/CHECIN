@@ -52,6 +52,7 @@ export function dayCellText(day: RegisterDay): string {
   if (day.firstIn || day.lastOut) s += ` ${day.firstIn ?? "?"}-${day.lastOut ?? "?"}`;
   const flags: string[] = [];
   if (day.late) flags.push("late");
+  if (day.lateExcused) flags.push("late, excused");
   if (day.earlyDeparture) flags.push("left early");
   if (flags.length) s += ` (${flags.join(", ")})`;
   return s;

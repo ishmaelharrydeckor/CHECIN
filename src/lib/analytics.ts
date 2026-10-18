@@ -53,6 +53,7 @@ export interface AnalyticsInput {
     dayKey?: unknown;
     firstIn?: unknown;
     late?: unknown;
+    lateExcused?: unknown;
     minutesWorked?: unknown;
   }[];
   leaves: readonly { employeeId?: unknown; status?: unknown; startDate?: unknown; endDate?: unknown }[];
@@ -76,7 +77,7 @@ export function buildAnalytics(input: AnalyticsInput): AnalyticsSummary {
     if (typeof s.employeeId !== "string" || typeof s.dayKey !== "string" || !rosterIds.has(s.employeeId)) continue;
     if (!s.firstIn) continue;
     scanned.set(`${s.employeeId}|${s.dayKey}`, {
-      late: s.late === true,
+      late: s.late === true && s.lateExcused !== true, // an excused late mark counts as on time
       minutes: typeof s.minutesWorked === "number" && s.minutesWorked > 0 ? s.minutesWorked : 0,
     });
   }

@@ -7,7 +7,8 @@ export interface RegisterDay {
   firstIn: string | null;    // "08:14", already formatted in the organization's timezone
   lastOut: string | null;    // "17:02"
   minutesWorked: number;     // whole minutes, worked out on the server
-  late: boolean;
+  late: boolean;          // late and NOT excused
+  lateExcused?: boolean;  // was late, and a manager excused it
   earlyDeparture: boolean;
 }
 

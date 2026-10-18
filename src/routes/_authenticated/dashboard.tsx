@@ -912,6 +912,11 @@ function DashboardPage() {
                           Late
                         </span>
                       )}
+                      {item.lateExcused && (
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#CBEED3] text-[#0E2322]">
+                          Late, excused
+                        </span>
+                      )}
                       {item.earlyDeparture && (
                         <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
                           Early departure

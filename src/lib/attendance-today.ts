@@ -49,6 +49,8 @@ export interface TodayEventRow {
   location: string;
   type: "in" | "out";
   late: boolean;
+  /** The late mark on this check-in was excused by a manager; `late` is then false. */
+  lateExcused?: boolean;
   earlyDeparture: boolean;
   /** "HH:MM", 24-hour, in the organization's timezone. */
   time: string;
@@ -77,6 +79,8 @@ export interface TodaySummaryData {
     /** Of those, people whose LAST event today is "in" (on site right now). */
     onSite: number;
     late: number;
+    /** Late marks a manager excused (not counted in `late`). */
+    lateExcused?: number;
     onLeave: number;
     wfh: number;
     absent: number;
@@ -472,7 +476,10 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
 
   const onSite = todays.filter((s) => s.state === "in").length;
   const withFirstIn = todays.filter((s) => s.firstIn).length;
-  const lateSummaries = todays.filter((s) => s.firstIn && s.late === true);
+  // An excused late mark is not late (the stored flag is untouched; docs/LATE-EXCUSE-DESIGN.md).
+  const lateSummaries = todays.filter((s) => s.firstIn && s.late === true && s.lateExcused !== true);
+  const lateExcusedCount = todays.filter((s) => s.firstIn && s.late === true && s.lateExcused === true).length;
+  const excusedIds = new Set(todays.filter((s) => s.lateExcused === true).map((s) => s.employeeId));
   const late: TodayLate[] = lateSummaries
     .map((s) => ({ ...describe(s), arrivedAt: formatClock(s.firstIn as string, timezone) }))
     .sort((a, b) => a.arrivedAt.localeCompare(b.arrivedAt));
@@ -494,7 +501,8 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
     .filter((e) => dayKey(e.timestamp, timezone) === today)
     .sort((a, b) => byTime(b, a))
     .slice(0, eventLimit)
-    .map((e) => toEventRow(e, rosterById, timezone));
+    .map((e) => toEventRow(e, rosterById, timezone))
+    .map((row) => (row.late && excusedIds.has(row.employeeId) ? { ...row, late: false, lateExcused: true } : row));
 
   return {
     dayKey: today,
@@ -505,6 +513,8 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
       present,
       onSite,
       late: lateSummaries.length,
+      // Only present when something was excused, so organizations that never excuse see no change.
+      ...(lateExcusedCount > 0 ? { lateExcused: lateExcusedCount } : {}),
       onLeave,
       wfh,
       absent: Math.max(0, expected - present - wfh), // people on leave are already outside `expected`
@@ -548,7 +558,7 @@ export function buildWeekTrendFromSummaries(input: {
       isToday: key === today,
       future,
       present: future ? 0 : arrivals.length,
-      late: future ? 0 : arrivals.filter((s) => s.late === true).length,
+      late: future ? 0 : arrivals.filter((s) => s.late === true && s.lateExcused !== true).length,
     };
   });
 }
