@@ -52,6 +52,7 @@ interface ClockRecord {
   timestamp: string;
   verifiedMethod: string;
   late?: boolean;
+  lateExcused?: boolean;
   earlyDeparture?: boolean;
   voided?: boolean;
 }
@@ -354,6 +355,11 @@ function HistoryPage() {
                         {r.late && (
                           <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
                             Late
+                          </span>
+                        )}
+                        {r.lateExcused && (
+                          <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#CBEED3] text-[#0E2322]">
+                            Late, excused
                           </span>
                         )}
                         {r.earlyDeparture && (

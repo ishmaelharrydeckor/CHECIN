@@ -90,7 +90,13 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh }: Tod
           label="Late"
           icon={<Clock className="size-4" />}
           value={counts.late}
-          note={counts.late > 0 ? "Arrived after reporting time" : "No late arrivals"}
+          note={
+            counts.late > 0
+              ? `Arrived after reporting time${counts.lateExcused ? `, ${counts.lateExcused} excused` : ""}`
+              : counts.lateExcused
+                ? `No late arrivals (${counts.lateExcused} excused)`
+                : "No late arrivals"
+          }
         />
         <Tile
           tone="white"
@@ -330,6 +336,7 @@ function ActivityRow({ event, showEntrance }: { event: TodayEventRow; showEntran
           <div className="flex items-center gap-2 min-w-0">
             <p className="text-sm font-medium text-[#0E2322] truncate min-w-0">{event.name}</p>
             {event.late && <Tag>Late</Tag>}
+            {event.lateExcused && <Tag>Late, excused</Tag>}
             {event.earlyDeparture && <Tag>Early departure</Tag>}
           </div>
           {meta && <p className="text-xs text-muted-foreground truncate">{meta}</p>}

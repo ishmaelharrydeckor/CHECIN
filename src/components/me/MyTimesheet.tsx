@@ -84,6 +84,7 @@ export function MyTimesheet({ uid }: { uid: string }) {
                   {d.stillIn && <span className={`${PILL} bg-[#CBEED3] text-[#0E2322]`}>Checked in now</span>}
                   {d.noCheckOut && <span className={`${PILL} bg-amber-100 text-amber-900`}>No check-out</span>}
                   {d.late && <span className={`${PILL} bg-amber-100 text-amber-900`}>Late</span>}
+                  {d.lateExcused && <span className={`${PILL} bg-[#CBEED3] text-[#0E2322]`}>Late, excused</span>}
                   {d.earlyDeparture && <span className={`${PILL} bg-amber-100 text-amber-900`}>Left early</span>}
                 </div>
               </li>
