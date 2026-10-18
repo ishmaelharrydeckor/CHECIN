@@ -154,6 +154,24 @@ export function canSeeSwap(swap: SwapParties | null, caller: SwapCaller | null):
   return caller.role === "manager" && (swap.proposerManagerId === caller.uid || swap.colleagueManagerId === caller.uid);
 }
 
+/**
+ * The parties to check a caller against. An open swap uses each person's manager as read from their
+ * claims now, so a manager change since the proposal moves the decision to the new manager. A
+ * finished swap keeps the managers it was decided under, so its history stays with them.
+ */
+export function currentParties(
+  swap: SwapParties,
+  now: { proposerManagerId: string | null; colleagueManagerId: string | null },
+): SwapParties {
+  if (!isOpenSwap(swap.status)) return swap;
+  return { ...swap, proposerManagerId: now.proposerManagerId, colleagueManagerId: now.colleagueManagerId };
+}
+
+/** Each person's manager once, missing ones left out: the `managerIds` a manager's list is queried by. */
+export function swapManagerIds(proposerManagerId: string | null, colleagueManagerId: string | null): string[] {
+  return [...new Set([proposerManagerId, colleagueManagerId].filter((m): m is string => !!m))];
+}
+
 export interface SwapPerson {
   uid: string;
   /** That day's assignment, or null when the person has no shift. */
@@ -347,7 +365,7 @@ export function buildSwapDoc(input: {
   at: string;
 }) {
   const { orgId, dayKey, proposer, colleague, note, requestId, at } = input;
-  const managerIds = [...new Set([proposer.managerId, colleague.managerId].filter((m): m is string => !!m))];
+  const managerIds = swapManagerIds(proposer.managerId, colleague.managerId);
   return {
     orgId,
     dayKey,

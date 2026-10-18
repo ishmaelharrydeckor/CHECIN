@@ -7,6 +7,7 @@ import {
   buildSwapDoc,
   canSeeSwap,
   checkSwapEligibility,
+  currentParties,
   decideSwapAction,
   isOpenSwap,
   parseProposeRequest,
@@ -16,6 +17,7 @@ import {
   shiftsStillAsProposed,
   swapAssignments,
   swapDocId,
+  swapManagerIds,
   swapRowFromDoc,
 } from "../../src/lib/shift-swaps.ts";
 
@@ -424,4 +426,40 @@ test("swapRowFromDoc returns only the display fields, with safe defaults", () =>
   assert.equal("requestId" in row, false);
   assert.equal(swapRowFromDoc("x", null), null);
   assert.equal(swapRowFromDoc("x", { status: "pending" }), null, "a damaged record is skipped");
+});
+
+test("an open swap is checked against each person's manager now, not the one stored at proposal", () => {
+  // Proposed while both reported to "old"; both now report to "new".
+  const stored = { ...SWAP, proposerManagerId: "old", colleagueManagerId: "old", status: "accepted" };
+  const now = currentParties(stored, { proposerManagerId: "new", colleagueManagerId: "new" });
+  const newMgr = { uid: "new", role: "manager" };
+  const oldMgr = { uid: "old", role: "manager" };
+  assert.equal(canSeeSwap(stored, newMgr), false, "the stored managers alone would hide it from the new manager");
+  assert.equal(canSeeSwap(now, newMgr), true);
+  assert.equal(decideSwapAction(now, newMgr, "approve").ok, true, "the new manager can approve without an admin");
+  assert.equal(canSeeSwap(now, oldMgr), false, "the previous manager no longer sees an open swap");
+  assert.equal(decideSwapAction(now, oldMgr, "approve").ok, false);
+  // One person moved: the two now have different managers, so only an admin can decide.
+  const split = currentParties(stored, { proposerManagerId: "new", colleagueManagerId: "old" });
+  assert.equal(canSeeSwap(split, newMgr), true);
+  assert.equal(decideSwapAction(split, newMgr, "approve").status, 403);
+  assert.equal(decideSwapAction(split, { uid: "adm", role: "org_admin" }, "approve").ok, true);
+  // Someone who left the organization has no manager now.
+  assert.equal(currentParties(stored, { proposerManagerId: null, colleagueManagerId: "new" }).proposerManagerId, null);
+});
+
+test("a finished swap keeps the managers it was decided under", () => {
+  for (const status of ["approved", "declined", "cancelled"]) {
+    const stored = { ...SWAP, proposerManagerId: "old", colleagueManagerId: "old", status };
+    const parties = currentParties(stored, { proposerManagerId: "new", colleagueManagerId: "new" });
+    assert.equal(parties.proposerManagerId, "old", status);
+    assert.equal(canSeeSwap(parties, { uid: "old", role: "manager" }), true, `${status}: history stays with its manager`);
+  }
+});
+
+test("swapManagerIds lists each manager once and leaves out a missing one", () => {
+  assert.deepEqual(swapManagerIds("a", "a"), ["a"]);
+  assert.deepEqual(swapManagerIds("a", "b"), ["a", "b"]);
+  assert.deepEqual(swapManagerIds(null, "b"), ["b"]);
+  assert.deepEqual(swapManagerIds(null, null), []);
 });

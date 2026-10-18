@@ -10,6 +10,7 @@ import {
   buildSwapDoc,
   canSeeSwap,
   checkSwapEligibility,
+  currentParties,
   decideSwapAction,
   isOpenSwap,
   parseProposeRequest,
@@ -18,6 +19,7 @@ import {
   shiftsStillAsProposed,
   swapAssignments,
   swapDocId,
+  swapManagerIds,
   swapRowFromDoc,
   type AssignmentDoc,
   type SwapCaller,
@@ -28,6 +30,7 @@ import {
   SWAPS,
   SWAP_LIST_CAP,
   canHoldShifts,
+  type ClaimedPerson,
   isHoliday,
   loadClaimedPeople,
   loadSwapOrg,
@@ -75,6 +78,14 @@ function partiesOf(data: Record<string, unknown>): SwapParties {
     proposerManagerId: str(data.proposerManagerId),
     colleagueManagerId: str(data.colleagueManagerId),
     status: String(data.status ?? ""),
+  };
+}
+
+/** Each person's manager as read from their claims now (null for someone who has left). */
+function managersNow(swap: SwapParties, people: Map<string, ClaimedPerson>) {
+  return {
+    proposerManagerId: people.get(swap.proposerId)?.managerId ?? null,
+    colleagueManagerId: people.get(swap.colleagueId)?.managerId ?? null,
   };
 }
 
@@ -178,13 +189,14 @@ async function act(request: Request, caller: Caller, orgId: string, me: SwapCall
   const first = await ref.get();
   const firstData = first.exists ? first.data() : undefined;
   // Same 404 whether the swap is missing, in another organization, or not the caller's to see.
-  if (!firstData || firstData.orgId !== orgId || !canSeeSwap(partiesOf(firstData), me)) {
-    return refuse(404, "Swap not found.");
-  }
+  if (!firstData || firstData.orgId !== orgId) return refuse(404, "Swap not found.");
 
-  // Managers are read from the two people's claims now, so a manager change since the proposal is respected.
+  // Managers are read from the two people's claims now, for who may see the swap as well as who may
+  // decide it, so a manager change since the proposal moves the swap to the new manager.
   const stored = partiesOf(firstData);
   const people = await loadClaimedPeople(orgId, [stored.proposerId, stored.colleagueId]);
+  const managers = managersNow(stored, people);
+  if (!canSeeSwap(currentParties(stored, managers), me)) return refuse(404, "Swap not found.");
   const org = await loadSwapOrg(orgId);
   const holiday = action === "approve" ? await isHoliday(orgId, String(firstData.dayKey)) : false;
   const now = new Date().toISOString();
@@ -194,11 +206,7 @@ async function act(request: Request, caller: Caller, orgId: string, me: SwapCall
       const snap = await tx.get(ref);
       const data = snap.data();
       if (!data || data.orgId !== orgId) throw new Refusal(404, "Swap not found.");
-      const fresh: SwapParties = {
-        ...partiesOf(data),
-        proposerManagerId: people.get(stored.proposerId)?.managerId ?? null,
-        colleagueManagerId: people.get(stored.colleagueId)?.managerId ?? null,
-      };
+      const fresh = currentParties(partiesOf(data), managers);
       const decision = decideSwapAction(fresh, me, action);
       if (!decision.ok) throw new Refusal(decision.status, decision.error);
       if ((action === "accept" || action === "approve") && !org.swapsEnabled) {
@@ -263,7 +271,14 @@ async function act(request: Request, caller: Caller, orgId: string, me: SwapCall
         tx.set(cRef, swapped.value.colleague);
       }
 
-      const update: Record<string, unknown> = { status: decision.next, updatedAt: now };
+      // The managers it was decided under, so the stored list (and the read rule) catch up with a change.
+      const update: Record<string, unknown> = {
+        status: decision.next,
+        updatedAt: now,
+        proposerManagerId: managers.proposerManagerId,
+        colleagueManagerId: managers.colleagueManagerId,
+        managerIds: swapManagerIds(managers.proposerManagerId, managers.colleagueManagerId),
+      };
       if (action === "accept") update.acceptedAt = now;
       else {
         update.decidedBy = caller.uid;
@@ -317,6 +332,9 @@ export const Route = createFileRoute("/api/shifts/swaps")({
           ];
           if (caller.role === "manager") {
             queries.push(base.where("managerIds", "array-contains", caller.uid).orderBy("createdAt", "desc").limit(SWAP_LIST_CAP));
+            // Open swaps whose people moved to this manager after the proposal are not under their
+            // id yet; the claims check below keeps only the ones for their team now.
+            queries.push(base.where("status", "in", ["pending", "accepted"]).orderBy("createdAt", "desc").limit(SWAP_LIST_CAP));
           }
           if (caller.role === "org_admin") {
             queries.push(base.orderBy("createdAt", "desc").limit(SWAP_LIST_CAP));
@@ -324,11 +342,21 @@ export const Route = createFileRoute("/api/shifts/swaps")({
           // bounded-ok: every query in `queries` above ends in .limit(50) or .limit(SWAP_LIST_CAP)
           const snaps = await Promise.all(queries.map((q) => q.get()));
 
+          // A manager's view of an open swap depends on each person's manager now, so read their claims.
+          let people = new Map<string, ClaimedPerson>();
+          if (caller.role === "manager") {
+            const uids = snaps.flatMap((snap) =>
+              snap.docs.map((d) => partiesOf(d.data())).filter((p) => isOpenSwap(p.status)).flatMap((p) => [p.proposerId, p.colleagueId]),
+            );
+            people = await loadClaimedPeople(orgId, uids);
+          }
+
           const rows = new Map<string, SwapRow & { actions: string[] }>();
           for (const snap of snaps) {
             for (const d of snap.docs) {
               const data = d.data();
-              const parties = partiesOf(data);
+              const stored = partiesOf(data);
+              const parties = caller.role === "manager" ? currentParties(stored, managersNow(stored, people)) : stored;
               if (!canSeeSwap(parties, me)) continue;
               const row = swapRowFromDoc(d.id, data);
               if (row) rows.set(d.id, { ...row, actions: actionsFor(parties, me) });

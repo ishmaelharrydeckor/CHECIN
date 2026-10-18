@@ -20,14 +20,15 @@ test("the proposer, organization, role and managers come from the token and clai
     assert.ok(!new RegExp(String.raw`(body|b|rest)\??\.${field}\b`).test(route), `${field} must not be read from the request`);
   }
   assert.ok(route.includes("loadClaimedPeople(orgId, [caller.uid, colleagueId])"));
-  assert.ok(route.includes("proposerManagerId: people.get(stored.proposerId)?.managerId ?? null"), "managers are re-read from claims at decision time");
+  assert.ok(route.includes("proposerManagerId: people.get(swap.proposerId)?.managerId ?? null"), "managers are re-read from claims");
+  assert.ok(route.includes("const managers = managersNow(stored, people);"), "at decision time");
   assert.ok(server.includes("claims.orgId !== orgId"), "people outside the organization are ignored");
 });
 
 test("every move is decided by the tested rules inside the transaction, on the freshly read swap", () => {
   assert.ok(/runTransaction\(async \(tx\) => \{\s*const snap = await tx\.get\(ref\);/.test(route));
   assert.ok(route.includes("decideSwapAction(fresh, me, action)"));
-  assert.ok(route.includes("canSeeSwap(partiesOf(firstData), me)"));
+  assert.ok(route.includes("const fresh = currentParties(partiesOf(data), managers);"));
 });
 
 test("approval re-checks everything inside the transaction and swaps both documents there", () => {
@@ -64,4 +65,15 @@ test("the swap routes do not touch the scan route or use location", () => {
     assert.ok(!src.includes("check-in/"));
     assert.ok(!src.includes("geolocation"));
   }
+});
+
+test("who may see and decide an open swap follows each person's manager now, in the list and the actions", () => {
+  const start = route.indexOf("async function act(");
+  const act = route.slice(start, route.indexOf("runTransaction", start));
+  assert.ok(act.includes("if (!canSeeSwap(currentParties(stored, managers), me)) return refuse(404"), "visibility uses the fresh managers");
+  assert.ok(!act.includes("canSeeSwap(partiesOf("), "never the stored managers alone");
+  assert.ok(route.includes("managerIds: swapManagerIds(managers.proposerManagerId, managers.colleagueManagerId)"), "each move stores the managers it was decided under");
+  const list = route.slice(route.indexOf("GET: async"), route.indexOf("POST: async"));
+  assert.ok(list.includes('base.where("status", "in", ["pending", "accepted"]).orderBy("createdAt", "desc").limit(SWAP_LIST_CAP)'), "a new manager finds open swaps not yet under their id");
+  assert.ok(list.includes("currentParties(stored, managersNow(stored, people))"));
 });

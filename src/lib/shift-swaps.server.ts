@@ -44,8 +44,13 @@ export async function loadClaimedPeople(orgId: string, uids: string[]): Promise<
   const out = new Map<string, ClaimedPerson>();
   const unique = [...new Set(uids)];
   if (unique.length === 0) return out;
-  const res = await getAuthAdmin().getUsers(unique.map((uid) => ({ uid })));
-  for (const u of res.users) {
+  // getUsers takes at most 100 identifiers per call.
+  const users = [];
+  for (let i = 0; i < unique.length; i += 100) {
+    const res = await getAuthAdmin().getUsers(unique.slice(i, i + 100).map((uid) => ({ uid })));
+    users.push(...res.users);
+  }
+  for (const u of users) {
     const claims = u.customClaims ?? {};
     if (claims.orgId !== orgId) continue;
     const role = typeof claims.role === "string" ? claims.role : null;
