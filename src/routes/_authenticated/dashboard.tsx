@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { dayKey } from "@/lib/attendance-day";
 import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
-import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
+import { formatClock, type TodaySummaryData } from "@/lib/attendance-today";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
 import { AnalyticsSection } from "@/components/analytics/AnalyticsSection";
 import { DEFAULT_DEPARTMENT } from "@/lib/departments";
@@ -28,17 +28,6 @@ import {
   Check,
   RefreshCw,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Organization Overview — ChecIN Dashboard" }] }),
@@ -77,7 +66,6 @@ function DashboardPage() {
   const [orgName, setOrgName] = useState<string>("My Organization");
   const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
-  const [activeStaff, setActiveStaff] = useState<any[]>([]);
   // Numbers and feed come from the server, computed for TODAY in the organization's timezone.
   const [today, setToday] = useState<TodaySummaryData | null>(null);
   const [todayError, setTodayError] = useState<string | null>(null);
@@ -86,11 +74,9 @@ function DashboardPage() {
   const pausedRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
   const lastFetchRef = useRef(0);
-  const [weekDays, setWeekDays] = useState<WeekTrendDay[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "in" | "out">("all");
   const [deptFilter, setDeptFilter] = useState("all");
-  const [timeRange, setTimeRange] = useState("today");
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -160,21 +146,6 @@ function DashboardPage() {
     await fetchToday(true);
   };
 
-  // Mon-Fri trend for the chart. Reads the whole week, so it is fetched on load and on Refresh only.
-  const fetchWeek = async () => {
-    try {
-      const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch("/api/attendance/week", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.ok && Array.isArray(data.days)) setWeekDays(data.days as WeekTrendDay[]);
-    } catch (e) {
-      console.warn("Could not load the weekly trend:", e);
-    }
-  };
-
-  // Fetch real organization details, registered staff members, and attendance history
   const fetchOrgAndStaff = async () => {
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
@@ -197,7 +168,6 @@ function DashboardPage() {
           setTotalHeadcount(staffData.totalHeadcount ?? 1);
           const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
           setPendingInvitesCount(pending);
-          setActiveStaff(staffData.members || []);
         }
       }
 
@@ -209,7 +179,7 @@ function DashboardPage() {
   const handleManualRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchToday(true), fetchWeek(), fetchOrgAndStaff()]);
+      await Promise.all([fetchToday(true), fetchOrgAndStaff()]);
       toast.success("Workforce feed refreshed");
     } finally {
       setRefreshing(false);
@@ -223,7 +193,6 @@ function DashboardPage() {
     if (!user) return;
 
     fetchToday();
-    fetchWeek();
     fetchOrgAndStaff();
     lastActivityRef.current = Date.now();
 
@@ -265,75 +234,7 @@ function DashboardPage() {
     };
   }, [user, orgId]);
 
-  // Department Distribution Data dynamically grouped from real active staff & events
-  const deptData = useMemo(() => {
-    const counts: Record<string, number> = {};
-
-    if (activeStaff && activeStaff.length > 0) {
-      for (const member of activeStaff) {
-        const dept =
-          member.department ||
-          (member.role === "org_admin" ? "Leadership" : member.role === "manager" ? "Management" : "Operations");
-        counts[dept] = (counts[dept] || 0) + 1;
-      }
-    } else {
-      counts["Operations"] = Math.max(1, totalHeadcount);
-    }
-
-    const PALETTE = ["#0E2322", "#C0FD9B", "#FFD153", "#38BDF8", "#A78BFA", "#F472B6", "#FB923C"];
-
-    return Object.entries(counts).map(([name, value], idx) => ({
-      name,
-      value,
-      color: PALETTE[idx % PALETTE.length],
-    }));
-  }, [activeStaff, totalHeadcount]);
-
   // ---- Numbers below come from the server (today), not from browser-side math ----
-
-  const presentCount = today?.counts.present ?? 0;
-  const expectedCount = today?.counts.expected ?? totalHeadcount;
-
-  const onTimeMetrics = useMemo(() => {
-    if (!today) return { rateDisplay: "—", subtext: "Loading…", textColor: "text-slate-500" };
-    const { percent, onTime, total } = today.onTimeRate;
-    if (percent === null) {
-      return { rateDisplay: "—", subtext: "Awaiting today's first check-in", textColor: "text-[#166534]" };
-    }
-    return {
-      rateDisplay: `${percent}%`,
-      subtext: `${onTime} of ${total} arrived on time`,
-      textColor: percent >= 80 ? "text-[#166534]" : "text-amber-800",
-    };
-  }, [today]);
-
-  const avgShiftMetrics = useMemo(() => {
-    if (!today) return { display: "—", subtext: "Loading…" };
-    const { completed, inProgress, avgMinutes } = today.avgShift;
-    if (avgMinutes === null) {
-      return inProgress > 0
-        ? {
-            display: "In progress",
-            subtext: `${inProgress} active shift${inProgress === 1 ? "" : "s"} (calculates after check-out)`,
-          }
-        : { display: "—", subtext: "Calculates after check-out" };
-    }
-    return {
-      display: `${(avgMinutes / 60).toFixed(1)} hrs`,
-      subtext: `Based on ${completed} completed shift${completed === 1 ? "" : "s"} today`,
-    };
-  }, [today]);
-
-  // Weekly trend: only days that have happened; future days are not drawn as zero
-  const weeklyTrend = useMemo(
-    () =>
-      (weekDays ?? [])
-        .filter((d) => !d.future)
-        .map((d) => ({ day: d.isToday ? `${d.day} (Today)` : d.day, present: d.present, late: d.late })),
-    [weekDays],
-  );
-  const trendHasData = weeklyTrend.some((d) => d.present > 0);
-  const yAxisMax = Math.max(3, ...weeklyTrend.map((d) => d.present));
 
   const todayLabel = today
     ? new Date(`${today.dayKey}T12:00:00Z`).toLocaleDateString(undefined, {
@@ -490,32 +391,30 @@ function DashboardPage() {
     setInviteError(null);
   };
 
-  const displayHeadcount = totalHeadcount;
-
   return (
     <div className="space-y-6 font-sans max-w-7xl mx-auto">
-      {/* 1. Header Banner & Action Center */}
+      {/* Header and actions */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E8FCE4] text-[#122300] font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              {isOrgAdmin ? "Corporate Admin" : isManager ? "Team Manager" : "Workforce Member"}
+              {isOrgAdmin ? "Administrator" : isManager ? "Manager" : "Staff"}
             </span>
             <span>•</span>
             <span className="text-[#0E2322] font-semibold">
               {isManager
-                ? `${orgName} — Your Team (${totalHeadcount} Member${totalHeadcount === 1 ? "" : "s"})`
-                : `${orgName} (${totalHeadcount} Registered Staff)`}
+                ? `${orgName} · your team of ${totalHeadcount}`
+                : `${orgName} · ${totalHeadcount} ${totalHeadcount === 1 ? "person" : "people"}`}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0E2322]">
-            {isManager ? "Team Presence Roster" : "Organization Overview"}
+            {isManager ? "Team overview" : "Organization overview"}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {isManager
-              ? "Live attendance and entrance activity for your direct reports."
-              : "Real-time workforce presence intelligence, entrance activity, and compliance telemetry."}
+              ? "Who is in, who is late and who is away on your team."
+              : "Who is in, who is late and who is away, today and over time."}
           </p>
         </div>
 
@@ -548,89 +447,9 @@ function DashboardPage() {
               className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Invite Staff Member</span>
+              <span>Invite staff member</span>
             </button>
           )}
-        </div>
-      </div>
-
-      {/* 2. Top 4 Figma Bento Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Workforce */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Headcount</span>
-            <span className="p-2 rounded-xl bg-slate-50 text-slate-700">
-              <Users className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">{displayHeadcount}</div>
-            <div className="flex items-center space-x-1 text-xs text-emerald-600 mt-2 font-medium">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {pendingInvitesCount > 0
-                  ? `${pendingInvitesCount} pending invitation(s)`
-                  : `${totalHeadcount} active team member(s)`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Present Today */}
-        <div className="bg-[#FCF2CB] p-6 rounded-3xl border border-[#F5E6B0] shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#854D0E] mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Present Today</span>
-            <span className="p-2 rounded-xl bg-white/70 text-[#854D0E]">
-              <CheckCircle2 className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">
-              {today ? presentCount : "—"} <span className="text-sm font-normal text-slate-700">/ {expectedCount}</span>
-            </div>
-            <div className="text-xs text-[#854D0E] mt-2 font-semibold">
-              {today
-                ? `${today.counts.onSite} on site now · ${today.counts.late} late`
-                : todayError || "Loading…"}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: On-Time Rate */}
-        <div className="bg-[#CBEED3] p-6 rounded-3xl border border-[#B2E2BD] shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#0E2322] mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">On-Time Rate</span>
-            <span className="p-2 rounded-xl bg-white/70 text-emerald-900">
-              <Clock className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">
-              {onTimeMetrics.rateDisplay}
-            </div>
-            <div className={`text-xs ${onTimeMetrics.textColor} mt-2 font-medium`}>
-              {onTimeMetrics.subtext}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Avg Shift Length */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Avg Shift Length</span>
-            <span className="p-2 rounded-xl bg-slate-50 text-slate-700">
-              <Building2 className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">
-              {avgShiftMetrics.display}
-            </div>
-            <div className="text-xs text-slate-500 mt-2 font-medium">
-              {avgShiftMetrics.subtext}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -642,126 +461,14 @@ function DashboardPage() {
         error={todayError}
         onRefresh={handleManualRefresh}
         onRemoveWfh={removeWfhDay}
+        showActivity={false}
       />
 
       {/* Attendance analytics: rates, punctuality, hours and the trend, worked out on the server
           (/api/analytics) from daily summaries. */}
       <AnalyticsSection />
 
-      {/* 3. Interactive Charts or Onboarding Telemetry Card */}
-      {trendHasData || (today?.eventsTotal ?? 0) > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Chart: Weekly Attendance Trends (Area Chart) */}
-          <div className="lg:col-span-8 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-              <div>
-                <h2 className="text-base font-bold text-[#0E2322]">Weekly Attendance Trends</h2>
-                <p className="text-xs text-slate-500">Mon – Fri on-site attendance vs. late arrivals</p>
-              </div>
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0E2322]"></span> Present
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FFD153]"></span> Late
-                </span>
-              </div>
-            </div>
-
-            <div className="h-64 w-full">
-              {trendHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barGap={4}>
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, yAxisMax]} allowDecimals={false} />
-                  <RechartsTooltip cursor={{ fill: "#F1F5F9" }} />
-                  <Bar dataKey="present" name="Present" fill="#0E2322" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="late" name="Late" fill="#FFD153" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-center text-xs text-slate-500">
-                  No check-ins recorded yet this week. Days appear here as people check in.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Chart: Department Attendance Donut */}
-          <div className="lg:col-span-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-            <div>
-              <h2 className="text-base font-bold text-[#0E2322]">Department Distribution</h2>
-              <p className="text-xs text-slate-500 mb-4">Workforce allocation by team</p>
-
-              <div className="h-44 w-full relative flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={deptData}
-                      innerRadius={50}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {deptData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-extrabold text-[#0E2322]">{displayHeadcount}</span>
-                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Staff</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 pt-2 border-t border-slate-100">
-              {deptData.map((d) => (
-                <div key={d.name} className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>
-                    <span>{d.name}</span>
-                  </span>
-                  <span className="font-semibold text-slate-800">{d.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center">
-          <div className="w-12 h-12 rounded-2xl bg-[#E8FCE4] text-[#0E2322] flex items-center justify-center mb-3">
-            <Building2 className="w-6 h-6 text-[#122300]" />
-          </div>
-          <h3 className="text-base font-bold text-[#0E2322]">Awaiting Live Entrance Telemetry</h3>
-          <p className="text-xs text-slate-500 max-w-md mt-1 mb-4">
-            Your organization <strong className="text-slate-800 font-semibold">{orgName}</strong> is active. Once your team members check in via the entrance kiosk tablet, 5-day attendance trends and department distribution will render here automatically.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={() => {
-                handleResetForAnotherInvite();
-                setInviteModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Invite Team Member</span>
-            </button>
-            <Link
-              to="/kiosk"
-              target="_blank"
-              className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition shadow-xs flex items-center space-x-1.5"
-            >
-              <span>📺 Open Entrance Kiosk</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Real-Time Scan Activity Table & Search Filter */}
+      {/* Activity: today's check-ins, with search and filters. The Today panel above no longer repeats this list. */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Table Header Controls */}
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -850,14 +557,14 @@ function DashboardPage() {
                             ? "Couldn't load today's check-ins"
                             : searchQuery || statusFilter !== "all" || deptFilter !== "all"
                               ? "No Matching Attendance Records"
-                              : "No Check-Ins Recorded Today"}
+                              : "No check-ins yet today"}
                       </div>
                       <p className="text-xs text-slate-400 mt-1 text-center">
                         {!today
                           ? todayError || "One moment."
                           : searchQuery || statusFilter !== "all"
                           ? "Try adjusting your search query or filter."
-                          : `No attendance events recorded today for ${orgName}. When staff scan the rotating QR code on your entrance kiosk, their punch events will appear here in real time.`}
+                          : "When staff scan the code on the entrance tablet, their check-ins will appear here."}
                       </p>
                       {today && !searchQuery && (
                         <button
@@ -868,7 +575,7 @@ function DashboardPage() {
                           className="mt-3.5 px-3.5 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs cursor-pointer flex items-center space-x-1.5"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
-                          <span>+ Invite First Staff Member</span>
+                          <span>Invite your first staff member</span>
                         </button>
                       )}
                     </div>
@@ -946,7 +653,7 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* 5. Upgraded Single-Use Staff Invite Modal */}
+      {/* Single-use staff invite */}
       {inviteModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95">
