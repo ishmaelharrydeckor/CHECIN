@@ -312,3 +312,63 @@ export function buildReviewRows(input: {
   const truncated = rows.length > REVIEW_ROW_CAP;
   return { rows: rows.slice(0, REVIEW_ROW_CAP).map(({ sortKey: _k, ...r }) => r), truncated };
 }
+
+// ---------------------------------------------------------------------------
+// Helpers for the screens (pure, so they can be tested without a browser)
+// ---------------------------------------------------------------------------
+
+/** Groups review rows by day, keeping the order they came in (already newest day first). */
+export function groupRowsByDay(rows: readonly ReviewRow[]): { dayKey: string; rows: ReviewRow[] }[] {
+  const groups: { dayKey: string; rows: ReviewRow[] }[] = [];
+  for (const r of rows) {
+    const last = groups[groups.length - 1];
+    if (last && last.dayKey === r.dayKey) last.rows.push(r);
+    else groups.push({ dayKey: r.dayKey, rows: [r] });
+  }
+  return groups;
+}
+
+/** Adds the id to the list if absent, removes it if present. Returns a new array. */
+export function toggleId(list: readonly string[], id: string): string[] {
+  return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+}
+
+/**
+ * The people a reviewer can still tick on a day: late, not yet excused, and not the reviewer's own
+ * row when the reviewer is a manager (only an administrator can excuse a manager's own late mark).
+ */
+export function tickableIds(
+  rows: readonly ReviewRow[],
+  viewer: { uid: string; role: string | null },
+): string[] {
+  return rows
+    .filter((r) => !r.excused && !(viewer.role === "manager" && r.employeeId === viewer.uid))
+    .map((r) => r.employeeId);
+}
+
+/**
+ * The "tick everyone who arrived by HH:MM" helper for one day, limited to people the viewer can
+ * actually tick. People who arrived after the cutoff stay unticked.
+ */
+export function tickByCutoff(
+  rows: readonly ReviewRow[],
+  cutoff: string,
+  viewer: { uid: string; role: string | null },
+): string[] {
+  const allowed = new Set(tickableIds(rows, viewer));
+  return arrivedByCutoff(
+    rows.filter((r) => allowed.has(r.employeeId)).map((r) => ({ employeeId: r.employeeId, arrivedAt: r.arrivedAt })),
+    cutoff,
+  );
+}
+
+/** A plain-language line for what happened to a request, from the server's answer. */
+export function describeExcuseResult(result: { excused: number; skipped: { reason: string }[] }): string {
+  const parts: string[] = [];
+  parts.push(result.excused === 1 ? "1 late mark excused" : `${result.excused} late marks excused`);
+  const reasons = new Set(result.skipped.map((s) => s.reason));
+  if (reasons.has("already_excused")) parts.push("some were already excused");
+  if (reasons.has("not_late")) parts.push("some were not late");
+  if (reasons.has("no_record")) parts.push("some had no record for that day");
+  return parts.join("; ") + ".";
+}
