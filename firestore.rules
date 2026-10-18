@@ -297,6 +297,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Shift patterns (repeating shifts, docs/SHIFTS-DESIGN.md) ----
+    // A saved rule that the server turns into ordinary shift_assignments ahead of time.
+    // Written by the server only; the person, their manager and org admins can read.
+    match /shift_patterns/{patternId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // ---- Refused scans (a short note when a check-in was turned away) ----
     // Written by the server only (docs/SHIFTS-DESIGN.md). Not an attendance record.
     match /refused_scans/{noteId} {
