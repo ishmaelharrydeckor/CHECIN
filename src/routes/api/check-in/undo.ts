@@ -77,7 +77,11 @@ export const Route = createFileRoute("/api/check-in/undo")({
               voidedBy: caller.uid,
               voidReason: "employee_undo",
             });
-            if (e.summaryBefore) t.set(summaryRef, e.summaryBefore);
+            // An excuse given after the scan stays: it is the manager's decision, not part of the scan.
+            if (e.summaryBefore) {
+              const keepExcuse = summarySnap.data()?.lateExcused === true && e.summaryBefore.late === true;
+              t.set(summaryRef, keepExcuse ? { ...e.summaryBefore, lateExcused: true } : e.summaryBefore);
+            }
             else t.delete(summaryRef);
 
             return { type: e.type as "in" | "out" };

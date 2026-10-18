@@ -5,8 +5,12 @@ import { Check, TriangleAlert } from "lucide-react";
  * this has to be unmistakable from arm's length: big, one colour per outcome,
  * and a failure must say plainly that nothing was recorded.
  *
- * Colours follow docs/UI-STYLE-GUIDE.md: mint = in, butter = out, amber = late /
- * early departure, no big red block for a failure.
+ * Colours follow docs/UI-STYLE-GUIDE.md: mint = in, butter = out, amber for a failure, no big
+ * red block.
+ *
+ * It says only that the scan was recorded. Whether the person was late or left early is NOT shown
+ * here: that judgement can be wrong for reasons that are not theirs (for example a tablet that was
+ * switched on late) and can be excused by a manager, so it lives on the person's own page.
  */
 export type ScanOverlayState =
   | {
@@ -14,8 +18,6 @@ export type ScanOverlayState =
       type: "in" | "out";
       time: string;
       location: string;
-      late: boolean;
-      earlyDeparture: boolean;
     }
   | { kind: "failure"; title: string; detail: string };
 
@@ -68,21 +70,6 @@ export function ScanResultOverlay({ state, onPrimary, onUndo, undoSecondsLeft = 
       </h2>
       <p className="text-5xl font-extrabold tabular-nums my-2">{state.time.slice(0, 5)}</p>
       <p className="text-sm font-medium opacity-80 mb-3">{state.location}</p>
-
-      {(state.late || state.earlyDeparture) && (
-        <div className="flex gap-2 mb-4">
-          {state.late && (
-            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300">
-              Marked late
-            </span>
-          )}
-          {state.earlyDeparture && (
-            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300">
-              Left early
-            </span>
-          )}
-        </div>
-      )}
 
       <button
         onClick={onPrimary}

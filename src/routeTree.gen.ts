@@ -17,7 +17,6 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
-import { Route as AuthenticatedAnalyticsPreviewRouteImport } from './routes/_authenticated/analytics-preview'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAttendanceReportsRouteImport } from './routes/_authenticated/attendance-reports'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -31,6 +30,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
+import { Route as ApiAnalyticsRouteImport } from './routes/api/analytics'
 import { Route as ApiWfhRouteImport } from './routes/api/wfh'
 import { Route as AuthenticatedOwnerReportsRouteImport } from './routes/_authenticated/owner/reports'
 import { Route as ApiAdminKioskAccessRouteImport } from './routes/api/admin/kiosk-access'
@@ -66,6 +66,7 @@ import { Route as ApiReportsRegisterRouteImport } from './routes/api/reports/reg
 import { Route as ApiShiftsIndexRouteImport } from './routes/api/shifts/index'
 import { Route as ApiShiftsAccessRouteImport } from './routes/api/shifts/access'
 import { Route as ApiShiftsAssignmentsRouteImport } from './routes/api/shifts/assignments'
+import { Route as ApiShiftsPatternsRouteImport } from './routes/api/shifts/patterns'
 import { Route as ApiShiftsRefusedScansRouteImport } from './routes/api/shifts/refused-scans'
 import { Route as ApiShiftsSettingsRouteImport } from './routes/api/shifts/settings'
 
@@ -108,12 +109,6 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAnalyticsPreviewRoute =
-  AuthenticatedAnalyticsPreviewRouteImport.update({
-    id: '/analytics-preview',
-    path: '/analytics-preview',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedAnnouncementsRoute =
   AuthenticatedAnnouncementsRouteImport.update({
     id: '/announcements',
@@ -180,6 +175,11 @@ const AuthenticatedShiftsRoute = AuthenticatedShiftsRouteImport.update({
 const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
   id: '/accept-invite/$token',
   path: '/accept-invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnalyticsRoute = ApiAnalyticsRouteImport.update({
+  id: '/api/analytics',
+  path: '/api/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWfhRoute = ApiWfhRouteImport.update({
@@ -361,6 +361,11 @@ const ApiShiftsAssignmentsRoute = ApiShiftsAssignmentsRouteImport.update({
   path: '/api/shifts/assignments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiShiftsPatternsRoute = ApiShiftsPatternsRouteImport.update({
+  id: '/api/shifts/patterns',
+  path: '/api/shifts/patterns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiShiftsRefusedScansRoute = ApiShiftsRefusedScansRouteImport.update({
   id: '/api/shifts/refused-scans',
   path: '/api/shifts/refused-scans',
@@ -380,7 +385,6 @@ export interface FileRoutesByFullPath {
   '/scan': typeof ScanRoute
   '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
-  '/analytics-preview': typeof AuthenticatedAnalyticsPreviewRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -394,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/analytics': typeof ApiAnalyticsRoute
   '/api/wfh': typeof ApiWfhRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
@@ -424,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/patterns': typeof ApiShiftsPatternsRoute
   '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
@@ -440,7 +446,6 @@ export interface FileRoutesByTo {
   '/scan': typeof ScanRoute
   '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
-  '/analytics-preview': typeof AuthenticatedAnalyticsPreviewRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -454,6 +459,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/analytics': typeof ApiAnalyticsRoute
   '/api/wfh': typeof ApiWfhRoute
   '/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
@@ -484,6 +490,7 @@ export interface FileRoutesByTo {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/patterns': typeof ApiShiftsPatternsRoute
   '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements': typeof ApiAnnouncementsIndexRoute
@@ -502,7 +509,6 @@ export interface FileRoutesById {
   '/scan': typeof ScanRoute
   '/terms': typeof TermsRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
-  '/_authenticated/analytics-preview': typeof AuthenticatedAnalyticsPreviewRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/attendance-reports': typeof AuthenticatedAttendanceReportsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -516,6 +522,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/accept-invite/$token': typeof AcceptInviteTokenRoute
+  '/api/analytics': typeof ApiAnalyticsRoute
   '/api/wfh': typeof ApiWfhRoute
   '/_authenticated/owner/reports': typeof AuthenticatedOwnerReportsRoute
   '/api/admin/kiosk-access': typeof ApiAdminKioskAccessRoute
@@ -546,6 +553,7 @@ export interface FileRoutesById {
   '/api/reports/register': typeof ApiReportsRegisterRoute
   '/api/shifts/access': typeof ApiShiftsAccessRoute
   '/api/shifts/assignments': typeof ApiShiftsAssignmentsRoute
+  '/api/shifts/patterns': typeof ApiShiftsPatternsRoute
   '/api/shifts/refused-scans': typeof ApiShiftsRefusedScansRoute
   '/api/shifts/settings': typeof ApiShiftsSettingsRoute
   '/api/announcements/': typeof ApiAnnouncementsIndexRoute
@@ -564,7 +572,6 @@ export interface FileRouteTypes {
     | '/scan'
     | '/terms'
     | '/account'
-    | '/analytics-preview'
     | '/announcements'
     | '/attendance-reports'
     | '/dashboard'
@@ -578,6 +585,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/shifts'
     | '/accept-invite/$token'
+    | '/api/analytics'
     | '/api/wfh'
     | '/owner/reports'
     | '/api/admin/kiosk-access'
@@ -608,6 +616,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/patterns'
     | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements/'
@@ -624,7 +633,6 @@ export interface FileRouteTypes {
     | '/scan'
     | '/terms'
     | '/account'
-    | '/analytics-preview'
     | '/announcements'
     | '/attendance-reports'
     | '/dashboard'
@@ -638,6 +646,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/shifts'
     | '/accept-invite/$token'
+    | '/api/analytics'
     | '/api/wfh'
     | '/owner/reports'
     | '/api/admin/kiosk-access'
@@ -668,6 +677,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/patterns'
     | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements'
@@ -685,7 +695,6 @@ export interface FileRouteTypes {
     | '/scan'
     | '/terms'
     | '/_authenticated/account'
-    | '/_authenticated/analytics-preview'
     | '/_authenticated/announcements'
     | '/_authenticated/attendance-reports'
     | '/_authenticated/dashboard'
@@ -699,6 +708,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/shifts'
     | '/accept-invite/$token'
+    | '/api/analytics'
     | '/api/wfh'
     | '/_authenticated/owner/reports'
     | '/api/admin/kiosk-access'
@@ -729,6 +739,7 @@ export interface FileRouteTypes {
     | '/api/reports/register'
     | '/api/shifts/access'
     | '/api/shifts/assignments'
+    | '/api/shifts/patterns'
     | '/api/shifts/refused-scans'
     | '/api/shifts/settings'
     | '/api/announcements/'
@@ -747,6 +758,7 @@ export interface RootRouteChildren {
   ScanRoute: typeof ScanRoute
   TermsRoute: typeof TermsRoute
   AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
+  ApiAnalyticsRoute: typeof ApiAnalyticsRoute
   ApiWfhRoute: typeof ApiWfhRoute
   ApiAdminKioskAccessRoute: typeof ApiAdminKioskAccessRoute
   ApiAdminResetLinkRoute: typeof ApiAdminResetLinkRoute
@@ -776,6 +788,7 @@ export interface RootRouteChildren {
   ApiReportsRegisterRoute: typeof ApiReportsRegisterRoute
   ApiShiftsAccessRoute: typeof ApiShiftsAccessRoute
   ApiShiftsAssignmentsRoute: typeof ApiShiftsAssignmentsRoute
+  ApiShiftsPatternsRoute: typeof ApiShiftsPatternsRoute
   ApiShiftsRefusedScansRoute: typeof ApiShiftsRefusedScansRoute
   ApiShiftsSettingsRoute: typeof ApiShiftsSettingsRoute
   ApiAnnouncementsIndexRoute: typeof ApiAnnouncementsIndexRoute
@@ -841,13 +854,6 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/analytics-preview': {
-      id: '/_authenticated/analytics-preview'
-      path: '/analytics-preview'
-      fullPath: '/analytics-preview'
-      preLoaderRoute: typeof AuthenticatedAnalyticsPreviewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/announcements': {
@@ -939,6 +945,13 @@ declare module '@tanstack/react-router' {
       path: '/accept-invite/$token'
       fullPath: '/accept-invite/$token'
       preLoaderRoute: typeof AcceptInviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analytics': {
+      id: '/api/analytics'
+      path: '/api/analytics'
+      fullPath: '/api/analytics'
+      preLoaderRoute: typeof ApiAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/wfh': {
@@ -1186,6 +1199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiShiftsAssignmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shifts/patterns': {
+      id: '/api/shifts/patterns'
+      path: '/api/shifts/patterns'
+      fullPath: '/api/shifts/patterns'
+      preLoaderRoute: typeof ApiShiftsPatternsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/shifts/refused-scans': {
       id: '/api/shifts/refused-scans'
       path: '/api/shifts/refused-scans'
@@ -1205,7 +1225,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
-  AuthenticatedAnalyticsPreviewRoute: typeof AuthenticatedAnalyticsPreviewRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAttendanceReportsRoute: typeof AuthenticatedAttendanceReportsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -1223,7 +1242,6 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
-  AuthenticatedAnalyticsPreviewRoute: AuthenticatedAnalyticsPreviewRoute,
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAttendanceReportsRoute: AuthenticatedAttendanceReportsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -1251,6 +1269,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScanRoute: ScanRoute,
   TermsRoute: TermsRoute,
   AcceptInviteTokenRoute: AcceptInviteTokenRoute,
+  ApiAnalyticsRoute: ApiAnalyticsRoute,
   ApiWfhRoute: ApiWfhRoute,
   ApiAdminKioskAccessRoute: ApiAdminKioskAccessRoute,
   ApiAdminResetLinkRoute: ApiAdminResetLinkRoute,
@@ -1280,6 +1299,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiReportsRegisterRoute: ApiReportsRegisterRoute,
   ApiShiftsAccessRoute: ApiShiftsAccessRoute,
   ApiShiftsAssignmentsRoute: ApiShiftsAssignmentsRoute,
+  ApiShiftsPatternsRoute: ApiShiftsPatternsRoute,
   ApiShiftsRefusedScansRoute: ApiShiftsRefusedScansRoute,
   ApiShiftsSettingsRoute: ApiShiftsSettingsRoute,
   ApiAnnouncementsIndexRoute: ApiAnnouncementsIndexRoute,
