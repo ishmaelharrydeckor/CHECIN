@@ -89,3 +89,35 @@ export interface PatternRow {
   createdBy: string;
   lastFill: { at?: string; written?: number; skipped?: Record<string, number> } | null;
 }
+
+/** One shift swap as the server lists it (GET /api/shifts/swaps), with the moves the caller may make. */
+export interface SwapRowData {
+  id: string;
+  dayKey: string;
+  status: "pending" | "accepted" | "approved" | "declined" | "cancelled";
+  proposerId: string;
+  proposerName: string;
+  proposerShiftLabel: string;
+  colleagueId: string;
+  colleagueName: string;
+  colleagueShiftLabel: string;
+  note: string;
+  createdAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  actions: string[];
+}
+
+/** The swap list plus whether swaps are switched on and the organization's "today". */
+export interface SwapListData {
+  enabled: boolean;
+  today: string;
+  swaps: SwapRowData[];
+}
+
+/** A colleague who can be offered a swap on one day (GET /api/shifts/swaps?candidates=YYYY-MM-DD). */
+export interface SwapCandidateRow {
+  uid: string;
+  name: string;
+  shiftLabel: string;
+}

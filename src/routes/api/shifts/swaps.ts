@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { summaryDocId } from "@/lib/daily-summary";
 import { assignmentFromDoc } from "@/lib/shift-scan";
+import { describeAssignment } from "@/lib/shift-rota";
 import { dayCoveredByLeave } from "@/lib/wfh";
 import {
   SWAP_ACTIONS,
@@ -13,6 +14,7 @@ import {
   currentParties,
   decideSwapAction,
   isOpenSwap,
+  parseCandidatesDay,
   parseProposeRequest,
   parseSwapActionRequest,
   parseSwapSettingsInput,
@@ -20,6 +22,7 @@ import {
   swapAssignments,
   swapDocId,
   swapManagerIds,
+  swapCandidatesFrom,
   swapRowFromDoc,
   type AssignmentDoc,
   type SwapCaller,
@@ -315,6 +318,47 @@ async function act(request: Request, caller: Caller, orgId: string, me: SwapCall
   }
 }
 
+/**
+ * The colleagues the caller can offer a swap to on one day (`GET ?candidates=YYYY-MM-DD`): people in
+ * the caller's own team with a shift that day on a different shift. Names and shift names only.
+ */
+async function candidates(caller: Caller, orgId: string, rawDay: string | null) {
+  if (caller.role !== "employee" && caller.role !== "manager") {
+    return refuse(403, "Only people with shifts can propose a swap.");
+  }
+  const org = await loadSwapOrg(orgId);
+  if (!org.swapsEnabled) return refuse(403, "Shift swaps are switched off for your organization.");
+  const day = parseCandidatesDay(rawDay, org.today);
+  if (!day.ok) return refuse(400, day.error);
+
+  const mineSnap = await firestoreAdmin.collection("shift_assignments").doc(`${caller.uid}_${day.value}`).get();
+  const mine = mineSnap.exists ? assignmentFromDoc(mineSnap.data(), orgId, day.value) : null;
+  if (!mine) return refuse(400, "You have no shift on that day to swap.");
+
+  // The team comes from the caller's claims: their manager, or themselves when they are a manager.
+  const team = typeof caller.managerId === "string" && caller.managerId ? caller.managerId : caller.role === "manager" ? caller.uid : "";
+  if (!team) return Response.json({ ok: true, candidates: [] });
+  const snap = await firestoreAdmin
+    .collection("shift_assignments")
+    .where("orgId", "==", orgId)
+    .where("managerId", "==", team)
+    .where("dayKey", "==", day.value)
+    .limit(200)
+    .get();
+  const sameDay = snap.docs.flatMap((d) => {
+    const data = d.data();
+    const a = assignmentFromDoc(data, orgId, day.value);
+    if (!a) return [];
+    return [{
+      employeeId: String(data.employeeId ?? ""),
+      employeeName: String(data.employeeName ?? ""),
+      shiftId: a.shift.shiftId,
+      shiftLabel: describeAssignment(a.shift),
+    }];
+  });
+  return Response.json({ ok: true, candidates: swapCandidatesFrom(sameDay, { uid: caller.uid, shiftId: mine.shift.shiftId }) });
+}
+
 export const Route = createFileRoute("/api/shifts/swaps")({
   server: {
     handlers: {
@@ -323,6 +367,8 @@ export const Route = createFileRoute("/api/shifts/swaps")({
           const auth = await authCaller(request);
           if (!auth.ok) return auth.response;
           const { caller, orgId, me } = auth;
+          const asked = new URL(request.url).searchParams;
+          if (asked.has("candidates")) return await candidates(caller, orgId, asked.get("candidates"));
           const org = await loadSwapOrg(orgId);
 
           const base = firestoreAdmin.collection(SWAPS).where("orgId", "==", orgId);

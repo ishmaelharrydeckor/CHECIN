@@ -77,3 +77,14 @@ test("who may see and decide an open swap follows each person's manager now, in 
   assert.ok(list.includes('base.where("status", "in", ["pending", "accepted"]).orderBy("createdAt", "desc").limit(SWAP_LIST_CAP)'), "a new manager finds open swaps not yet under their id");
   assert.ok(list.includes("currentParties(stored, managersNow(stored, people))"));
 });
+
+test("the colleague picker lists only the caller's own team, from their claims, bounded, and only while swaps are on", () => {
+  const fn = route.slice(route.indexOf("async function candidates("), route.indexOf("export const Route"));
+  assert.ok(fn.includes('caller.role !== "employee" && caller.role !== "manager"'));
+  assert.ok(fn.includes("if (!org.swapsEnabled) return refuse(403"));
+  assert.ok(fn.includes("parseCandidatesDay(rawDay, org.today)"), "no past days");
+  assert.ok(fn.includes("caller.managerId"), "the team comes from the verified claims");
+  assert.ok(!/searchParams\.get\("(managerId|orgId|uid|team)"\)/.test(route), "never from the query string");
+  assert.ok(fn.includes('.where("managerId", "==", team)') && fn.includes(".limit(200)"));
+  assert.ok(fn.includes("swapCandidatesFrom("));
+});

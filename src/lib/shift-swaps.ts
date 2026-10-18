@@ -443,3 +443,32 @@ export function swapRowFromDoc(id: string, doc: unknown): SwapRow | null {
     decidedAt: str(d.decidedAt) || null,
   };
 }
+
+export interface SwapCandidate {
+  uid: string;
+  name: string;
+  shiftLabel: string;
+}
+
+/**
+ * Who the proposer can be offered as a colleague for one day: other people with a shift that day on a
+ * different shift. The server passes that day's assignments; the propose route checks everything again.
+ */
+export function swapCandidatesFrom(
+  day: readonly { employeeId: string; employeeName: string; shiftId: string; shiftLabel: string }[],
+  me: { uid: string; shiftId: string },
+): SwapCandidate[] {
+  const out = new Map<string, SwapCandidate>();
+  for (const a of day) {
+    if (!isCleanId(a.employeeId) || a.employeeId === me.uid || a.shiftId === me.shiftId) continue;
+    out.set(a.employeeId, { uid: a.employeeId, name: a.employeeName.trim().slice(0, 80) || "Colleague", shiftLabel: a.shiftLabel });
+  }
+  return [...out.values()].sort((x, y) => x.name.localeCompare(y.name));
+}
+
+/** The day asked for in `?candidates=`: a real date, not in the past. */
+export function parseCandidatesDay(raw: unknown, today: string): Parsed<string> {
+  if (!isRealDay(raw)) return { ok: false, error: "Choose a valid date." };
+  if (raw < today) return { ok: false, error: "Shifts on past dates cannot be swapped." };
+  return { ok: true, value: raw };
+}
