@@ -38,6 +38,9 @@ import { clearUserAppCache } from "@/lib/query-client";
 // Pages employees must never see (management views); they are sent to their own history instead
 const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings", "/shifts", "/late-arrivals"];
 
+// Whether the menu is the slim icon rail. A per-person convenience, so a failure to read or write it is ignored.
+const COLLAPSE_KEY = "checin.menu.collapsed";
+
 interface NavItem {
   to: string;
   label: string;
@@ -104,20 +107,24 @@ function NavList({
   groups,
   pathname,
   onNavigate,
+  collapsed = false,
 }: {
   groups: NavGroup[];
   pathname: string;
   onNavigate?: () => void;
+  /** Icons only, with the name as a tooltip and for screen readers. */
+  collapsed?: boolean;
 }) {
   return (
     <nav aria-label="Main" className="space-y-5">
-      {groups.map((group) => (
+      {groups.map((group, index) => (
         <div key={group.heading ?? "main"}>
-          {group.heading && (
+          {group.heading && !collapsed && (
             <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               {group.heading}
             </p>
           )}
+          {collapsed && index > 0 && <div className="mx-3 mb-2 border-t border-slate-200" aria-hidden />}
           <ul className="space-y-0.5">
             {group.items.map((item) => {
               const isActive = pathname.startsWith(item.to);
@@ -128,14 +135,17 @@ function NavList({
                     to={item.to as any}
                     onClick={onNavigate}
                     aria-current={isActive ? "page" : undefined}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    title={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-2.5 py-1.5 rounded-lg text-sm font-medium transition ${
+                      collapsed ? "justify-center px-0" : "px-3"
+                    } ${
                       isActive
                         ? "bg-[#0E2322] text-[#C0FD9B]"
                         : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
                     }`}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
-                    <span>{item.label}</span>
+                    <span className={collapsed ? "sr-only" : undefined}>{item.label}</span>
                   </Link>
                 </li>
               );
@@ -166,6 +176,27 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [loading, user, canManage, pathname, navigate]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Remember the choice on this device. Starts expanded so the first paint matches the server.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(COLLAPSE_KEY) === "1") setCollapsed(true);
+    } catch {
+      // Private window or blocked storage: the menu simply starts expanded.
+    }
+  }, []);
+
+  const toggleCollapsed = () =>
+    setCollapsed((was) => {
+      const next = !was;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        // Not remembered, but the menu still collapses.
+      }
+      return next;
+    });
 
   const handleSignOut = async () => {
     try {
@@ -208,41 +239,49 @@ export function AppShell({ children }: { children: ReactNode }) {
     </Link>
   );
 
-  /** Tools that open in their own tab, then the person's own account and sign out. */
-  const footer = (
-    <div className="space-y-1 pt-3 border-t border-slate-200">
+  const brandMark = (
+    <Link to={homePath} aria-label="ChecIN home" className="flex items-center justify-center group">
+      <div className="w-8 h-8 rounded-xl bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-sm shadow-md group-hover:scale-105 transition-transform">
+        C
+      </div>
+    </Link>
+  );
+
+  /** Tools that open in their own tab, then the person's own account and sign out. Icons only when collapsed. */
+  const renderFooter = (rail: boolean) => (
+    <div className="space-y-0.5 pt-3 border-t border-slate-200">
       {canManage && (
         <Link
           to="/kiosk"
           target="_blank"
           onClick={closeMenu}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition"
+          className={`flex items-center gap-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition ${rail ? "justify-center px-0" : "px-3"}`}
           title="Open the entrance tablet screen in a new tab"
         >
           <Tablet className="size-4 shrink-0" aria-hidden />
-          <span className="flex-1">Kiosk</span>
-          <ExternalLink className="size-3 text-slate-400" aria-hidden />
+          <span className={rail ? "sr-only" : "flex-1"}>Kiosk</span>
+          {!rail && <ExternalLink className="size-3 text-slate-400" aria-hidden />}
         </Link>
       )}
       <Link
         to="/scan"
         target="_blank"
         onClick={closeMenu}
-        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition"
+        className={`flex items-center gap-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition ${rail ? "justify-center px-0" : "px-3"}`}
         title="Open the phone scanner in a new tab"
       >
         <ScanLine className="size-4 shrink-0" aria-hidden />
-        <span className="flex-1">Scanner</span>
-        <ExternalLink className="size-3 text-slate-400" aria-hidden />
+        <span className={rail ? "sr-only" : "flex-1"}>Scanner</span>
+        {!rail && <ExternalLink className="size-3 text-slate-400" aria-hidden />}
       </Link>
       <Link
         to="/account"
         onClick={closeMenu}
-        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition"
-        title="My account"
+        className={`flex items-center gap-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition ${rail ? "justify-center px-0" : "px-3"}`}
+        title={rail ? user?.displayName || "My account" : "My account"}
       >
         <User className="size-4 shrink-0" aria-hidden />
-        <span className="flex-1 min-w-0">
+        <span className={rail ? "sr-only" : "flex-1 min-w-0"}>
           <span className="block truncate">{user?.displayName || "My account"}</span>
           {user?.email && <span className="block truncate text-xs font-normal text-slate-500">{user.email}</span>}
         </span>
@@ -251,11 +290,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         variant="ghost"
         onClick={handleSignOut}
         aria-label="Sign Out"
-        className="w-full justify-start h-9 px-3 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
+        className={`w-full h-9 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer ${rail ? "justify-center px-0" : "justify-start px-3"}`}
         title="Sign out of ChecIN"
       >
-        <LogOut className="size-4 mr-2.5" aria-hidden />
-        Sign Out
+        <LogOut className={`size-4 ${rail ? "" : "mr-2.5"}`} aria-hidden />
+        {rail ? <span className="sr-only">Sign Out</span> : "Sign Out"}
       </Button>
     </div>
   );
@@ -263,12 +302,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex w-full bg-[#F8FAFC] font-sans">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col w-60 shrink-0 sticky top-0 h-screen border-r border-slate-200 bg-white">
-        <div className="px-5 py-4">{brand}</div>
+      <aside
+        className={`hidden md:flex md:flex-col shrink-0 sticky top-0 h-screen border-r border-slate-200 bg-white transition-[width] duration-200 ${
+          collapsed ? "w-16" : "w-60"
+        }`}
+      >
+        <div className={collapsed ? "px-3 py-4" : "px-5 py-4"}>{collapsed ? brandMark : brand}</div>
         <div className="flex-1 overflow-y-auto px-3 pb-4">
-          <NavList groups={groups} pathname={pathname} />
+          <NavList groups={groups} pathname={pathname} collapsed={collapsed} />
         </div>
-        <div className="px-3 pb-3">{footer}</div>
+        <div className="px-3 pb-3">{renderFooter(collapsed)}</div>
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -280,6 +323,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               onClick={() => setMobileMenuOpen(true)}
               className="md:hidden p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 transition focus:outline-none"
               aria-label="Open navigation menu"
+            >
+              <Menu className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="hidden md:inline-flex p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 transition focus:outline-none"
+              aria-label={collapsed ? "Expand the menu" : "Collapse the menu"}
+              aria-expanded={!collapsed}
             >
               <Menu className="size-5" />
             </button>
@@ -314,7 +366,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex-1 overflow-y-auto px-3 pb-4">
               <NavList groups={groups} pathname={pathname} onNavigate={closeMenu} />
             </div>
-            <div className="px-3 pb-3">{footer}</div>
+            <div className="px-3 pb-3">{renderFooter(false)}</div>
           </SheetContent>
         </Sheet>
 

@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 // The app shell (left menu). These guard what must not be lost in a layout change: every link each
-// kind of person had before, the employee restrictions, sign out, and the phone drawer.
-const shell = readFileSync("src/components/AppShell.tsx", "utf8");
+// kind of person had, the employee restrictions, sign out, the phone drawer, and the collapsible rail.
+// Line endings are normalised so the checks behave the same in a Windows checkout and on Linux.
+const shell = readFileSync("src/components/AppShell.tsx", "utf8").replace(/\r\n/g, "\n");
 
 function linksOf(block) {
   return [...block.matchAll(/to:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
-const managerBlock = shell.slice(shell.indexOf("if (canManage)"), shell.indexOf("return [\n    {\n      heading: \"My workspace\""));
+const managerBlock = shell.slice(shell.indexOf("if (canManage)"), shell.indexOf('heading: "My workspace"'));
 const employeeBlock = shell.slice(shell.indexOf('heading: "My workspace"'), shell.indexOf("/** The grouped links"));
 
 test("a manager or admin still has every page they had in the top menu", () => {
@@ -33,7 +34,7 @@ test("an employee still has only their own pages", () => {
 
 test("management pages are still closed to employees", () => {
   assert.ok(/MANAGER_ONLY_PATHS = \[[^\]]*"\/dashboard"[^\]]*"\/reports"[^\]]*"\/departments"[^\]]*"\/settings"[^\]]*"\/shifts"[^\]]*"\/late-arrivals"/.test(shell));
-  assert.ok(shell.includes("navigate({ to: \"/history\", replace: true })"));
+  assert.ok(shell.includes('navigate({ to: "/history", replace: true })'));
   assert.ok(shell.includes("const canManage = isOrgAdmin || isManager;"), "default-deny: only admins and managers get the manager menu");
 });
 
@@ -56,7 +57,32 @@ test("the kiosk link is for managers only; the phone drawer uses the accessible 
   assert.ok(shell.includes("SheetContent") && shell.includes("SheetTitle"));
 });
 
-test("house rules: no emoji icons, no stored data, no GPS", () => {
+test("house rules: no emoji icons, no GPS, and the only stored value is the menu choice", () => {
   assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(shell), "no emoji in the shell");
-  assert.ok(!/localStorage|sessionStorage|geolocation/i.test(shell));
+  assert.ok(!/sessionStorage|geolocation/i.test(shell));
+  const uses = shell.match(/localStorage\.(get|set)Item\(COLLAPSE_KEY/g) ?? [];
+  assert.equal(uses.length, 2, "localStorage is used only for the collapse choice");
+  assert.ok(!/localStorage\.(get|set)Item\((?!COLLAPSE_KEY)/.test(shell));
+  assert.ok(/try \{\s*if \(localStorage\.getItem\(COLLAPSE_KEY\)/.test(shell), "reading is inside try/catch");
+  assert.ok(/try \{\s*localStorage\.setItem\(COLLAPSE_KEY/.test(shell), "writing is inside try/catch");
+});
+
+test("the menu collapses to an icon rail from a hamburger button", () => {
+  assert.ok(shell.includes("const [collapsed, setCollapsed] = useState(false);"), "starts expanded, so the first paint matches the server");
+  assert.ok(shell.includes("toggleCollapsed") && shell.includes("aria-expanded={!collapsed}"));
+  assert.ok(/aria-label=\{collapsed \? "Expand the menu" : "Collapse the menu"\}/.test(shell));
+  assert.ok(shell.includes('collapsed ? "w-16" : "w-60"'));
+});
+
+test("on the rail every link keeps its name (tooltip and screen readers) and nothing is lost", () => {
+  assert.ok(shell.includes("title={collapsed ? item.label : undefined}"));
+  assert.ok(shell.includes('<span className={collapsed ? "sr-only" : undefined}>{item.label}</span>'));
+  for (const label of ["Kiosk", "Scanner", "Sign Out"]) assert.ok(shell.includes(label), label);
+  assert.ok(shell.includes("renderFooter(collapsed)"), "the desktop rail uses the compact footer");
+});
+
+test("the phone drawer is always the full menu", () => {
+  assert.ok(shell.includes("renderFooter(false)"));
+  const sheet = shell.slice(shell.indexOf("<SheetContent"));
+  assert.ok(!sheet.slice(0, sheet.indexOf("</SheetContent>")).includes("collapsed={collapsed}"));
 });

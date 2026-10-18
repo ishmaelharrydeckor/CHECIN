@@ -158,7 +158,9 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showA
 
         <div
           className={
-            showActivity ? "lg:col-span-5 space-y-6" : "lg:col-span-12 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
+            showActivity
+              ? "lg:col-span-5 space-y-6"
+              : `lg:col-span-12 grid grid-cols-1 gap-6 items-start ${(data.wfhPeople?.length ?? 0) > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`
           }
         >
           {/* Late today */}
