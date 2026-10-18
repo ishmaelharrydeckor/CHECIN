@@ -6,14 +6,18 @@ import {
   MAX_PATTERN_PEOPLE_PER_REQUEST,
   MAX_ROTATION_STEPS,
   MAX_STEP_WEEKS,
+  NO_MORE_FILL,
   fillTarget,
   needsFill,
+  nextFillDay,
   nextFillWindow,
   parsePatternCreate,
   parsePatternEdit,
   parsePatternRule,
   patternDocId,
   patternShiftIds,
+  patternsOverlap,
+  planEdit,
   planFill,
   planTrim,
   shiftIdForDay,
@@ -488,4 +492,64 @@ test("a manual clear of a pattern day stays cleared on the next top-up", () => {
   const first = fill(p);
   const next = fill({ ...p, filledThrough: first.filledThrough });
   assert.ok(next.writes.every((w) => w.dayKey > first.filledThrough));
+});
+
+// ---------------------------------------------------------------- step 2 helpers
+
+test("nextFillDay: the start for a new pattern, the day after filledThrough, or done", () => {
+  const p = { startDay: "2026-10-20", endDay: null, filledThrough: null };
+  assert.equal(nextFillDay(p), "2026-10-20");
+  assert.equal(nextFillDay({ ...p, filledThrough: "2026-12-01" }), "2026-12-02");
+  // filledThrough saved before the start (a run that had nothing to do) still points at the start.
+  assert.equal(nextFillDay({ ...p, filledThrough: "2026-10-01" }), "2026-10-20");
+  assert.equal(nextFillDay({ ...p, endDay: "2026-11-30", filledThrough: "2026-11-30" }), NO_MORE_FILL);
+  assert.equal(nextFillDay({ ...p, endDay: "2026-11-30", filledThrough: "2026-11-29" }), "2026-11-30");
+  assert.ok(NO_MORE_FILL > "2999-12-31");
+});
+
+test("patternsOverlap: dates must meet and a weekday must be shared", () => {
+  const monFri = { rule: WEEKLY_DAY, startDay: "2026-10-13", endDay: null };
+  const weekend = { rule: { kind: "weekly", shiftId: "day", weekdays: [5, 6] }, startDay: "2026-10-13", endDay: null };
+  const later = { rule: WEEKLY_DAY, startDay: "2027-01-01", endDay: null };
+  const ended = { rule: WEEKLY_DAY, startDay: "2026-10-13", endDay: "2026-12-31" };
+  assert.equal(patternsOverlap(monFri, weekend), false);
+  assert.equal(patternsOverlap(monFri, later), true);
+  assert.equal(patternsOverlap(ended, later), false);
+  assert.equal(patternsOverlap(ended, { ...later, startDay: "2026-12-31" }), true);
+  assert.equal(patternsOverlap(monFri, { rule: ROT_DAY_NIGHT, startDay: "2026-11-02", endDay: null }), true);
+});
+
+test("planEdit: a new rule keeps today and before, and refills from tomorrow", () => {
+  const p = { rule: WEEKLY_DAY, startDay: "2026-10-01", endDay: null, filledThrough: "2026-12-14" };
+  const r = planEdit(p, { rule: ROT_DAY_NIGHT }, TODAY);
+  assert.equal(r.ok, true);
+  assert.equal(r.value.keepThrough, TODAY);
+  assert.deepEqual(r.value.next, { rule: ROT_DAY_NIGHT, startDay: "2026-10-01", endDay: null, filledThrough: TODAY });
+});
+
+test("planEdit: an earlier end trims after it; a later or removed end trims nothing and fills on", () => {
+  const p = { rule: WEEKLY_DAY, startDay: "2026-10-01", endDay: null, filledThrough: "2026-12-14" };
+  const earlier = planEdit(p, { endDay: "2026-11-15" }, TODAY);
+  assert.equal(earlier.value.keepThrough, "2026-11-15");
+  assert.equal(earlier.value.next.filledThrough, "2026-11-15");
+  assert.equal(earlier.value.next.endDay, "2026-11-15");
+
+  const ending = { ...p, endDay: "2026-11-15", filledThrough: "2026-11-15" };
+  const later = planEdit(ending, { endDay: "2027-03-01" }, TODAY);
+  assert.equal(later.value.next.filledThrough, "2026-11-15"); // nothing to trim, fill continues from the 16th
+  assert.equal(nextFillDay(later.value.next), "2026-11-16");
+  const open = planEdit(ending, { endDay: null }, TODAY);
+  assert.equal(open.value.keepThrough, null);
+  assert.equal(open.value.next.endDay, null);
+});
+
+test("planEdit: ending today keeps today's shift; an end before a future start is refused", () => {
+  const p = { rule: WEEKLY_DAY, startDay: "2026-10-01", endDay: null, filledThrough: "2026-12-14" };
+  const r = planEdit(p, { endDay: TODAY }, TODAY);
+  assert.equal(r.value.keepThrough, TODAY);
+  assert.equal(r.value.next.filledThrough, TODAY);
+  const future = { ...p, startDay: "2026-11-01", filledThrough: null };
+  assert.equal(planEdit(future, { endDay: "2026-10-20" }, TODAY).ok, false);
+  // A pattern that was never filled stays unfilled after an edit.
+  assert.equal(planEdit(future, { rule: ROT_DAY_NIGHT }, TODAY).value.next.filledThrough, null);
 });
