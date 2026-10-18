@@ -125,6 +125,11 @@ async function backfillDay(day) {
   for (const { identity, events } of groups.values()) {
     const summary = summaryFromEvents(events, identity, nowIso);
     if (!summary) continue;
+    // A rebuild must not lose a manager's decision: an excused late mark stays excused.
+    if (summary.late === true) {
+      const ex = await db.collection("late_excuses").doc(summaryDocId(identity.employeeId, day)).get();
+      if (ex.exists && ex.data()?.status === "excused" && ex.data()?.orgId === identity.orgId) summary.lateExcused = true;
+    }
     if (!dryRun) {
       batch.set(db.collection("daily_summaries").doc(summaryDocId(identity.employeeId, day)), summary);
       if (++inBatch >= 400) {
