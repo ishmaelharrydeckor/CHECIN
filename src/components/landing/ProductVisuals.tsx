@@ -1,6 +1,5 @@
 import { AlarmClock, Building2, CalendarClock, Clock, FileBarChart, Home, Lock, Megaphone, Tablet, Umbrella } from "lucide-react";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
-import { ScanResultOverlay } from "@/components/scan/ScanResultOverlay";
 import type { TodaySummaryData } from "@/lib/attendance-today";
 
 /**
@@ -149,57 +148,6 @@ export function QrTablet({ compact = false, onDark = false }: { compact?: boolea
         </svg>
         <span className={`text-[11px] font-semibold ${onDark ? "text-white/70" : "text-slate-500"}`}>seconds left</span>
       </div>
-    </div>
-  );
-}
-
-/** A phone showing the real check-in confirmation. */
-export function PhoneCheckIn() {
-  return (
-    <div className="relative mx-auto w-[210px] h-[400px] rounded-[36px] border-[7px] border-slate-800 bg-black shadow-2xl overflow-hidden pointer-events-none select-none" aria-hidden>
-      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-3.5 rounded-full bg-slate-900 z-50" />
-      <div className="relative w-[300px] h-[560px] scale-[0.68] origin-top-left">
-        <ScanResultOverlay state={{ kind: "success", type: "in", time: "08:12", location: "Main entrance" }} onPrimary={() => {}} />
-      </div>
-    </div>
-  );
-}
-
-const TEAM = [
-  { name: "Ama Boateng", dept: "Operations", status: "In", cls: "bg-[#CBEED3] text-[#0E2322]", time: "08:02" },
-  { name: "Kwesi Adjei", dept: "Sales", status: "In", cls: "bg-[#CBEED3] text-[#0E2322]", time: "08:10" },
-  { name: "Efua Mensah", dept: "Support", status: "Late", cls: "bg-amber-100 text-amber-900", time: "08:55" },
-  { name: "Nana Yeboah", dept: "Operations", status: "Home", cls: "bg-violet-100 text-violet-900", time: "" },
-  { name: "Akosua Frimpong", dept: "Finance", status: "Leave", cls: "bg-[#FCF2CB] text-[#854D0E]", time: "" },
-];
-
-/** A short live list of who is in, late, at home or away. */
-export function TeamList() {
-  return (
-    <div className="w-full max-w-[300px] rounded-2xl bg-white p-4 shadow-2xl pointer-events-none select-none" aria-hidden>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-bold text-[#0E2322]">Today</p>
-        <p className="text-[11px] text-slate-500">34 of 38 in</p>
-      </div>
-      <ul className="divide-y divide-slate-100">
-        {TEAM.map((p) => (
-          <li key={p.name} className="flex items-center justify-between gap-3 py-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-7 h-7 shrink-0 rounded-full bg-[#0E2322] text-[#C0FD9B] text-[10px] font-extrabold flex items-center justify-center">
-                {p.name.split(" ").map((w) => w[0]).join("")}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-semibold text-[#0E2322] truncate">{p.name}</span>
-                <span className="block text-[11px] text-slate-500 truncate">{p.dept}</span>
-              </span>
-            </div>
-            <span className="flex items-center gap-1.5 shrink-0">
-              {p.time && <span className="text-[11px] font-mono text-slate-500">{p.time}</span>}
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${p.cls}`}>{p.status}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

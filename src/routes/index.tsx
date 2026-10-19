@@ -9,10 +9,8 @@ import {
   DoorPairing,
   LeavePanel,
   NoticePanel,
-  PhoneCheckIn,
   QrTablet,
   RecordsPanel,
-  TeamList,
 } from "@/components/landing/ProductVisuals";
 
 export const Route = createFileRoute("/")({
@@ -254,7 +252,7 @@ function LandingPage() {
             <div className="absolute inset-x-0 top-[128px] flex justify-center px-4">
               <QrTablet compact onDark />
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div>
                 <div className="text-[54px] font-medium text-[#C0FD9B] tracking-tight leading-none mb-2">
                   <CountUp to={15} /> sec
@@ -274,11 +272,23 @@ function LandingPage() {
 
           {/* Card 2: One-tap check-in */}
           <div data-reveal="2" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
-            <div className="absolute inset-x-0 top-6 flex justify-center scale-[0.85] origin-top">
-              <PhoneCheckIn />
+            <img
+              src="/images/landing/checkin-phone.webp"
+              alt="A woman in a white shirt checks her phone beside a large window"
+              width={900}
+              height={1350}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-full bg-[#CBEED3] px-3.5 py-1.5 text-sm font-semibold text-[#0E2322] shadow-lg"
+            >
+              <span className="size-2 rounded-full bg-emerald-600" />
+              Checked in 08:12
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -294,11 +304,23 @@ function LandingPage() {
 
           {/* Card 3: Live team view */}
           <div data-reveal="3" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
-            <div className="absolute inset-x-0 top-8 flex justify-center px-6">
-              <TeamList />
+            <img
+              src="/images/landing/team-lagos-office.webp"
+              alt="A group of colleagues talking together in an office in Lagos"
+              width={1400}
+              height={934}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-1.5 text-sm font-semibold text-[#0E2322] shadow-lg"
+            >
+              <span className="size-2 rounded-full bg-emerald-600 animate-pulse" />
+              34 of 38 in
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -464,6 +486,50 @@ function LandingPage() {
           <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
             Whether you run one office or a handful, ChecIN fits the way your team already works.
           </p>
+        </div>
+
+        <div data-reveal className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          {[
+            {
+              src: "/images/landing/team-laptop.webp",
+              alt: "Four women in colourful outfits gathered around a laptop",
+              label: "Office teams",
+              width: 1400,
+              height: 934,
+              position: "object-center",
+            },
+            {
+              src: "/images/landing/health-nurses.webp",
+              alt: "Four nurses in matching blue uniforms and white headscarves",
+              label: "Clinics and hospitals",
+              width: 900,
+              height: 1164,
+              position: "object-[50%_25%]",
+            },
+            {
+              src: "/images/landing/manager-tablet.webp",
+              alt: "A smiling man holds a tablet in one hand and a phone to his ear",
+              label: "Managers on the move",
+              width: 1400,
+              height: 934,
+              position: "object-center",
+            },
+          ].map((tile) => (
+            <figure key={tile.label} className="relative h-[260px] sm:h-[300px] rounded-3xl overflow-hidden shadow-lg">
+              <img
+                src={tile.src}
+                alt={tile.alt}
+                width={tile.width}
+                height={tile.height}
+                loading="lazy"
+                decoding="async"
+                className={`absolute inset-0 w-full h-full object-cover ${tile.position}`}
+              />
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-5 pb-4 pt-12 text-left text-white text-lg font-medium tracking-[-0.01em]">
+                {tile.label}
+              </figcaption>
+            </figure>
+          ))}
         </div>
 
         <div className="max-w-4xl mx-auto relative px-4 py-8">
