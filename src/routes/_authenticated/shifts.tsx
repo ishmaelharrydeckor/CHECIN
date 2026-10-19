@@ -24,6 +24,8 @@ import { ShiftSettingsCard } from "@/components/shifts/ShiftSettingsCard";
 import { RefusedScansTab } from "@/components/shifts/RefusedScansTab";
 import { RotaTab } from "@/components/shifts/RotaTab";
 import { ShiftsList } from "@/components/shifts/ShiftsList";
+import { ShiftSwapSettingsCard } from "@/components/shifts/ShiftSwapSettingsCard";
+import { SwapsTab } from "@/components/shifts/SwapsTab";
 import { authedFetch, type ShiftRow } from "@/components/shifts/shiftApi";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
@@ -147,6 +149,7 @@ function ShiftsPage() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="rota">Rota</TabsTrigger>
           <TabsTrigger value="shifts">Shifts</TabsTrigger>
+          <TabsTrigger value="swaps">Swaps</TabsTrigger>
           <TabsTrigger value="refused">Refused check-ins</TabsTrigger>
           {isOrgAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
           {isOrgAdmin && <TabsTrigger value="managers">Managers</TabsTrigger>}
@@ -155,12 +158,16 @@ function ShiftsPage() {
           <RotaTab canAssign={canManageShifts} shifts={(shifts ?? []).filter((s) => !s.archived)} />
         </TabsContent>
         <TabsContent value="shifts">{shiftsSection}</TabsContent>
+        <TabsContent value="swaps">
+          <SwapsTab viewerId={user?.id ?? ""} isOrgAdmin={isOrgAdmin} />
+        </TabsContent>
         <TabsContent value="refused">
           <RefusedScansTab />
         </TabsContent>
         {isOrgAdmin && (
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="space-y-6">
             <ShiftSettingsCard />
+            <ShiftSwapSettingsCard />
           </TabsContent>
         )}
         {isOrgAdmin && (

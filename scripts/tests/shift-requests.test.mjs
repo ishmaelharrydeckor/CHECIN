@@ -524,7 +524,7 @@ test("every route under src/routes/api/shifts verifies the token, rate-limits wr
   const files = readdirSync(dir).filter((f) => f.endsWith(".ts"));
   assert.deepEqual(
     files.sort(),
-    ["access.ts", "assignments.ts", "index.ts", "patterns.ts", "refused-scans.ts", "settings.ts"],
+    ["access.ts", "assignments.ts", "index.ts", "patterns.ts", "refused-scans.ts", "settings.ts", "swaps.ts"],
   );
 
   const forbidden = [
