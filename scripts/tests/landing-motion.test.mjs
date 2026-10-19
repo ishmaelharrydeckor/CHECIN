@@ -47,7 +47,8 @@ test("the capability tabs advance by themselves, pause while looked at, and stop
 
 test("the page uses the motion: hero, headings, cards", () => {
   assert.ok(page.includes("useScrollReveal();"));
-  assert.equal((page.match(/landing-rise landing-rise-\d/g) ?? []).length, 5, "pill, headline, text, buttons and picture rise in order");
+  assert.equal((page.match(/landing-rise landing-rise-\d/g) ?? []).length, 4, "pill, text, buttons and picture rise in order; the headline focuses in letter by letter");
+  assert.ok(page.includes("<FocusText text=\"Attendance that proves people were actually there.\" />"));
   assert.ok((page.match(/data-reveal/g) ?? []).length >= 11, "headings and card rows fade up");
   for (const n of ["1", "2", "3"]) assert.ok(page.includes(`data-reveal="${n}"`), `stagger step ${n}`);
 });
@@ -56,4 +57,12 @@ test("only transform and opacity are animated, and nothing is copied from anothe
   const motionCss = css.slice(css.indexOf("Landing page motion"));
   assert.ok(!/(^|\s)(left|top|margin|height)\s*:\s*[^;]*;\s*\n\s*transition/.test(motionCss));
   assert.ok(!/Exact 1:1|prezence|framer/i.test(page + motion), "no leftover clone comments or names");
+});
+
+test("the headline focus effect is CSS only, reads as one sentence, and stops for reduced motion", () => {
+  assert.ok(/@keyframes landing-focus\s*\{[\s\S]*?blur\(10px\)[\s\S]*?blur\(0\)/.test(css), "blur to sharp");
+  assert.ok(/\.focus-letter\s*\{[^}]*animation:\s*landing-focus[^}]*both/.test(css), "letters start hidden until their turn");
+  const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)", css.indexOf("Landing page motion")));
+  assert.ok(/\.focus-letter\s*\{[^}]*animation:\s*none/.test(reduced), "no effect for reduced motion");
+  assert.ok(motion.includes("aria-label={text}") && motion.includes("aria-hidden"), "one sentence for screen readers");
 });

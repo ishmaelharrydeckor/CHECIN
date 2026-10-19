@@ -236,7 +236,28 @@
   animation-play-state: paused;
 }
 
+/* The headline sharpens into focus letter by letter (FocusText). */
+@keyframes landing-focus {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(0.18em);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+.focus-letter {
+  animation: landing-focus 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--focus-delay, 0ms);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .focus-letter {
+    animation: none;
+  }
   .reveal-ready [data-reveal] {
     opacity: 1;
     transform: none;

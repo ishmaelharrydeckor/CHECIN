@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactElement } from "react";
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
-import { CountUp, useScrollReveal } from "@/components/landing/Motion";
+import { CountUp, FocusText, useScrollReveal } from "@/components/landing/Motion";
 import {
   ActivityPanel,
   DoorPairing,
@@ -190,8 +190,8 @@ function LandingPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="landing-rise landing-rise-2 text-4xl sm:text-6xl md:text-[76px] lg:text-[80px] font-medium tracking-[-0.04em] text-white leading-[1.0] text-center mb-6">
-            Attendance that proves people were actually there.
+          <h1 className="text-4xl sm:text-6xl md:text-[76px] lg:text-[80px] font-medium tracking-[-0.04em] text-white leading-[1.0] text-center mb-6">
+            <FocusText text="Attendance that proves people were actually there." />
           </h1>
 
           {/* Subheading */}
