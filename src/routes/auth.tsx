@@ -145,23 +145,21 @@ function AuthPage() {
       console.error("Sign-in error:", err);
       const errorObj = err as { code?: string; message?: string };
       if (errorObj?.code === "auth/operation-not-allowed") {
-        const msg =
-          "Google Sign-In is not enabled in Firebase Console for project 'checin-d172e'. Please enable it under Authentication > Sign-in method.";
+        // Technical detail stays in the developer console; visitors get a plain message.
+        console.error("Google sign-in is not enabled for this Firebase project (Authentication > Sign-in method).");
+        const msg = "Google sign-in isn't available right now. Use your email and password instead.";
         toast.error(msg, { duration: 8000 });
         setProviderWarning({
-          title: "Google Sign-In Disabled in Firebase Console",
-          message:
-            "Google Authentication is currently disabled for this Firebase project. To enable it, visit Firebase Console -> Authentication -> Sign-in method -> Google -> Enable.",
-          url: "https://console.firebase.google.com/project/checin-d172e/authentication/providers",
+          title: "Google sign-in isn't available",
+          message: "Use your work email and password below, or ask your admin if you need help.",
         });
       } else if (errorObj?.code === "auth/unauthorized-domain") {
-        const msg = "Current domain is not authorized for OAuth in Firebase Console.";
+        console.error("This web address is not in the Firebase authorized domains list (Authentication > Settings).");
+        const msg = "Google sign-in doesn't work on this web address. Use your email and password instead.";
         toast.error(msg, { duration: 8000 });
         setProviderWarning({
-          title: "Domain Not Authorized in Firebase",
-          message:
-            "This domain is not in your Firebase Authorized Domains list. Add it in Firebase Console -> Authentication -> Settings -> Authorized domains.",
-          url: "https://console.firebase.google.com/project/checin-d172e/authentication/settings",
+          title: "Google sign-in isn't available here",
+          message: "Use your work email and password below.",
         });
       } else if (errorObj?.code === "auth/popup-closed-by-user") {
         toast.info("Google Sign-In popup was closed.");
@@ -312,21 +310,21 @@ function AuthPage() {
         <div className="relative z-10 my-auto max-w-lg space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#263F37] border border-[#3A5B51] px-4 py-1.5 text-xs font-medium text-[#C0FD9B]">
             <span className="h-2 w-2 rounded-full bg-[#C0FD9B] animate-pulse" />
-            Zero GPS Spoofing · Tamper-Resistant
+            No GPS. Checked at the door.
           </div>
           <h1 className="text-4xl md:text-5xl font-medium tracking-tight leading-[1.1] text-white">
             Attendance that proves people were actually there.
           </h1>
           <p className="text-[#ADC4BD] text-base leading-relaxed">
-            One 15-second rotating QR code at your entrance tablet. One tap on your employee's phone.
-            No timesheets to chase, no proxy check-ins.
+            A QR code on a tablet at your entrance changes every 15 seconds. Your team scans it with
+            their phone. No timesheets to chase, and no one checking in for a friend.
           </p>
 
           <div className="pt-4 space-y-3">
             {[
-              "Physical entrance presence guaranteed via rotating QR tokens",
-              "Works directly in any mobile browser (installable PWA)",
-              "Multi-tenant company isolation with live attendance feed",
+              "Presence is proven at your own entrance, not by GPS",
+              "Works in any phone's browser, with nothing to install from an app store",
+              "See who's in as it happens, with each company's records kept separate",
             ].map((feature) => (
               <div key={feature} className="flex items-center gap-3 text-sm text-[#ADC4BD]">
                 <div className="size-5 rounded-full bg-[#C0FD9B]/20 text-[#C0FD9B] flex items-center justify-center shrink-0">
@@ -366,8 +364,8 @@ function AuthPage() {
               </CardTitle>
               <CardDescription className="text-sm text-[#6D6D6D]">
                 {tab === "signin"
-                  ? "Sign in with your corporate account or email to access your workspace."
-                  : "Set up your organization tenant in under 60 seconds."}
+                  ? "Sign in with Google or your work email to open your workspace."
+                  : "Set up your company's workspace to get started."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -384,18 +382,6 @@ function AuthPage() {
                     </button>
                   </div>
                   <p className="leading-relaxed">{providerWarning.message}</p>
-                  {providerWarning.url && (
-                    <div className="pt-1">
-                      <a
-                        href={providerWarning.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-amber-900 underline hover:text-amber-950"
-                      >
-                        Open Firebase Console to enable Google Provider →
-                      </a>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -405,8 +391,8 @@ function AuthPage() {
                 className="w-full"
               >
                 <TabsList className="grid grid-cols-2 w-full mb-6">
-                  <TabsTrigger value="signin">Sign In</TabsTrigger>
-                  <TabsTrigger value="register">Register Company</TabsTrigger>
+                  <TabsTrigger value="signin">Sign in</TabsTrigger>
+                  <TabsTrigger value="register">Register company</TabsTrigger>
                 </TabsList>
 
                 {/* SIGN IN TAB */}
@@ -506,10 +492,10 @@ function AuthPage() {
                       {loading ? (
                         <>
                           <Loader2 className="size-4 animate-spin mr-1.5" />
-                          Authenticating...
+                          Signing in…
                         </>
                       ) : (
-                        "Sign In with Email"
+                        "Sign in with email"
                       )}
                     </Button>
                   </form>
@@ -678,10 +664,10 @@ function AuthPage() {
                       {loading ? (
                         <>
                           <Loader2 className="size-4 animate-spin mr-1.5" />
-                          Creating Workspace...
+                          Creating your workspace…
                         </>
                       ) : (
-                        "Create Organization & Continue"
+                        "Create organization and continue"
                       )}
                     </Button>
 
