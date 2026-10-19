@@ -1,4 +1,4 @@
-import { AlarmClock, Building2, CalendarClock, Clock, FileBarChart, Home, Lock, Megaphone, Tablet, Umbrella } from "lucide-react";
+import { AlarmClock, Building2, CalendarClock, Clock, FileBarChart, Home, Lock, Megaphone, Umbrella } from "lucide-react";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
 import type { TodaySummaryData } from "@/lib/attendance-today";
 
@@ -117,6 +117,52 @@ function QrPattern({ className = "" }: { className?: string }) {
   );
 }
 
+/** The "seconds left" ring beside the entrance tablet. An illustration of the 15 second rule. */
+export function CountdownRing({ compact = false, onDark = false }: { compact?: boolean; onDark?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <svg viewBox="0 0 44 44" className={compact ? "size-14" : "size-20"}>
+        <circle cx="22" cy="22" r="18" fill="none" stroke={onDark ? "#3C5A52" : "#E2E8F0"} strokeWidth="4" />
+        <circle
+          cx="22"
+          cy="22"
+          r="18"
+          fill="none"
+          stroke={onDark ? "#C0FD9B" : "#0E2322"}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray="113"
+          strokeDashoffset="38"
+          transform="rotate(-90 22 22)"
+        />
+        <text x="22" y="26" textAnchor="middle" fontSize="13" fontWeight="800" fill={onDark ? "#FFFFFF" : "#0E2322"}>
+          15
+        </text>
+      </svg>
+      <span className={`text-[11px] font-semibold ${onDark ? "text-white/70" : "text-slate-500"}`}>seconds left</span>
+    </div>
+  );
+}
+
+/** A real screenshot of one of ChecIN's own screens, on a tablet frame. Made-up sample data only. */
+export function TabletScreen({
+  src,
+  imgWidth,
+  imgHeight,
+  className = "w-[200px]",
+}: {
+  src: string;
+  imgWidth: number;
+  imgHeight: number;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-[22px] bg-slate-900 p-2 shadow-2xl pointer-events-none select-none shrink-0 ${className}`} aria-hidden>
+      <img src={src} alt="" width={imgWidth} height={imgHeight} loading="lazy" decoding="async" className="block w-full h-auto rounded-[14px]" />
+    </div>
+  );
+}
+
 /** The entrance tablet showing a code that is about to change. */
 export function QrTablet({ compact = false, onDark = false }: { compact?: boolean; onDark?: boolean }) {
   return (
@@ -127,27 +173,7 @@ export function QrTablet({ compact = false, onDark = false }: { compact?: boolea
           <p className="mt-2 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-500">Main entrance</p>
         </div>
       </div>
-      <div className="flex flex-col items-center gap-1.5">
-        <svg viewBox="0 0 44 44" className={compact ? "size-14" : "size-20"}>
-          <circle cx="22" cy="22" r="18" fill="none" stroke={onDark ? "#3C5A52" : "#E2E8F0"} strokeWidth="4" />
-          <circle
-            cx="22"
-            cy="22"
-            r="18"
-            fill="none"
-            stroke={onDark ? "#C0FD9B" : "#0E2322"}
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray="113"
-            strokeDashoffset="38"
-            transform="rotate(-90 22 22)"
-          />
-          <text x="22" y="26" textAnchor="middle" fontSize="13" fontWeight="800" fill={onDark ? "#FFFFFF" : "#0E2322"}>
-            15
-          </text>
-        </svg>
-        <span className={`text-[11px] font-semibold ${onDark ? "text-white/70" : "text-slate-500"}`}>seconds left</span>
-      </div>
+      <CountdownRing compact={compact} onDark={onDark} />
     </div>
   );
 }
@@ -155,19 +181,14 @@ export function QrTablet({ compact = false, onDark = false }: { compact?: boolea
 /** A tablet that has been paired to one entrance, and the secret that makes it the real door. */
 export function DoorPairing() {
   return (
-    <div className="flex items-center justify-center gap-4 pointer-events-none select-none" aria-hidden>
-      <div className="w-[120px] rounded-[18px] bg-slate-900 p-2 shadow-xl">
-        <div className="rounded-xl bg-white p-3 flex flex-col items-center gap-1.5">
-          <Tablet className="size-8 text-[#0E2322]" />
-          <span className="text-[10px] font-semibold text-slate-500">Main entrance</span>
-        </div>
-      </div>
+    <div className="flex items-center justify-center gap-2 sm:gap-4 pointer-events-none select-none" aria-hidden>
+      <TabletScreen src="/images/product/kiosk-pairing.webp" imgWidth={600} imgHeight={650} className="w-[104px] sm:w-[170px]" />
       <div className="flex flex-col items-center gap-1">
-        <span className="w-14 border-t-2 border-dashed border-emerald-700/60" />
+        <span className="w-6 sm:w-14 border-t-2 border-dashed border-emerald-700/60" />
         <span className="w-8 h-8 rounded-full bg-[#0E2322] text-[#C0FD9B] flex items-center justify-center">
           <Lock className="size-4" />
         </span>
-        <span className="w-14 border-t-2 border-dashed border-emerald-700/60" />
+        <span className="w-6 sm:w-14 border-t-2 border-dashed border-emerald-700/60" />
       </div>
       <div className="rounded-xl bg-white px-3.5 py-3 shadow-lg border border-emerald-200">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Paired</p>

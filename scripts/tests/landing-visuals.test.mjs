@@ -53,3 +53,9 @@ test("every self-hosted photo is used on the page, with a description and sizes 
     assert.ok(/loading="lazy"/.test(tag), "lazy loading");
   }
 });
+
+test("the Why ChecIN cards show the real kiosk screens, with made-up sample data", () => {
+  assert.ok(visuals.includes("/images/product/kiosk-pairing.webp") && page.includes("/images/product/kiosk-code.webp"));
+  assert.ok(visuals.includes("export function TabletScreen") && /aria-hidden/.test(visuals.slice(visuals.indexOf("export function TabletScreen"))));
+  assert.ok(page.includes("<CountdownRing compact />"), "the fifteen second ring stays beside the tablet");
+});

@@ -6,7 +6,9 @@ import { ChecInLogo } from "@/components/ChecInLogo";
 import { CountUp, FocusText, useScrollReveal } from "@/components/landing/Motion";
 import {
   ActivityPanel,
+  CountdownRing,
   DoorPairing,
+  TabletScreen,
   LeavePanel,
   NoticePanel,
   QrTablet,
@@ -364,8 +366,9 @@ function LandingPage() {
             {/* Bento 1: Butter Card */}
             <div data-reveal="1" className="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-amber-200/60 bg-white">
-                <div role="img" aria-label="A tablet showing a code with a fifteen second countdown" className="h-[232px] bg-gradient-to-br from-amber-50 to-white flex items-center justify-center">
-                  <QrTablet compact />
+                <div role="img" aria-label="The ChecIN entrance tablet showing its check-in code, with a fifteen second countdown" className="h-[280px] bg-gradient-to-br from-amber-50 to-white flex items-center justify-center gap-5 px-4">
+                  <TabletScreen src="/images/product/kiosk-code.webp" imgWidth={640} imgHeight={640} className="w-[170px] sm:w-[220px]" />
+                  <CountdownRing compact />
                 </div>
               </div>
               <div>
@@ -382,7 +385,7 @@ function LandingPage() {
             {/* Bento 2: Soft Mint Card */}
             <div data-reveal="2" className="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-emerald-200/60 bg-white">
-                <div role="img" aria-label="A tablet paired to one entrance and to your account" className="h-[232px] bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center">
+                <div role="img" aria-label="The ChecIN tablet setup screen taking a one-time pairing code, linking the tablet to one entrance and to your account" className="h-[280px] bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center">
                   <DoorPairing />
                 </div>
               </div>
