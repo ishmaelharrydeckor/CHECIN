@@ -408,6 +408,22 @@ function ScanPage() {
 
       // SUCCESS: this response comes from the transaction that recorded the scan.
       pendingScanRef.current = null;
+
+      // Lenient mode: recorded, but outside the allowed time, so it counts for nothing. Say so, and leave
+      // the in or out status and the last scan time exactly as they were.
+      if (data.outsideWindow === true) {
+        setOverlay({
+          kind: "outside",
+          time: data.timeDisplay || "",
+          location: data.locationName || "",
+          detail: typeof data.message === "string" ? data.message : "",
+        });
+        scanFeedback(true);
+        lastScanSucceededRef.current = true;
+        setJustScanned(true);
+        stopCamera();
+        return;
+      }
       const isCheckIn = data.type === "in";
       setStatus(isCheckIn ? "in" : "out");
       setLastScanTime(data.timeDisplay || null);

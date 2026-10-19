@@ -28,7 +28,7 @@ export function ShiftSettingsCard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [windowText, setWindowText] = useState("120");
   const [windowError, setWindowError] = useState<string | null>(null);
-  const [savingKey, setSavingKey] = useState<"enabled" | "window" | "breaks" | null>(null);
+  const [savingKey, setSavingKey] = useState<"enabled" | "window" | "breaks" | "mode" | null>(null);
   const [confirmOn, setConfirmOn] = useState(false);
 
   const load = useCallback(async () => {
@@ -51,7 +51,7 @@ export function ShiftSettingsCard() {
     void load();
   }, [load]);
 
-  async function save(change: Partial<ShiftSettingsData>, key: "enabled" | "window" | "breaks", success: string) {
+  async function save(change: Partial<ShiftSettingsData>, key: "enabled" | "window" | "breaks" | "mode", success: string) {
     setSavingKey(key);
     const result = await authedFetch<ShiftSettingsData>("/api/shifts/settings", {
       method: "PUT",
@@ -84,6 +84,17 @@ export function ShiftSettingsCard() {
   async function confirmTurnOn() {
     const ok = await save({ shiftsEnabled: true }, "enabled", "Shifts are on.");
     if (ok) setConfirmOn(false);
+  }
+
+  async function saveMode(next: "strict" | "lenient") {
+    if (settings === null || next === settings.shiftScanMode) return;
+    await save(
+      { shiftScanMode: next },
+      "mode",
+      next === "lenient"
+        ? "Lenient is on. Check-ins outside the allowed time are recorded but not counted."
+        : "Strict is on. Check-ins outside the allowed time are refused.",
+    );
   }
 
   async function saveWindow() {
@@ -186,7 +197,12 @@ export function ShiftSettingsCard() {
 
             <div className="space-y-2">
               <p className="text-xs font-medium text-[#0E2322]">A check-in outside the allowed time</p>
-              <RadioGroup value="strict" className="space-y-2">
+              <RadioGroup
+                value={settings?.shiftScanMode ?? "strict"}
+                onValueChange={(v) => void saveMode(v === "lenient" ? "lenient" : "strict")}
+                disabled={savingKey !== null}
+                className="space-y-2"
+              >
                 <div className="flex items-start gap-3">
                   <RadioGroupItem id="mode-strict" value="strict" aria-label="Strict" className="mt-0.5" />
                   <Label htmlFor="mode-strict" className="text-sm font-normal leading-snug">
@@ -194,11 +210,12 @@ export function ShiftSettingsCard() {
                     recorded. The person is told why.
                   </Label>
                 </div>
-                <div className="flex items-start gap-3 opacity-60">
-                  <RadioGroupItem id="mode-lenient" value="lenient" disabled aria-label="Lenient" className="mt-0.5" />
+                <div className="flex items-start gap-3">
+                  <RadioGroupItem id="mode-lenient" value="lenient" aria-label="Lenient" className="mt-0.5" />
                   <Label htmlFor="mode-lenient" className="text-sm font-normal leading-snug">
-                    <span className="font-medium text-[#0E2322]">Lenient.</span> Coming soon. For now, a check-in
-                    outside the allowed time is always refused.
+                    <span className="font-medium text-[#0E2322]">Lenient.</span> The check-in is recorded, but it does
+                    not count: it does not start or end the shift, and it does not change anyone's hours. The person
+                    is told, and you can see it under Refused check-ins.
                   </Label>
                 </div>
               </RadioGroup>
