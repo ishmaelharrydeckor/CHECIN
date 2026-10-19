@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactElement } from "react";
 import { BarChart3, Briefcase, CalendarClock, FileBarChart, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
+import { PublicHeader } from "@/components/PublicHeader";
 import { CountUp, FocusText, useScrollReveal } from "@/components/landing/Motion";
 import {
   ActivityPanel,
@@ -167,47 +168,7 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#0E2322] font-sans antialiased selection:bg-[#C0FD9B] selection:text-[#0E2322]">
-      {/* FLOATING HEADER */}
-      <header className="fixed top-3 sm:top-5 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[1140px] h-[64px] sm:h-[68px] bg-white/95 backdrop-blur-md rounded-[20px] px-4 sm:px-6 flex items-center justify-between shadow-[0_4px_25px_rgba(0,0,0,0.06)] border border-[#EBEBEB]">
-        <a href="#hero" className="flex items-center no-underline">
-          <ChecInLogo size={28} textColor="#0E2322" markColor="#0E2322" />
-        </a>
-
-        {/* Center Nav Links */}
-        <nav className="hidden md:flex items-center space-x-7 text-[15px] font-medium text-[#0E2322]">
-          <a href="#benefits" className="hover:opacity-70 transition">
-            Benefits
-          </a>
-          <a href="#why" className="hover:opacity-70 transition">
-            Why ChecIN
-          </a>
-          <a href="#capabilities" className="hover:opacity-70 transition">
-            Capabilities
-          </a>
-          <a href="#pricing" className="hover:opacity-70 transition">
-            Pricing
-          </a>
-          <a href="#faq" className="hover:opacity-70 transition">
-            FAQ
-          </a>
-        </nav>
-
-        {/* Right Action Buttons */}
-        <div className="flex items-center space-x-2.5">
-          <Link
-            to="/auth"
-            className="h-[43px] px-4 sm:px-5 rounded-[14px] border border-[#0E2322] text-[#0E2322] text-[13.5px] font-medium hover:bg-black/5 active:scale-95 transition inline-flex items-center justify-center no-underline"
-          >
-            Sign in
-          </Link>
-          <Link
-            to="/auth"
-            className="h-[43px] px-5 sm:px-6 rounded-[14px] bg-[#0E2322] text-white text-[13.5px] font-medium hover:bg-[#163331] active:scale-95 transition shadow-sm inline-flex items-center justify-center no-underline"
-          >
-            Get Started
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* HERO SECTION */}
       <section
