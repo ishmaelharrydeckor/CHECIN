@@ -556,21 +556,13 @@ function KioskPage() {
       <div className="w-full max-w-md bg-black/30 border border-white/10 rounded-2xl p-3 flex items-center justify-between text-xs text-white/60">
         <div className="flex items-center space-x-2">
           <span className={`w-2 h-2 rounded-full ${status === "live" ? "bg-emerald-400" : "bg-amber-400"}`} />
-          <span>Active Terminal ID: {locationId.slice(0, 8)}</span>
+          <span>{locationName}</span>
           {greetingOn && (
             <span className="text-white/40">
               {"\u00b7 Greeting: "}
               {liveState === "live" ? "live" : liveState === "connecting" ? "connecting" : "reconnecting"}
             </span>
           )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleUnpair}
-            className="text-[11px] px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-md transition"
-          >
-            Unpair Terminal
-          </button>
         </div>
       </div>
     </main>
