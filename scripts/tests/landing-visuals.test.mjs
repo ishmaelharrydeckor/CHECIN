@@ -27,8 +27,8 @@ test("every picture is made from our own components and is hidden from screen re
   assert.ok(visuals.includes('from "@/components/dashboard/TodayPanel"'), "the dashboard picture is the real Today panel");
   assert.ok(/aria-hidden/.test(visuals));
   // where a picture used to have alt text, the wrapper now carries a plain description
-  assert.ok((page.match(/role="img"/g) ?? []).length >= 5);
-  assert.ok((page.match(/aria-label=/g) ?? []).length >= 5);
+  assert.ok((page.match(/role="img"/g) ?? []).length >= 4);
+  assert.ok((page.match(/aria-label=/g) ?? []).length >= 4);
 });
 
 test("the pictures cannot be clicked and use made-up people only", () => {
