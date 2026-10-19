@@ -502,3 +502,258 @@ export function buildDaySummary(input: {
   }
   return { ...base, status: "pending", decidedBy: null, decidedAt: null };
 }
+
+// ================================================================ phase 2: what the routes need
+
+/** Shown before the first session; stored with its version when the person agrees. */
+export const DIARY_CONSENT_VERSION = "1";
+export const DIARY_CONSENT_TEXT =
+  "ChecIN records when you start and stop, answers to still-here checks, and counts of keyboard and mouse events inside this page. It never records what you type or see.";
+export const DIARY_RETENTION_DEFAULT_MONTHS = 12;
+export const DIARY_RETENTION_MAX_MONTHS = 60;
+/** At most 4 checks an hour for 12 hours. */
+export const DIARY_MAX_CHECKS = LIVENESS_PER_HOUR_MAX * DIARY_MAX_SESSION_HOURS;
+const CHECK_CODE = /^[0-9a-f]{12}$/;
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isRealDay(v: unknown): v is string {
+  if (typeof v !== "string" || !DAY_KEY.test(v)) return false;
+  const [y, m, d] = v.split("-").map(Number);
+  if (m < 1 || m > 12 || d < 1) return false;
+  // Days in the month, from the gap between its first day and the next month's first day.
+  const daysInMonth = (Date.UTC(y, m, 1) - Date.UTC(y, m - 1, 1)) / 86_400_000;
+  return d <= daysInMonth;
+}
+
+function isCleanId(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length > 0 && v.length <= 128 && !v.includes("/");
+}
+
+export interface DiarySettings {
+  enabled: boolean;
+  livenessPerHour: number;
+  retentionMonths: number;
+}
+
+/** The organization's diary settings, with safe defaults for anything missing or damaged. */
+export function readDiarySettings(org: unknown): DiarySettings {
+  const o = org && typeof org === "object" ? (org as Record<string, unknown>) : {};
+  const perHour = parseLivenessPerHour(o.livenessChecksPerHour);
+  return {
+    enabled: o.wfhDiaryEnabled === true,
+    livenessPerHour: perHour.ok ? perHour.value : LIVENESS_PER_HOUR_DEFAULT,
+    retentionMonths: isWholeIn(o.diaryRetentionMonths, 1, DIARY_RETENTION_MAX_MONTHS)
+      ? (o.diaryRetentionMonths as number)
+      : DIARY_RETENTION_DEFAULT_MONTHS,
+  };
+}
+
+const SETTINGS_KEYS = new Set(["wfhDiaryEnabled", "livenessChecksPerHour", "diaryRetentionMonths"]);
+
+/**
+ * The admin's diary settings change. Only these three; whether diary hours count toward overtime
+ * is a separate switch the integrator owns, so it is refused here.
+ */
+export function parseDiarySettingsInput(
+  raw: unknown,
+): Parsed<{ wfhDiaryEnabled?: boolean; livenessChecksPerHour?: number; diaryRetentionMonths?: number }> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, error: "Choose a setting to change." };
+  const r = raw as Record<string, unknown>;
+  const keys = Object.keys(r);
+  if (keys.length === 0) return { ok: false, error: "Choose a setting to change." };
+  if (keys.some((k) => !SETTINGS_KEYS.has(k))) return { ok: false, error: "This request has a field that is not allowed." };
+  const out: { wfhDiaryEnabled?: boolean; livenessChecksPerHour?: number; diaryRetentionMonths?: number } = {};
+  if ("wfhDiaryEnabled" in r) {
+    if (typeof r.wfhDiaryEnabled !== "boolean") return { ok: false, error: "Choose on or off." };
+    out.wfhDiaryEnabled = r.wfhDiaryEnabled;
+  }
+  if ("livenessChecksPerHour" in r) {
+    const p = parseLivenessPerHour(r.livenessChecksPerHour);
+    if (!p.ok || r.livenessChecksPerHour === undefined) return { ok: false, error: `Choose 0 to ${LIVENESS_PER_HOUR_MAX} checks an hour.` };
+    out.livenessChecksPerHour = p.value;
+  }
+  if ("diaryRetentionMonths" in r) {
+    if (!isWholeIn(r.diaryRetentionMonths, 1, DIARY_RETENTION_MAX_MONTHS)) {
+      return { ok: false, error: `Keep the detail for 1 to ${DIARY_RETENTION_MAX_MONTHS} months.` };
+    }
+    out.diaryRetentionMonths = r.diaryRetentionMonths;
+  }
+  return { ok: true, value: out };
+}
+
+/** One session and one day summary per person per day (pause covers breaks). */
+export function diaryDocId(employeeId: string, dayKey: string): string {
+  if (!isCleanId(employeeId) || !isRealDay(dayKey)) throw new Error("A valid person and day are required.");
+  return `${employeeId}_${dayKey}`;
+}
+
+/** One stored interval per block, so a retried report cannot create a second one. */
+export function intervalDocId(sessionId: string, index: number): string {
+  return `${sessionId}_${index}`;
+}
+
+export type DiaryRequest =
+  | { action: "consent"; version: string }
+  | { action: "start"; requestId: string }
+  | { action: "interval"; report: IntervalReport }
+  | { action: "answer"; check: number; code: string }
+  | { action: "pause" }
+  | { action: "resume" }
+  | { action: "stop" }
+  | { action: "decide"; employeeId: string; dayKey: string; decision: "approve" | "flag" };
+
+function onlyKeys(r: Record<string, unknown>, allowed: string[]): boolean {
+  return Object.keys(r).every((k) => allowed.includes(k));
+}
+
+/**
+ * Reads one POST body strictly. Nothing about who is asking, their organization or their session is
+ * accepted: the route takes those from the verified token, and the session is always the caller's own.
+ */
+export function parseDiaryAction(raw: unknown): Parsed<DiaryRequest> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, error: "Choose what to do." };
+  const r = raw as Record<string, unknown>;
+  const notAllowed = { ok: false as const, error: "This request has a field that is not allowed." };
+  switch (r.action) {
+    case "consent":
+      if (!onlyKeys(r, ["action", "version"])) return notAllowed;
+      if (r.version !== DIARY_CONSENT_VERSION) return { ok: false, error: "Please reload the page and read the latest notice." };
+      return { ok: true, value: { action: "consent", version: DIARY_CONSENT_VERSION } };
+    case "start":
+      if (!onlyKeys(r, ["action", "requestId"])) return notAllowed;
+      if (!isCleanId(r.requestId) || r.requestId.length > 64) {
+        return { ok: false, error: "Something went wrong with this request. Please reload the page and try again." };
+      }
+      return { ok: true, value: { action: "start", requestId: r.requestId } };
+    case "pause":
+    case "resume":
+    case "stop":
+      if (!onlyKeys(r, ["action"])) return notAllowed;
+      return { ok: true, value: { action: r.action } };
+    case "interval": {
+      if (!onlyKeys(r, ["action", "report"])) return notAllowed;
+      const report = parseIntervalReport(r.report);
+      if (!report.ok) return report;
+      return { ok: true, value: { action: "interval", report: report.value } };
+    }
+    case "answer":
+      if (!onlyKeys(r, ["action", "check", "code"])) return notAllowed;
+      if (!isWholeIn(r.check, 0, DIARY_MAX_CHECKS - 1) || typeof r.code !== "string" || !CHECK_CODE.test(r.code)) {
+        return { ok: false, error: "This answer is not readable." };
+      }
+      return { ok: true, value: { action: "answer", check: r.check, code: r.code } };
+    case "decide":
+      if (!onlyKeys(r, ["action", "employeeId", "dayKey", "decision"])) return notAllowed;
+      if (!isCleanId(r.employeeId)) return { ok: false, error: "Choose a person." };
+      if (!isRealDay(r.dayKey)) return { ok: false, error: "Choose a valid day." };
+      if (r.decision !== "approve" && r.decision !== "flag") return { ok: false, error: "Choose approve or flag." };
+      return { ok: true, value: { action: "decide", employeeId: r.employeeId, dayKey: r.dayKey, decision: r.decision } };
+    default:
+      return { ok: false, error: "Choose what to do." };
+  }
+}
+
+export type SessionStatus = "active" | "paused" | "ended";
+
+export interface SessionState extends DiarySession {
+  status: SessionStatus;
+}
+
+/** When the session ended (stopped, or 12 hours after it began), or null while it still runs. */
+export function sessionEndMs(session: DiarySession, nowMs: number): number | null {
+  const limit = session.startedAtMs + DIARY_MAX_SESSION_HOURS * HOUR_MS;
+  if (session.endedAtMs !== null) return Math.min(session.endedAtMs, limit);
+  return nowMs >= limit ? limit : null;
+}
+
+/** Pause, resume and stop, in the only orders that make sense. Stopping closes a running pause. */
+export function nextSessionState(session: SessionState, action: "pause" | "resume" | "stop", nowMs: number): Parsed<SessionState> {
+  if (session.status === "ended" || sessionEndMs(session, nowMs) !== null) {
+    return { ok: false, error: "This work session has already ended." };
+  }
+  const pauses = session.pauses.map((p) => ({ ...p }));
+  const open = pauses.find((p) => p.toMs === null);
+  if (action === "pause") {
+    if (open) return { ok: false, error: "The session is already paused." };
+    pauses.push({ fromMs: nowMs, toMs: null });
+    return { ok: true, value: { ...session, pauses, status: "paused" } };
+  }
+  if (action === "resume") {
+    if (!open) return { ok: false, error: "The session is not paused." };
+    open.toMs = nowMs;
+    return { ok: true, value: { ...session, pauses, status: "active" } };
+  }
+  if (open) open.toMs = nowMs;
+  return { ok: true, value: { ...session, pauses, endedAtMs: nowMs, status: "ended" } };
+}
+
+export interface IndexedCheck extends LivenessCheck {
+  index: number;
+}
+
+/**
+ * The checks the page needs to know about now: unanswered ones still open, and ones due within
+ * `horizonMs`. The rest of the day's schedule is never sent, so it cannot be planned around.
+ */
+export function upcomingChecks(checks: readonly IndexedCheck[], nowMs: number, horizonMs: number) {
+  return checks
+    .filter((c) => c.answeredAtMs === null && c.dueAtMs + LIVENESS_RESPONSE_MS >= nowMs && c.dueAtMs <= nowMs + horizonMs)
+    .map((c) => ({ index: c.index, dueAtMs: c.dueAtMs, code: c.code }));
+}
+
+export interface StoredRow extends FlagRow {
+  signatureOk: boolean;
+}
+
+/**
+ * Re-evaluates a session from what is stored: each reported block's state, the pattern flags, and
+ * how long each answered check took. Blocks after the session ended are left out.
+ */
+export function evaluateSession(input: {
+  session: DiarySession;
+  rows: readonly StoredRow[];
+  checks: readonly LivenessCheck[];
+  nowMs: number;
+}) {
+  const { session, rows, checks, nowMs } = input;
+  const end = sessionEndMs(session, nowMs);
+  const kept = [...rows]
+    .filter((r) => {
+      const w = intervalWindow(session.startedAtMs, r.index);
+      return w.endMs <= (end ?? nowMs);
+    })
+    .sort((a, b) => a.index - b.index);
+  const intervals = kept.map((r) => {
+    const window = intervalWindow(session.startedAtMs, r.index);
+    const verdict = classifyInterval({
+      window,
+      signatureOk: r.signatureOk,
+      liveness: livenessResult(window, checks, nowMs),
+      pauses: session.pauses,
+    });
+    return { index: r.index, ...verdict };
+  });
+  const answerDelaysMs = checks.filter((c) => c.answeredAtMs !== null).map((c) => (c.answeredAtMs as number) - c.dueAtMs);
+  return { intervals, flags: patternFlags(kept, answerDelaysMs), answerDelaysMs };
+}
+
+/** A manager decides their own team's days and an admin any day; nobody decides their own. */
+export function canDecideDay(caller: { uid: string; role: string | null }, day: { employeeId: string; managerId: string | null }): boolean {
+  if (!caller.uid || caller.uid === day.employeeId) return false;
+  if (caller.role === "org_admin") return true;
+  return caller.role === "manager" && day.managerId === caller.uid;
+}
+
+/** Approve or flag a day, once its session is over and no block is still waiting on a check. */
+export function decideDay(input: {
+  summary: Pick<DaySummary, "pendingMinutes" | "status">;
+  sessionOpen: boolean;
+  decision: "approve" | "flag";
+}): Parsed<{ status: DayStatus }> {
+  const { summary, sessionOpen, decision } = input;
+  if (sessionOpen) return { ok: false, error: "This person's work session is still running. Decide once it has ended." };
+  if (summary.pendingMinutes > 0) return { ok: false, error: "Some time is still waiting for a still-here answer. Try again in a few minutes." };
+  const status: DayStatus = decision === "approve" ? "approved" : "flagged";
+  if (summary.status === status) return { ok: false, error: `This day is already ${status}.` };
+  return { ok: true, value: { status } };
+}
