@@ -1,4 +1,4 @@
-# Image licences
+﻿# Image licences
 
 Every photo on the ChecIN website and in the app must have a row here **before it is merged**: where it came from, who made it, and under what licence. A test (`scripts/tests/image-licences.test.mjs`) fails the build if a photo is added to `public/images/` without an entry.
 
@@ -21,6 +21,13 @@ Downloaded on **2026-10-19** at 1600 px wide from Pexels, then resized and conve
 | `team-laptop.webp` | [women smiling at the camera](https://www.pexels.com/photo/women-smiling-at-the-camera-3894376/) (ID 3894376) | PICHA Stock | Four women in colourful outfits gathered around a laptop. | "Built for every team" |
 | `health-nurses.webp` | [group of African nurses in uniform and hijab](https://www.pexels.com/photo/group-of-african-nurses-in-uniform-and-hijab-34605560/) (ID 34605560) | Abdulkadir muhammad sani | Four nurses in matching blue uniforms and white headscarves. | Clinics and health teams |
 | `manager-tablet.webp` | [African American man speaking on phone](https://www.pexels.com/photo/african-american-man-speaking-on-phone-3965221/) (ID 3965221) | Andrea Piacquadio | A smiling man holds a tablet in one hand and a phone to his ear. | Manager with a tablet |
+
+## Our own screenshots
+Captured on 2026-10-19 from ChecIN's own screens, rendered with made-up sample people and numbers (no real customer data). Owned by us; no licence needed.
+
+| File in `public/images/product/` | What it shows | Source |
+|---|---|---|
+| `dashboard.webp` | The manager dashboard Today view: present, late, away and absent counts and the late, not-arrived and work-from-home lists. | The real Today panel with sample data |
 
 ## Our own photos
 None yet. When we take photos of our own team or a partner workplace, add a row here with the date, who took it, and where **written consent** from every identifiable person is kept.

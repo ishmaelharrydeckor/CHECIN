@@ -5,7 +5,6 @@ import { ChecInLogo } from "@/components/ChecInLogo";
 import { CountUp, useScrollReveal } from "@/components/landing/Motion";
 import {
   ActivityPanel,
-  DashboardPreview,
   DoorPairing,
   LeavePanel,
   NoticePanel,
@@ -224,7 +223,7 @@ function LandingPage() {
             aria-label="The ChecIN manager dashboard: how many people are in, late, away or absent today"
             className="landing-rise landing-rise-5 relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden"
           >
-            <DashboardPreview className="h-[460px] sm:h-[560px]" />
+            <img src="/images/product/dashboard.webp" alt="The ChecIN manager dashboard: people present, late, away and absent today, with who is late and who has not arrived" width={1600} height={875} loading="lazy" decoding="async" className="w-full h-auto block" />
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0E2322] to-transparent pointer-events-none" />
           </div>
         </div>
@@ -533,14 +532,8 @@ function LandingPage() {
         </div>
 
         <div className="max-w-4xl mx-auto relative px-4 py-8">
-          <div className="rounded-3xl border border-slate-200 shadow-2xl overflow-hidden bg-white p-2">
-            <div role="img" aria-label="The ChecIN manager dashboard on a desktop computer" className="rounded-2xl overflow-hidden">
-              <DashboardPreview className="h-[430px] sm:h-[520px]" />
-            </div>
-          </div>
-
           {/* Floating Team Chips */}
-          <div className="flex flex-wrap items-center justify-center gap-3.5 mt-8">
+          <div className="flex flex-wrap items-center justify-center gap-3.5">
             {[
               { label: "Owners & HR", color: "bg-emerald-500" },
               { label: "Team Managers", color: "bg-amber-500" },
