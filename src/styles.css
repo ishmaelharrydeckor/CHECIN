@@ -287,3 +287,14 @@
     width: 100%;
   }
 }
+
+/* The landing page's floating header is fixed, so a section reached from its menu would land underneath it. */
+#benefits,
+#why,
+#capabilities,
+#teams,
+#pricing,
+#stories,
+#faq {
+  scroll-margin-top: 6.5rem;
+}

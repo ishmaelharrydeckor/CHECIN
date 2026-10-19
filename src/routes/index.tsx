@@ -894,11 +894,6 @@ function LandingPage() {
                     Terms of Service
                   </Link>
                 </li>
-                <li>
-                  <a href="#faq" className="hover:text-white transition">
-                    Security Architecture
-                  </a>
-                </li>
               </ul>
             </div>
             <div>

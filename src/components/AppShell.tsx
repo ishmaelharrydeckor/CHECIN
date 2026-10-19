@@ -296,11 +296,28 @@ export function AppShell({ children }: { children: ReactNode }) {
         <LogOut className={`size-4 ${rail ? "" : "mr-2.5"}`} aria-hidden />
         {rail ? <span className="sr-only">Sign Out</span> : "Sign Out"}
       </Button>
+      {!rail && (
+        <p className="px-3 pt-2 text-[11px] text-slate-400">
+          <Link to="/terms" target="_blank" className="hover:text-slate-600 underline-offset-2 hover:underline">
+            Terms
+          </Link>
+          {" · "}
+          <Link to="/privacy" target="_blank" className="hover:text-slate-600 underline-offset-2 hover:underline">
+            Privacy
+          </Link>
+        </p>
+      )}
     </div>
   );
 
   return (
     <div className="min-h-screen flex w-full bg-[#F8FAFC] font-sans">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-[#0E2322] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        Skip to main content
+      </a>
       {/* Desktop sidebar */}
       <aside
         className={`hidden md:flex md:flex-col shrink-0 sticky top-0 h-screen border-r border-slate-200 bg-white transition-[width] duration-200 ${
@@ -371,7 +388,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Sheet>
 
         {/* Main Page Canvas */}
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 focus:outline-none">
+          {children}
+        </main>
       </div>
     </div>
   );
