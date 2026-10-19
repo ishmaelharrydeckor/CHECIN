@@ -66,3 +66,10 @@ test("the headline focus effect is CSS only, reads as one sentence, and stops fo
   assert.ok(/\.focus-letter\s*\{[^}]*animation:\s*none/.test(reduced), "no effect for reduced motion");
   assert.ok(motion.includes("aria-label={text}") && motion.includes("aria-hidden"), "one sentence for screen readers");
 });
+
+test("the dashboard picture rises a long way and arrives after the headline", () => {
+  assert.ok(/@keyframes landing-rise-far\s*\{[\s\S]*?translateY\(150px\)/.test(css));
+  assert.ok(/\.landing-rise-5\s*\{[^}]*animation-name:\s*landing-rise-far[^}]*--rise-delay:\s*1100ms/.test(css));
+  const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)", css.indexOf("Landing page motion")));
+  assert.ok(/\.landing-rise\s*\{[^}]*animation:\s*none/.test(reduced), "still none for reduced motion");
+});
