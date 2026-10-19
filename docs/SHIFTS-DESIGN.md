@@ -70,7 +70,13 @@ An organization can define **shifts** (Day, Early, Late, Night, Flex) and assign
 5. **Screens:** shift templates, a rota grid (week view) for admins and managers, "My shifts" for employees, the per-manager "Manage shifts" switch, the Strict / Lenient setting, the "Refused scans" tab in History, phone first.
 6. **Repeating patterns and rotations** (the alternative to filling ranges by hand), with the server keeping assignments filled ahead.
 7. **Shift swaps**, behind the organization setting.
-8. **Breaks** (fixed unpaid break per shift), behind the organization setting.
+8. **Breaks (built).** A fixed unpaid break per shift, behind the organization setting "Track breaks" (off by default; it only has an effect while shifts are on). How it works:
+   - A shift can have an **unpaid break (0 to 240 minutes)** and a **take it off only after N hours at work** limit (default 6 hours). A shift with no break is stored and copied exactly as before.
+   - The break is **copied onto each assignment with the shift** (so editing a shift later never rewrites a day already assigned), and the first scan of a shift day copies it onto that day's summary.
+   - **Reports show three figures: time at work, break and paid time.** Time at work is the scans' own minutes and is never changed. The break comes off only when the person was at work for **more than** the limit, never exceeds the time worked, and paid time is never negative. The calculation is `computePaidTime` in `src/lib/shift-breaks.ts`.
+   - The attendance register (screen, CSV and PDF) gets Break and Paid columns **only while breaks are tracked**. With breaks off, nothing about any report changes.
+   - Switching breaks off hides the figures from reports but keeps each shift's break, so switching it back on needs no re-entry. A damaged break value means no break; it never blocks a scan or loses an assignment.
+   - Not in this phase: the employee's own timesheet, analytics and the Today panel still show time at work only. Real break scans stay out of scope.
 
 ## 6. Risks and how we handle them
 | Risk | Handling |

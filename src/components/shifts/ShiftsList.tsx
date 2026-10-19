@@ -17,9 +17,11 @@ interface ShiftsListProps {
   onCreate: () => void;
   /** False for a manager who has not been allowed to manage shifts: they can look but not create. */
   canCreate?: boolean;
+  /** The organization tracks breaks, so each shift's unpaid break is shown. */
+  breaksEnabled?: boolean;
 }
 
-export function ShiftsList({ shifts, loading, error, onRetry, canEdit, onEdit, onArchive, onCreate, canCreate = true }: ShiftsListProps) {
+export function ShiftsList({ shifts, loading, error, onRetry, canEdit, onEdit, onArchive, onCreate, canCreate = true, breaksEnabled = false }: ShiftsListProps) {
   return (
     <Card className="border-border/80 shadow-sm">
       <CardHeader className="pb-3">
@@ -84,7 +86,7 @@ export function ShiftsList({ shifts, loading, error, onRetry, canEdit, onEdit, o
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{describeShiftTimes(s)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{describeShiftTimes(s, { breaks: breaksEnabled })}</p>
                 </div>
                 {!s.archived && canEdit(s) && (
                   <div className="flex shrink-0 items-center gap-1">

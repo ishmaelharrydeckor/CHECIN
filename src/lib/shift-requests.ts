@@ -38,12 +38,15 @@ export interface ShiftSettings {
   shiftsEnabled: boolean;
   shiftScanMode: ScanMode;
   shiftWindowMinutes: number;
+  /** Reports show time at work, break and paid time. Off by default (docs/SHIFTS-DESIGN.md). */
+  breaksEnabled: boolean;
 }
 
 export const DEFAULT_SHIFT_SETTINGS: ShiftSettings = {
   shiftsEnabled: false,
   shiftScanMode: "strict",
   shiftWindowMinutes: DEFAULT_WINDOW_MINUTES,
+  breaksEnabled: false,
 };
 
 /** Reads what is saved on the organization; anything missing or wrong falls back to the default for that field. */
@@ -69,10 +72,14 @@ export function readShiftSettings(orgData: unknown): ShiftSettings {
       ? r.shiftWindowMinutes
       : DEFAULT_SHIFT_SETTINGS.shiftWindowMinutes;
 
+  const breaksEnabled =
+    typeof r.breaksEnabled === "boolean" ? r.breaksEnabled : DEFAULT_SHIFT_SETTINGS.breaksEnabled;
+
   return {
     shiftsEnabled,
     shiftScanMode,
     shiftWindowMinutes,
+    breaksEnabled,
   };
 }
 
@@ -113,6 +120,13 @@ export function parseSettingsInput(
       };
     }
     value.shiftWindowMinutes = r.shiftWindowMinutes;
+  }
+
+  if (r.breaksEnabled !== undefined) {
+    if (typeof r.breaksEnabled !== "boolean") {
+      return { ok: false, error: "The breaks switch must be true or false." };
+    }
+    value.breaksEnabled = r.breaksEnabled;
   }
 
   if (Object.keys(value).length === 0) {
@@ -327,5 +341,12 @@ export function snapshotFromShiftDoc(id: string, doc: unknown): ShiftSnapshot | 
     end: parsed.value.end,
     graceMinutes: parsed.value.graceMinutes,
     expectedMinutes: parsed.value.expectedMinutes,
+    // Copied with the shift, so editing a shift's break later never rewrites a day already assigned.
+    ...(parsed.value.unpaidBreakMinutes !== undefined
+      ? {
+          unpaidBreakMinutes: parsed.value.unpaidBreakMinutes,
+          deductAfterMinutes: parsed.value.deductAfterMinutes,
+        }
+      : {}),
   };
 }

@@ -39,6 +39,8 @@ function ShiftsPage() {
   const canView = isOrgAdmin || isManager;
 
   const [shifts, setShifts] = useState<ShiftRow[] | null>(null);
+  // Whether the organization tracks breaks: the shift form then asks for an unpaid break.
+  const [breaksEnabled, setBreaksEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -57,7 +59,7 @@ function ShiftsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await authedFetch<{ shifts: ShiftRow[] }>(
+    const result = await authedFetch<{ shifts: ShiftRow[]; breaksEnabled?: boolean }>(
       `/api/shifts${showArchived && isOrgAdmin ? "?archived=1" : ""}`,
     );
     setLoading(false);
@@ -66,6 +68,7 @@ function ShiftsPage() {
       return;
     }
     setShifts(result.data.shifts);
+    setBreaksEnabled(result.data.breaksEnabled === true);
   }, [showArchived, isOrgAdmin]);
 
   useEffect(() => {
@@ -121,6 +124,7 @@ function ShiftsPage() {
         onArchive={setArchiving}
         onCreate={openCreate}
         canCreate={canManageShifts}
+        breaksEnabled={breaksEnabled}
       />
     </div>
   );
@@ -177,7 +181,13 @@ function ShiftsPage() {
         )}
       </Tabs>
 
-      <ShiftFormDialog open={formOpen} onOpenChange={setFormOpen} editing={editing} onSaved={() => void load()} />
+      <ShiftFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        editing={editing}
+        breaksEnabled={breaksEnabled}
+        onSaved={() => void load()}
+      />
 
       <AlertDialog open={archiving !== null} onOpenChange={(open) => !archiveBusy && !open && setArchiving(null)}>
         <AlertDialogContent>

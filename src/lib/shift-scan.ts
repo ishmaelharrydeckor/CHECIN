@@ -196,6 +196,15 @@ export function assignmentFromDoc(
     return null;
   }
 
+  // A damaged break value must never stop a scan or lose a person's assignment: it just means no break.
+  const breakFields = (() => {
+    const b = s.unpaidBreakMinutes;
+    if (typeof b !== "number" || !Number.isInteger(b) || b <= 0 || b > 240) return {};
+    const a = s.deductAfterMinutes;
+    const after = typeof a === "number" && Number.isInteger(a) && a >= 0 && a <= 720 ? a : 360;
+    return { unpaidBreakMinutes: b, deductAfterMinutes: after };
+  })();
+
   if (s.type === "flex") {
     const expectedMinutes =
       typeof s.expectedMinutes === "number" && Number.isFinite(s.expectedMinutes)
@@ -211,6 +220,7 @@ export function assignmentFromDoc(
         end: null,
         graceMinutes,
         expectedMinutes,
+        ...breakFields,
       },
     };
   }
@@ -228,6 +238,7 @@ export function assignmentFromDoc(
       end: s.end,
       graceMinutes,
       expectedMinutes: null,
+      ...breakFields,
     },
   };
 }

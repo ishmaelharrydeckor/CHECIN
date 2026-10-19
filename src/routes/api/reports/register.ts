@@ -68,6 +68,7 @@ export const Route = createFileRoute("/api/reports/register")({
                 readTruncated: summaries.truncated || leave.truncated || shiftResult.truncated || wfhRead.truncated,
                 shifts: shiftData,
                 wfh: wfhRead.days,
+                breaks: shifts.shiftsEnabled && shifts.breaksEnabled,
               });
               return Response.json(
                 { ok: true, report: register },
@@ -103,6 +104,7 @@ export const Route = createFileRoute("/api/reports/register")({
             to: range.to,
             readTruncated: summaries.truncated || leave.truncated || wfhRead.truncated,
             wfh: wfhRead.days,
+            breaks: shifts.shiftsEnabled && shifts.breaksEnabled,
           });
           return Response.json(
             { ok: true, report: register },

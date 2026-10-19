@@ -4,6 +4,8 @@ import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { MAX_ACTIVE_SHIFTS, parseShiftInput } from "@/lib/shift-requests";
 import { canCallerEditShift, canCallerManageShifts } from "@/lib/shift-access.server";
+import { DEFAULT_DEDUCT_AFTER_MINUTES } from "@/lib/shift-breaks";
+import { readShiftSettings } from "@/lib/shift-requests";
 
 function formatShiftRow(id: string, data: Record<string, unknown>) {
   return {
@@ -14,6 +16,9 @@ function formatShiftRow(id: string, data: Record<string, unknown>) {
     end: typeof data.end === "string" ? data.end : null,
     graceMinutes: typeof data.graceMinutes === "number" ? data.graceMinutes : 0,
     expectedMinutes: typeof data.expectedMinutes === "number" ? data.expectedMinutes : null,
+    unpaidBreakMinutes: typeof data.unpaidBreakMinutes === "number" ? data.unpaidBreakMinutes : 0,
+    deductAfterMinutes:
+      typeof data.deductAfterMinutes === "number" ? data.deductAfterMinutes : DEFAULT_DEDUCT_AFTER_MINUTES,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : null,
     archived: data.archived === true,
   };
@@ -69,7 +74,10 @@ export const Route = createFileRoute("/api/shifts/")({
             formatShiftRow(doc.id, doc.data()),
           );
 
-          return Response.json({ ok: true, shifts });
+          const orgSnap = await firestoreAdmin.collection("organizations").doc(orgId).get();
+          const breaksEnabled = readShiftSettings(orgSnap.exists ? orgSnap.data() : undefined).breaksEnabled;
+
+          return Response.json({ ok: true, shifts, breaksEnabled });
         } catch (err) {
           console.error("GET /api/shifts error:", err);
           return Response.json({ error: "Could not load shifts." }, { status: 500 });
@@ -130,6 +138,8 @@ export const Route = createFileRoute("/api/shifts/")({
           const record = {
             orgId,
             ...parsed.value,
+            unpaidBreakMinutes: parsed.value.unpaidBreakMinutes ?? 0,
+            deductAfterMinutes: parsed.value.deductAfterMinutes ?? DEFAULT_DEDUCT_AFTER_MINUTES,
             createdBy: caller.uid,
             createdAt: now,
             updatedAt: now,
@@ -213,6 +223,9 @@ export const Route = createFileRoute("/api/shifts/")({
           await ref.set(
             {
               ...parsed.value,
+              // Always written, so taking a break off a shift replaces the old one (this write merges).
+              unpaidBreakMinutes: parsed.value.unpaidBreakMinutes ?? 0,
+              deductAfterMinutes: parsed.value.deductAfterMinutes ?? DEFAULT_DEDUCT_AFTER_MINUTES,
               updatedAt,
             },
             { merge: true },
@@ -232,6 +245,8 @@ export const Route = createFileRoute("/api/shifts/")({
             shift: formatShiftRow(shiftId, {
               ...existing,
               ...parsed.value,
+              unpaidBreakMinutes: parsed.value.unpaidBreakMinutes ?? 0,
+              deductAfterMinutes: parsed.value.deductAfterMinutes ?? DEFAULT_DEDUCT_AFTER_MINUTES,
               updatedAt,
             }),
           });

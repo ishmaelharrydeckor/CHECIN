@@ -115,7 +115,7 @@ export function AttendanceRegisterReport({
                     {k.slice(8)}
                   </th>
                 ))}
-                {["Present", "Late", "Absent", "Leave", "Hours"].map((h) => (
+                {["Present", "Late", "Absent", "Leave", "Hours", ...(data?.breaksTracked ? ["Break", "Paid"] : [])].map((h) => (
                   <th key={h} className="bg-slate-50 px-2 py-2 text-center font-semibold">
                     {h}
                   </th>
@@ -155,6 +155,14 @@ export function AttendanceRegisterReport({
                   <td className="border-t border-slate-100 px-2 text-center font-medium">
                     {formatHours(r.totals.minutesWorked)}
                   </td>
+                  {data?.breaksTracked && (
+                    <>
+                      <td className="border-t border-slate-100 px-2 text-center">{formatHours(r.totals.breakMinutes ?? 0)}</td>
+                      <td className="border-t border-slate-100 px-2 text-center font-medium">
+                        {formatHours(r.totals.paidMinutes ?? 0)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -174,9 +182,16 @@ export function AttendanceRegisterReport({
                     <p className="text-sm font-semibold text-[#0E2322] break-words">{r.name}</p>
                     <p className="text-xs text-muted-foreground break-words">{r.department}</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-[#0E2322]">
-                    {formatHours(r.totals.minutesWorked)} <span className="text-xs font-normal text-muted-foreground">hrs</span>
-                  </p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-[#0E2322]">
+                      {formatHours(r.totals.minutesWorked)} <span className="text-xs font-normal text-muted-foreground">hrs</span>
+                    </p>
+                    {data?.breaksTracked && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Break {formatHours(r.totals.breakMinutes ?? 0)} · Paid {formatHours(r.totals.paidMinutes ?? 0)}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <dl className="mt-2 grid grid-cols-4 gap-1 text-center">
                   {(

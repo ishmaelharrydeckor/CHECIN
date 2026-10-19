@@ -8,6 +8,7 @@
  */
 import { dayKey, formatClock } from "./attendance-day.ts";
 import { addDays, startOfDayMs, weekdayIndex } from "./attendance-today.ts";
+import { parseBreakSettings } from "./shift-breaks.ts";
 
 export type ShiftType = "day" | "early" | "late" | "night" | "flex";
 export const SHIFT_TYPES: readonly ShiftType[] = ["day", "early", "late", "night", "flex"];
@@ -27,6 +28,13 @@ export interface ShiftSnapshot {
   end: string | null; // "HH:MM"; null for flex
   graceMinutes: number; // whole minutes, 0 or more
   expectedMinutes: number | null; // flex only
+  /**
+   * A fixed unpaid break in minutes, taken off only when the person was at work for MORE than
+   * `deductAfterMinutes` (docs/SHIFTS-DESIGN.md, breaks). Present only when a break is set, so shifts
+   * without one look exactly as they did before.
+   */
+  unpaidBreakMinutes?: number;
+  deductAfterMinutes?: number;
 }
 
 export interface ShiftAssignment {
@@ -54,6 +62,13 @@ export interface ParsedShiftValue {
   end: string | null;
   graceMinutes: number;
   expectedMinutes: number | null;
+  /**
+   * A fixed unpaid break in minutes, taken off only when the person was at work for MORE than
+   * `deductAfterMinutes` (docs/SHIFTS-DESIGN.md, breaks). Present only when a break is set, so shifts
+   * without one look exactly as they did before.
+   */
+  unpaidBreakMinutes?: number;
+  deductAfterMinutes?: number;
 }
 
 export type ParseShiftResult =
@@ -229,6 +244,20 @@ export function parseShiftInput(raw: unknown): ParseShiftResult {
   }
   const graceMinutes = rawGrace;
 
+  // The optional unpaid break. Anything missing means no break; a bad number is explained in plain words.
+  const breakCheck = parseBreakSettings({
+    unpaidBreakMinutes: r.unpaidBreakMinutes,
+    deductAfterMinutes: r.deductAfterMinutes,
+  });
+  if (!breakCheck.ok) return { ok: false, error: breakCheck.error };
+  const breakFields =
+    breakCheck.value.unpaidBreakMinutes > 0
+      ? {
+          unpaidBreakMinutes: breakCheck.value.unpaidBreakMinutes,
+          deductAfterMinutes: breakCheck.value.deductAfterMinutes,
+        }
+      : {};
+
   if (type === "flex") {
     if (
       typeof r.expectedMinutes !== "number" ||
@@ -250,6 +279,7 @@ export function parseShiftInput(raw: unknown): ParseShiftResult {
         end: null,
         graceMinutes,
         expectedMinutes: r.expectedMinutes,
+        ...breakFields,
       },
     };
   }
@@ -276,6 +306,7 @@ export function parseShiftInput(raw: unknown): ParseShiftResult {
       end: r.end,
       graceMinutes,
       expectedMinutes: null,
+      ...breakFields,
     },
   };
 }

@@ -33,7 +33,8 @@ export function describeShiftTimes(shift: {
   end: string | null;
   expectedMinutes: number | null;
   graceMinutes: number;
-}): string {
+  unpaidBreakMinutes?: number;
+}, options: { breaks?: boolean } = {}): string {
   let base: string;
   if (shift.type === "flex") {
     const hours = expectedMinutesToHours(shift.expectedMinutes);
@@ -45,7 +46,10 @@ export function describeShiftTimes(shift: {
     base = "Times not set";
   }
   const grace = Number.isFinite(shift.graceMinutes) ? Math.floor(shift.graceMinutes) : 0;
-  return grace > 0 ? `${base}, ${plural(grace, "minute", "minutes")} grace` : base;
+  const withGrace = grace > 0 ? `${base}, ${plural(grace, "minute", "minutes")} grace` : base;
+  // The unpaid break is mentioned only while the organization tracks breaks.
+  const brk = options.breaks && Number.isFinite(shift.unpaidBreakMinutes) ? Math.floor(shift.unpaidBreakMinutes ?? 0) : 0;
+  return brk > 0 ? `${withGrace}, ${plural(brk, "minute", "minutes")} unpaid break` : withGrace;
 }
 
 /** The allowed-time box: a whole number from 30 to 240, with a plain sentence when it is not. */

@@ -20,6 +20,7 @@ import { dayKey, formatClock } from "./attendance-day.ts";
 import { addDays, weekdayIndex } from "./attendance-today.ts";
 import { LEAVE_TYPE_LABELS, countDays, isLeaveType } from "./leave.ts";
 import { shiftDayStatus, type ShiftSnapshot } from "./shift-engine.ts";
+import { DEFAULT_DEDUCT_AFTER_MINUTES, computePaidTime } from "./shift-breaks.ts";
 import type {
   AttendanceRegister,
   LeaveLedger,
@@ -77,6 +78,9 @@ export interface ReportSummary {
   late?: unknown;
   lateExcused?: unknown;
   earlyDeparture?: unknown;
+  /** The shift's fixed unpaid break, copied onto the day (see daily-summary.ts). */
+  shiftUnpaidBreakMinutes?: unknown;
+  shiftDeductAfterMinutes?: unknown;
 }
 
 export interface ReportLeave {
@@ -105,8 +109,24 @@ function clock(v: unknown, timezone: string): string | null {
 
 const isDay = (v: unknown): v is string => typeof v === "string" && DAY_RE.test(v);
 
-function presentDay(d: string, s: ReportSummary, timezone: string): RegisterDay {
+/**
+ * Time at work, the break and paid time for one day. The minutes from the scans are never changed: the
+ * break is worked out beside them (src/lib/shift-breaks.ts). A damaged or missing break means no break.
+ */
+function breakFigures(s: ReportSummary, worked: number): { breakMinutes: number; paidMinutes: number } {
+  const b = s.shiftUnpaidBreakMinutes;
+  const a = s.shiftDeductAfterMinutes;
+  const unpaidBreakMinutes = typeof b === "number" && Number.isInteger(b) && b >= 0 && b <= 240 ? b : 0;
+  const deductAfterMinutes =
+    typeof a === "number" && Number.isInteger(a) && a >= 0 && a <= 720 ? a : DEFAULT_DEDUCT_AFTER_MINUTES;
+  const r = computePaidTime({ workedMinutes: worked, unpaidBreakMinutes, deductAfterMinutes });
+  return { breakMinutes: r.breakMinutes, paidMinutes: r.paidMinutes };
+}
+
+function presentDay(d: string, s: ReportSummary, timezone: string, breaks = false): RegisterDay {
+  const worked = typeof s.minutesWorked === "number" && s.minutesWorked > 0 ? Math.round(s.minutesWorked) : 0;
   return {
+    ...(breaks ? breakFigures(s, worked) : {}),
     dayKey: d,
     status: "present",
     firstIn: clock(s.firstIn, timezone),
@@ -115,6 +135,13 @@ function presentDay(d: string, s: ReportSummary, timezone: string): RegisterDay 
     late: s.late === true && s.lateExcused !== true,
     lateExcused: s.late === true && s.lateExcused === true,
     earlyDeparture: s.earlyDeparture === true,
+  };
+}
+
+function breakTotals(days: readonly RegisterDay[]): { breakMinutes: number; paidMinutes: number } {
+  return {
+    breakMinutes: days.reduce((n, x) => n + (x.breakMinutes ?? 0), 0),
+    paidMinutes: days.reduce((n, x) => n + (x.paidMinutes ?? 0), 0),
   };
 }
 
@@ -130,6 +157,8 @@ export function buildAttendanceRegister(input: {
   to: string;
   /** Self-declared work-from-home days (docs/WFH-DESIGN.md). A scan or approved leave on the same day wins. */
   wfh?: readonly { employeeId: string; dayKey: string }[];
+  /** The organization tracks breaks: add break and paid-time figures. Time at work is never changed. */
+  breaks?: boolean;
   /** True if a read stopped at its safety cap, so the report may be missing people or days. */
   readTruncated?: boolean;
   shifts?: {
@@ -138,6 +167,7 @@ export function buildAttendanceRegister(input: {
   };
 }): AttendanceRegister {
   const { days, timezone } = input;
+  const breaks = input.breaks === true;
   const holiday = new Set(input.holidays);
 
   const byPerson = new Map<string, Map<string, ReportSummary>>();
@@ -177,7 +207,7 @@ export function buildAttendanceRegister(input: {
     const leave = leavesByPerson.get(p.uid) ?? [];
     const outDays: RegisterDay[] = days.map((d): RegisterDay => {
       const s = mine?.get(d);
-      if (s) return presentDay(d, s, timezone);
+      if (s) return presentDay(d, s, timezone, breaks);
       const blank = { dayKey: d, firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
       if (leave.some((l) => l.start <= d && d <= l.end)) return { ...blank, status: "leave" };
       // Declared work from home counts as attended (no hours are recorded for it).
@@ -220,6 +250,7 @@ export function buildAttendanceRegister(input: {
         leaveDays: count((x) => x.status === "leave"),
         wfhDays: count((x) => x.status === "wfh"),
         minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
+        ...(breaks ? breakTotals(outDays) : {}),
       },
     };
   });
@@ -239,7 +270,7 @@ export function buildAttendanceRegister(input: {
     }
     const outDays: RegisterDay[] = days.map((d): RegisterDay => {
       const s = mine.get(d);
-      if (s) return presentDay(d, s, timezone);
+      if (s) return presentDay(d, s, timezone, breaks);
       return { dayKey: d, status: "other", firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
     });
     former.push({
@@ -254,6 +285,7 @@ export function buildAttendanceRegister(input: {
         leaveDays: 0,
         wfhDays: 0,
         minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
+        ...(breaks ? breakTotals(outDays) : {}),
       },
     });
   }
@@ -266,6 +298,7 @@ export function buildAttendanceRegister(input: {
     timezone,
     generatedAt: input.generatedAt,
     rows: [...rows, ...former.slice(0, room)],
+    ...(breaks ? { breaksTracked: true } : {}),
     truncated: input.readTruncated === true || people.length > REPORT_ROW_CAP || former.length > room,
   };
 }

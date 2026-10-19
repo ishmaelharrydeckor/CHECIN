@@ -284,6 +284,12 @@ export const Route = createFileRoute("/api/check-in/scan")({
                     shiftName: plan.shift.name,
                     shiftStart: plan.shift.start,
                     shiftEnd: plan.shift.end,
+                    ...(plan.shift.unpaidBreakMinutes !== undefined
+                      ? {
+                          shiftUnpaidBreakMinutes: plan.shift.unpaidBreakMinutes,
+                          shiftDeductAfterMinutes: plan.shift.deductAfterMinutes,
+                        }
+                      : {}),
                   }
                 : {}),
             };
