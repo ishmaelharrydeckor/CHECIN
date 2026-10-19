@@ -8,6 +8,8 @@ import { dayKey } from "@/lib/attendance-day";
 import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
 import { formatClock, type TodaySummaryData } from "@/lib/attendance-today";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
+import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
+import { buildSetupSteps, setupHiddenKey, setupProgress, type SetupLocation } from "@/lib/setup-checklist";
 import { AnalyticsSection } from "@/components/analytics/AnalyticsSection";
 import { DEFAULT_DEPARTMENT } from "@/lib/departments";
 import {
@@ -63,6 +65,9 @@ interface AttendanceRecord {
 
 function DashboardPage() {
   const { user, orgId, isOrgAdmin, isManager, refreshClaims } = useAuth();
+  // Setup checklist (organization admins of a new organization): what exists so far, and whether it was hidden.
+  const [setupLocations, setSetupLocations] = useState<SetupLocation[] | null>(null);
+  const [setupHidden, setSetupHidden] = useState(false);
   const [orgName, setOrgName] = useState<string>("My Organization");
   const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
@@ -146,6 +151,27 @@ function DashboardPage() {
     await fetchToday(true);
   };
 
+  useEffect(() => {
+    if (!orgId) return;
+    try {
+      setSetupHidden(localStorage.getItem(setupHiddenKey(orgId)) === "1");
+    } catch {
+      // Private window or blocked storage: the card just shows.
+    }
+  }, [orgId]);
+
+  const hideSetup = () => {
+    setSetupHidden(true);
+    try {
+      if (orgId) localStorage.setItem(setupHiddenKey(orgId), "1");
+    } catch {
+      // Not saved, so it comes back next visit. Harmless.
+    }
+  };
+
+  const setupSteps = setupLocations ? buildSetupSteps({ locations: setupLocations, headcount: totalHeadcount }) : null;
+  const showSetup = Boolean(isOrgAdmin && setupSteps && !setupHidden && !setupProgress(setupSteps).complete);
+
   const fetchOrgAndStaff = async () => {
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
@@ -168,6 +194,17 @@ function DashboardPage() {
           setTotalHeadcount(staffData.totalHeadcount ?? 1);
           const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
           setPendingInvitesCount(pending);
+        }
+      }
+
+      // 3. Entrances and their tablets, for the setup checklist. Only admins can act on it, so only they ask.
+      if (isOrgAdmin) {
+        const locRes = await fetch("/api/locations", { headers });
+        if (locRes.ok) {
+          const locData = await locRes.json();
+          if (locData.ok && Array.isArray(locData.locations)) {
+            setSetupLocations(locData.locations.map((l: { isPaired?: boolean }) => ({ isPaired: l.isPaired === true })));
+          }
         }
       }
 
@@ -413,13 +450,25 @@ function DashboardPage() {
                 handleResetForAnotherInvite();
                 setInviteModalOpen(true);
               }}
-              className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-[13px] font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>Invite staff member</span>
             </button>
           )}
       </div>
+
+      {/* New organizations: what is left to set up. Gone for good once all three steps are done. */}
+      {showSetup && setupSteps && (
+        <SetupChecklist
+          steps={setupSteps}
+          onInvite={() => {
+            handleResetForAnotherInvite();
+            setInviteModalOpen(true);
+          }}
+          onHide={hideSetup}
+        />
+      )}
 
       {/* Today: counts, live activity, and the late and not-arrived lists. Every figure comes from
           /api/attendance/today (the same answer as the tiles above), so nothing here can disagree. */}
@@ -441,7 +490,7 @@ function DashboardPage() {
             <h2 className="text-base font-bold text-[#0E2322]">
               Today's check-ins
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-[13px] text-slate-500 mt-0.5">
               {today
                 ? `${todayLabel} · times in your organization's timezone · updated ${formatClock(today.generatedAt, today.timezone)}`
                 : "Loading today's activity…"}
@@ -462,11 +511,11 @@ function DashboardPage() {
                 placeholder="Search staff, email, team..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0E2322] w-52"
+                className="pl-8 pr-3 py-1.5 text-[13px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0E2322] w-52"
               />
             </div>
 
-            <div className="flex rounded-xl bg-slate-100 p-0.5 text-xs">
+            <div className="flex rounded-xl bg-slate-100 p-0.5 text-[13px]">
               <button
                 onClick={() => setStatusFilter("all")}
                 className={`px-3 py-1 rounded-lg font-medium transition ${
@@ -495,7 +544,7 @@ function DashboardPage() {
             <button
               type="button"
               onClick={handleExportCsv}
-              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-semibold transition text-slate-700 flex items-center gap-1.5 cursor-pointer"
               title="Download today's check-ins as a spreadsheet file"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -506,8 +555,8 @@ function DashboardPage() {
 
         {/* Table Body */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50/70 text-slate-500 uppercase text-[11px] font-semibold border-b border-slate-200">
+          <table className="w-full text-left text-[13px] sm:text-sm">
+            <thead className="bg-slate-50/70 text-slate-500 uppercase text-xs font-semibold border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3.5">Employee</th>
                 <th className="px-6 py-3.5">Department</th>
@@ -533,7 +582,7 @@ function DashboardPage() {
                               ? "No Matching Attendance Records"
                               : "No check-ins yet today"}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 text-center">
+                      <p className="text-[13px] text-slate-400 mt-1 text-center">
                         {!today
                           ? todayError || "One moment."
                           : searchQuery || statusFilter !== "all"
@@ -546,7 +595,7 @@ function DashboardPage() {
                             handleResetForAnotherInvite();
                             setInviteModalOpen(true);
                           }}
-                          className="mt-3.5 px-3.5 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs cursor-pointer flex items-center space-x-1.5"
+                          className="mt-3.5 px-3.5 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-[13px] font-bold hover:bg-[#163331] transition shadow-xs cursor-pointer flex items-center space-x-1.5"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                           <span>Invite your first staff member</span>
@@ -559,23 +608,23 @@ function DashboardPage() {
                 filteredActivities.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/80 transition">
                     <td className="px-6 py-3.5 flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-xs shadow-xs">
+                      <div className="w-9 h-9 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-[13px] shadow-xs">
                         {item.initials}
                       </div>
                       <div>
                         <div className="font-bold text-slate-900">{item.name}</div>
-                        <div className="text-[11px] text-slate-400">{item.email}</div>
+                        <div className="text-[13px] text-slate-400">{item.email}</div>
                       </div>
                     </td>
                     <td className="px-6 py-3.5 text-slate-600">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[13px]">
                         {item.department}
                       </span>
                     </td>
                     {showLocationColumn && <td className="px-6 py-3.5 text-slate-600">{item.location}</td>}
                     <td className="px-6 py-3.5">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[13px] font-semibold ${
                           item.type === "in"
                             ? "bg-[#CBEED3] text-[#0E2322]"
                             : "bg-slate-100 text-slate-700"
@@ -589,17 +638,17 @@ function DashboardPage() {
                         {item.type === "in" ? "Clocked IN" : "Clocked OUT"}
                       </span>
                       {item.late && (
-                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
                           Late
                         </span>
                       )}
                       {item.lateExcused && (
-                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#CBEED3] text-[#0E2322]">
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-[#CBEED3] text-[#0E2322]">
                           Late, excused
                         </span>
                       )}
                       {item.earlyDeparture && (
-                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
                           Early departure
                         </span>
                       )}
@@ -613,7 +662,7 @@ function DashboardPage() {
         </div>
 
         {today && today.eventsTotal > 0 && (
-          <div className="px-6 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <div className="px-6 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[13px] text-slate-500">
             <span>
               {today.eventsTotal > feedRows.length
                 ? `Showing the latest ${feedRows.length} of ${today.eventsTotal} events today.`
@@ -643,19 +692,19 @@ function DashboardPage() {
                     14-Day Expiry
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-[13px] text-slate-500 mb-4">
                   Generates an email-bound, single-use invitation token per AGENTS.md security spec.
                 </p>
 
                 {inviteError && (
-                  <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                  <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-[13px] text-rose-700">
                     {inviteError}
                   </div>
                 )}
 
                 <form onSubmit={handleGenerateInvite} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       Staff Email Address
                     </label>
                     <input
@@ -669,7 +718,7 @@ function DashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       Assigned Role
                     </label>
                     <select
@@ -685,7 +734,7 @@ function DashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       Department
                     </label>
                     <select
@@ -705,14 +754,14 @@ function DashboardPage() {
                     <button
                       type="button"
                       onClick={handleCloseInviteModal}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={generatingInvite || !inviteEmail.trim()}
-                      className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition cursor-pointer disabled:opacity-50"
+                      className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-[13px] font-bold hover:bg-[#163331] transition cursor-pointer disabled:opacity-50"
                     >
                       {generatingInvite ? "Generating Link..." : "Create Single-Use Invite"}
                     </button>
@@ -723,13 +772,13 @@ function DashboardPage() {
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 text-emerald-700 bg-emerald-50 p-3 rounded-2xl border border-emerald-200">
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-                  <div className="text-xs font-semibold">
+                  <div className="text-[13px] font-semibold">
                     Single-use invite link created for <strong className="text-emerald-950 font-bold">{inviteEmail}</strong>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">
                     Invitation URL (Single-Use, Bound to Email)
                   </label>
                   <div className="flex items-center gap-2">
@@ -737,12 +786,12 @@ function DashboardPage() {
                       type="text"
                       readOnly
                       value={generatedInviteUrl}
-                      className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none select-all text-slate-800"
+                      className="flex-1 px-3 py-2 text-[13px] font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none select-all text-slate-800"
                     />
                     <button
                       type="button"
                       onClick={handleCopyGeneratedUrl}
-                      className="px-3 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition flex items-center space-x-1 cursor-pointer shrink-0"
+                      className="px-3 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-[13px] font-bold transition flex items-center space-x-1 cursor-pointer shrink-0"
                     >
                       {inviteCopied ? (
                         <>
@@ -759,7 +808,7 @@ function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 leading-relaxed">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[13px] text-slate-600 leading-relaxed">
                   <strong className="text-slate-900 font-semibold">How it works:</strong> Share this URL with your colleague. When they click it, they will sign in with Google or their email address to activate their {inviteRole} account and bind to <strong className="text-slate-900 font-semibold">{orgName}</strong>.
                 </div>
 
@@ -767,14 +816,14 @@ function DashboardPage() {
                   <button
                     type="button"
                     onClick={handleResetForAnotherInvite}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     + Invite Another Member
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseInviteModal}
-                    className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-white text-xs font-bold hover:bg-[#163331] transition cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-white text-[13px] font-bold hover:bg-[#163331] transition cursor-pointer"
                   >
                     Done
                   </button>

@@ -57,12 +57,12 @@ export function AnalyticsPanel({ data, loading, error, period, onPeriodChange, o
       />
 
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[13px] text-destructive">
           {error}
         </p>
       )}
       {data.truncated && (
-        <p role="status" className="text-xs font-semibold text-amber-800">
+        <p role="status" className="text-[13px] font-semibold text-amber-800">
           Showing partial results. Choose a shorter period.
         </p>
       )}
@@ -74,7 +74,7 @@ export function AnalyticsPanel({ data, loading, error, period, onPeriodChange, o
           <CardContent className="py-12 text-center space-y-3">
             <CalendarDays className="size-8 mx-auto text-muted-foreground/60" />
             <p className="text-sm font-medium text-[#0E2322]">No check-ins in this period</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[13px] text-muted-foreground">
               The chart and department figures appear once people start checking in. You can also try a longer
               period.
             </p>
@@ -109,8 +109,8 @@ function PanelHeader({
     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
       <div className="min-w-0">
         <h2 className="text-base font-bold text-[#0E2322]">Attendance analytics</h2>
-        <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <p className="text-[13px] text-slate-500 mt-0.5">{subtitle}</p>
+        <p className="text-[13px] text-slate-500 mt-0.5">
           Work from home counts as attended. Hours exclude work-from-home days.
         </p>
       </div>
@@ -125,7 +125,7 @@ function PanelHeader({
             disabled={disabled}
             aria-pressed={period === p.key}
             className={
-              period === p.key ? "bg-[#0E2322] hover:bg-[#163331] text-white text-xs" : "border-slate-200 text-xs"
+              period === p.key ? "bg-[#0E2322] hover:bg-[#163331] text-white text-[13px]" : "border-slate-200 text-[13px]"
             }
           >
             {p.label}
@@ -193,7 +193,7 @@ function AnalyticsUnavailable({
             {message ?? "The figures aren't available yet."}
           </p>
           {onRefresh && (
-            <Button type="button" variant="outline" size="sm" onClick={onRefresh} className="text-xs">
+            <Button type="button" variant="outline" size="sm" onClick={onRefresh} className="text-[13px]">
               Try again
             </Button>
           )}

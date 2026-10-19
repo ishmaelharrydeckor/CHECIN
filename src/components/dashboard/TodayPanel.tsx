@@ -80,7 +80,7 @@ export function TodayPanel({
       />
 
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-[13px] text-destructive">
           {error}
         </p>
       )}
@@ -137,7 +137,7 @@ export function TodayPanel({
         <Card className="border-border/80 shadow-sm lg:col-span-7">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Live activity</CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-[13px]">
               {activityNote}
               {data.truncated ? " Very busy day: some events may not be counted." : ""}
             </CardDescription>
@@ -147,7 +147,7 @@ export function TodayPanel({
               <div className="py-12 text-center space-y-3">
                 <Clock className="size-8 mx-auto text-muted-foreground/60" />
                 <p className="text-sm font-medium text-[#0E2322]">No check-ins yet today</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[13px] text-muted-foreground">
                   When people check in or out, they will appear here.
                 </p>
               </div>
@@ -159,7 +159,7 @@ export function TodayPanel({
                   ))}
                 </ul>
                 <div className="pt-3 mt-1 border-t border-border/70 text-right">
-                  <Link to="/history" className="text-xs font-semibold text-[#0E2322] hover:underline">
+                  <Link to="/history" className="text-[13px] font-semibold text-[#0E2322] hover:underline">
                     View full history →
                   </Link>
                 </div>
@@ -177,7 +177,7 @@ export function TodayPanel({
             <Card id="late-today" className="scroll-mt-20 border-border/80 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-semibold">Late today</CardTitle>
-                <CardDescription className="text-xs">
+                <CardDescription className="text-[13px]">
                   {data.late.length === 0
                     ? "No late arrivals so far."
                     : data.late.length > lateShown.length
@@ -195,10 +195,10 @@ export function TodayPanel({
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-[#0E2322] truncate">{person.name}</p>
                           {person.department && (
-                            <p className="text-xs text-muted-foreground truncate">{person.department}</p>
+                            <p className="text-[13px] text-muted-foreground truncate">{person.department}</p>
                           )}
                         </div>
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold font-mono bg-amber-100 text-amber-900">
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold font-mono bg-amber-100 text-amber-900">
                           {person.arrivedAt}
                         </span>
                       </li>
@@ -207,7 +207,7 @@ export function TodayPanel({
                 )}
                 {canReviewLate && data.late.length > 0 && (
                   <div className="pt-3 mt-1 border-t border-border/70 text-right">
-                    <Link to="/late-arrivals" className="text-xs font-semibold text-[#0E2322] hover:underline">
+                    <Link to="/late-arrivals" className="text-[13px] font-semibold text-[#0E2322] hover:underline">
                       Review late arrivals →
                     </Link>
                   </div>
@@ -244,10 +244,10 @@ function PanelHeader({
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div className="min-w-0">
         <h2 className="text-base font-bold text-[#0E2322]">Today</h2>
-        <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+        <p className="text-[13px] text-slate-500 mt-0.5">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        {updated && <span className="text-xs text-slate-500">Last updated {updated}</span>}
+        {updated && <span className="text-[13px] text-slate-500">Last updated {updated}</span>}
         {onRefresh && (
           <Button
             type="button"
@@ -316,7 +316,7 @@ function Tile({
       </div>
       <div>
         <div className="text-3xl font-extrabold text-[#0E2322]">{value}</div>
-        <div className={`text-xs mt-2 font-medium ${t.note}`}>{note}</div>
+        <div className={`text-[13px] mt-2 font-medium ${t.note}`}>{note}</div>
       </div>
     </>
   );
@@ -358,7 +358,7 @@ function WfhStrip({
             {more > 0 ? ` and ${more} more` : ""}
           </span>
         </span>
-        <span className="flex items-center gap-1 shrink-0 text-xs font-semibold text-[#0E2322]">
+        <span className="flex items-center gap-1 shrink-0 text-[13px] font-semibold text-[#0E2322]">
           {people.length}
           {open ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
         </span>
@@ -374,7 +374,7 @@ function WfhStrip({
 
 function Tag({ children }: { children: string }) {
   return (
-    <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+    <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
       {children}
     </span>
   );
@@ -384,7 +384,7 @@ function StatusPill({ type }: { type: "in" | "out" }) {
   const isIn = type === "in";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
         isIn ? "bg-[#CBEED3] text-[#0E2322]" : "bg-slate-100 text-slate-700"
       }`}
     >
@@ -399,7 +399,7 @@ function ActivityRow({ event, showEntrance }: { event: TodayEventRow; showEntran
   return (
     <li className="flex items-center justify-between gap-3 py-3">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 shrink-0 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-xs">
+        <div className="w-9 h-9 shrink-0 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-[13px]">
           {event.initials}
         </div>
         <div className="min-w-0">
@@ -409,7 +409,7 @@ function ActivityRow({ event, showEntrance }: { event: TodayEventRow; showEntran
             {event.lateExcused && <Tag>Late, excused</Tag>}
             {event.earlyDeparture && <Tag>Early departure</Tag>}
           </div>
-          {meta && <p className="text-xs text-muted-foreground truncate">{meta}</p>}
+          {meta && <p className="text-[13px] text-muted-foreground truncate">{meta}</p>}
         </div>
       </div>
       <div className="shrink-0 flex flex-col items-end gap-1">
@@ -435,7 +435,7 @@ function NotArrivedCard({
     <Card id="not-arrived" className="scroll-mt-20 border-border/80 shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">Not arrived yet</CardTitle>
-        <CardDescription className="text-xs">
+        <CardDescription className="text-[13px]">
           {people.length === 0
             ? expected === 0
               ? "No one is expected today."
@@ -455,7 +455,7 @@ function NotArrivedCard({
                 <li key={person.employeeId} className="py-3 min-w-0">
                   <p className="text-sm font-medium text-[#0E2322] truncate">{person.name}</p>
                   {person.department && (
-                    <p className="text-xs text-muted-foreground truncate">{person.department}</p>
+                    <p className="text-[13px] text-muted-foreground truncate">{person.department}</p>
                   )}
                 </li>
               ))}
@@ -468,7 +468,7 @@ function NotArrivedCard({
                   size="sm"
                   onClick={() => setExpanded((v) => !v)}
                   aria-expanded={expanded}
-                  className="text-xs text-[#0E2322]"
+                  className="text-[13px] text-[#0E2322]"
                 >
                   {expanded ? (
                     <>
@@ -536,7 +536,7 @@ function TodayUnavailable({ message, onRefresh }: { message: string | null; onRe
             {message ?? "Today's numbers aren't available yet."}
           </p>
           {onRefresh && (
-            <Button type="button" variant="outline" size="sm" onClick={onRefresh} className="text-xs">
+            <Button type="button" variant="outline" size="sm" onClick={onRefresh} className="text-[13px]">
               Try again
             </Button>
           )}

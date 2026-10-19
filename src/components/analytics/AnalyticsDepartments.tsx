@@ -19,7 +19,7 @@ export function AnalyticsDepartments({ departments }: AnalyticsDepartmentsProps)
     <Card className="border-border/80 shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">By department</CardTitle>
-        <CardDescription className="text-xs">
+        <CardDescription className="text-[13px]">
           {departments.length === 0
             ? "No department figures for this period."
             : departments.length > shown.length
@@ -40,7 +40,7 @@ export function AnalyticsDepartments({ departments }: AnalyticsDepartmentsProps)
                   >
                     {d.department || "No department"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[13px] text-muted-foreground">
                     {d.people} {d.people === 1 ? "person" : "people"}
                   </p>
                 </div>
@@ -61,7 +61,7 @@ function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-[3.5rem]">
       <p className="text-sm font-semibold text-[#0E2322]">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-[13px] text-muted-foreground">{label}</p>
     </div>
   );
 }
