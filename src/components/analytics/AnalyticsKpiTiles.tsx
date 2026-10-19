@@ -92,7 +92,7 @@ function Tile({
       </div>
       <div>
         <div className="text-3xl font-extrabold text-[#0E2322]">{value}</div>
-        <div className={`text-xs mt-2 font-medium ${t.note}`}>{note}</div>
+        <div className={`text-[13px] mt-2 font-medium ${t.note}`}>{note}</div>
       </div>
     </div>
   );

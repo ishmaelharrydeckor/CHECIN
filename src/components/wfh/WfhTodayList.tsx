@@ -69,12 +69,12 @@ export function WfhTodayList({ people, loading, error, onRetry, onRemove }: WfhT
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <CardTitle className="text-base font-semibold">Working from home today</CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-[13px]">
               Self-declared. Not checked at the entrance.
             </CardDescription>
           </div>
           {!loading && !error && (
-            <span className="shrink-0 text-xs font-semibold text-slate-600">
+            <span className="shrink-0 text-[13px] font-semibold text-slate-600">
               {people.length} {people.length === 1 ? "person" : "people"}
             </span>
           )}
@@ -92,7 +92,7 @@ export function WfhTodayList({ people, loading, error, onRetry, onRemove }: WfhT
             <p role="alert" className="text-sm text-destructive">
               {error}
             </p>
-            <Button variant="outline" className="text-xs border-slate-200" onClick={onRetry}>
+            <Button variant="outline" className="text-[13px] border-slate-200" onClick={onRetry}>
               Try again
             </Button>
           </div>
@@ -103,7 +103,7 @@ export function WfhTodayList({ people, loading, error, onRetry, onRemove }: WfhT
         ) : (
           <div className="space-y-3">
             {actionError && (
-              <p role="alert" className="text-xs text-destructive">
+              <p role="alert" className="text-[13px] text-destructive">
                 {actionError}
               </p>
             )}
@@ -111,12 +111,12 @@ export function WfhTodayList({ people, loading, error, onRetry, onRemove }: WfhT
               {shown.map((p) => (
                 <li key={p.employeeId} className="flex items-center justify-between gap-3 py-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 shrink-0 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-xs">
+                    <div className="w-9 h-9 shrink-0 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-[13px]">
                       {initials(p.name)}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{p.department}</p>
+                      <p className="text-[13px] text-muted-foreground truncate">{p.department}</p>
                     </div>
                   </div>
                   {onRemove && (
@@ -135,7 +135,7 @@ export function WfhTodayList({ people, loading, error, onRetry, onRemove }: WfhT
               ))}
             </ul>
             {people.length > SHOW_LIMIT && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[13px] text-muted-foreground">
                 Showing the first {SHOW_LIMIT} of {people.length}
               </p>
             )}

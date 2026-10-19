@@ -26,11 +26,11 @@ export function AnalyticsTrendChart({ trend }: AnalyticsTrendChartProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <CardTitle className="text-base font-semibold">Attendance by day</CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-[13px]">
               Working days with check-ins: people who attended, and how many of them were late.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-[13px]">
             <span className="flex items-center gap-1.5 text-slate-600">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0E2322]" /> Attended
             </span>
@@ -72,7 +72,7 @@ export function AnalyticsTrendChart({ trend }: AnalyticsTrendChartProps) {
               </ResponsiveContainer>
             </div>
             {someLeftOut && (
-              <p className="text-xs text-slate-500 mt-3">Days with no check-ins are not drawn.</p>
+              <p className="text-[13px] text-slate-500 mt-3">Days with no check-ins are not drawn.</p>
             )}
           </>
         )}
