@@ -34,7 +34,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* ChecIN Exact Brand Tokens from preview.html */
+  /* ChecIN brand tokens */
   --color-f-bg-dark: var(--f-bg-dark);
   --color-f-bg-forest: var(--f-bg-forest);
   --color-f-lime: var(--f-lime);
@@ -52,7 +52,7 @@
 :root {
   --radius: 0.75rem;
 
-  /* Exact Figma / preview.html Color Tokens */
+  /* ChecIN colour tokens */
   --f-bg-dark: #0A1612;
   --f-bg-forest: #0E2322;
   --f-lime: #C0FD9B;
