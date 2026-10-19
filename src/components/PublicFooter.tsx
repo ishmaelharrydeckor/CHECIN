@@ -10,7 +10,7 @@ export function PublicFooter() {
           <ChecInLogo size={24} />
           <div>
             <div className="text-xs text-[#6D6D6D]">
-              © {new Date().getFullYear()} ChecIN Technologies Inc. · Modern Attendance for Modern Teams
+              © {new Date().getFullYear()} ChecIN Technologies Inc. · Attendance you can trust, one scan at a time.
             </div>
           </div>
         </div>
