@@ -32,6 +32,8 @@ Captured on 2026-10-19 from ChecIN's own screens, rendered with made-up sample p
 | `kiosk-code.webp` | The entrance tablet's check-in screen with its QR code. | The real kiosk screen with a made-up sample code (cannot check anyone in) |
 | `kiosk-pairing.webp` | The tablet setup screen taking a one-time pairing code. | The real kiosk screen with a made-up sample code |
 
+| `../share-card.jpg` (in `public/`) | The picture shown when a ChecIN link is shared: our logo, the headline and the dashboard screenshot. 1200 x 630. | Made by us from our own logo and the real Today panel with sample data |
+
 ## Our own photos
 None yet. When we take photos of our own team or a partner workplace, add a row here with the date, who took it, and where **written consent** from every identifiable person is kept.
 
