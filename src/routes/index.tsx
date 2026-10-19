@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactElement } from "react";
+import { BarChart3, Briefcase, CalendarClock, FileBarChart, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
 import { CountUp, FocusText, useScrollReveal } from "@/components/landing/Motion";
@@ -11,6 +12,16 @@ import {
   QrTablet,
   RecordsPanel,
 } from "@/components/landing/ProductVisuals";
+
+// What each kind of person gets. Every line describes something the product does today.
+const ROLE_CARDS: { role: string; line: string; Icon: LucideIcon }[] = [
+  { role: "Owners & HR", line: "One live view of who is in, late or away, across the whole organization.", Icon: Briefcase },
+  { role: "Team Managers", line: "Their own team only, with leave and shift swaps to approve.", Icon: Users },
+  { role: "Employees", line: "One tap to check in and out, and their own record to look back on.", Icon: Smartphone },
+  { role: "Operations", line: "Shifts, rotas and who is covering, planned in one place.", Icon: CalendarClock },
+  { role: "Finance", line: "Attendance and leave reports you can export to Excel or PDF.", Icon: FileBarChart },
+  { role: "Leadership", line: "Attendance trends across teams, without asking anyone for a spreadsheet.", Icon: BarChart3 },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -532,23 +543,20 @@ function LandingPage() {
         </div>
 
         <div className="max-w-4xl mx-auto relative px-4 py-8">
-          {/* Floating Team Chips */}
-          <div className="flex flex-wrap items-center justify-center gap-3.5">
-            {[
-              { label: "Owners & HR", color: "bg-emerald-500" },
-              { label: "Team Managers", color: "bg-amber-500" },
-              { label: "Employees", color: "bg-blue-500" },
-              { label: "Operations", color: "bg-purple-500" },
-              { label: "Finance", color: "bg-teal-500" },
-              { label: "Leadership", color: "bg-indigo-500" },
-            ].map((chip) => (
-              <span
-                key={chip.label}
-                className="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center"
+          {/* Who it is for: one card per role, saying what that role gets */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+            {ROLE_CARDS.map(({ role, line, Icon }, i) => (
+              <div
+                key={role}
+                data-reveal={String((i % 3) + 1)}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
-                <span className={`w-2.5 h-2.5 rounded-full ${chip.color} mr-2.5`} />
-                {chip.label}
-              </span>
+                <span className="inline-flex size-11 items-center justify-center rounded-full bg-[#CBEED3] text-[#0E2322]">
+                  <Icon className="size-5" aria-hidden />
+                </span>
+                <h3 className="mt-4 text-xl font-medium tracking-[-0.02em] text-[#0E2322]">{role}</h3>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-[#6D6D6D]">{line}</p>
+              </div>
             ))}
           </div>
         </div>

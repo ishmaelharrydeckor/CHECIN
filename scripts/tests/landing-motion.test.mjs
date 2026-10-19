@@ -73,3 +73,12 @@ test("the dashboard picture rises a long way and arrives after the headline", ()
   const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)", css.indexOf("Landing page motion")));
   assert.ok(/\.landing-rise\s*\{[^}]*animation:\s*none/.test(reduced), "still none for reduced motion");
 });
+
+test("the role cards replace the floating chips, one card per role, in the app's own colours", () => {
+  for (const role of ["Owners & HR", "Team Managers", "Employees", "Operations", "Finance", "Leadership"]) {
+    assert.ok(page.includes(`role: "${role}"`), role);
+  }
+  assert.ok(!page.includes("Floating Team Chips") && !/bg-(purple|indigo|blue|teal)-500/.test(page), "the off-palette dots are gone");
+  assert.ok(page.includes("data-reveal={String((i % 3) + 1)}"), "the cards appear one after another");
+  assert.ok(!/payroll/i.test(page.slice(page.indexOf("ROLE_CARDS"), page.indexOf("export const Route"))), "no claim about payroll, which is not built yet");
+});
