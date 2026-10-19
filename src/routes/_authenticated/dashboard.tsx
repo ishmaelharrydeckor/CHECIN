@@ -393,51 +393,20 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6 font-sans max-w-7xl mx-auto">
-      {/* Header and actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E8FCE4] text-[#122300] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              {isOrgAdmin ? "Administrator" : isManager ? "Manager" : "Staff"}
-            </span>
-            <span>•</span>
-            <span className="text-[#0E2322] font-semibold">
-              {isManager
-                ? `${orgName} · your team of ${totalHeadcount}`
-                : `${orgName} · ${totalHeadcount} ${totalHeadcount === 1 ? "person" : "people"}`}
-            </span>
-          </div>
+      {/* Header: where you are and the one action that belongs here. Refresh sits with the numbers it
+          refreshes, and Export sits with the table it exports. */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0E2322]">
             {isManager ? "Team overview" : "Organization overview"}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
+            {isOrgAdmin ? "Administrator" : isManager ? "Manager" : "Staff"} ·{" "}
             {isManager
-              ? "Who is in, who is late and who is away on your team."
-              : "Who is in, who is late and who is away, today and over time."}
+              ? `${orgName} · your team of ${totalHeadcount}`
+              : `${orgName} · ${totalHeadcount} ${totalHeadcount === 1 ? "person" : "people"}`}
           </p>
         </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleManualRefresh}
-            disabled={refreshing}
-            className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs cursor-pointer disabled:opacity-50"
-            title="Refresh attendance records from database"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
-            <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
-
-          <button
-            onClick={handleExportCsv}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
-
           {(isOrgAdmin || isManager) && (
             <button
               onClick={() => {
@@ -450,7 +419,6 @@ function DashboardPage() {
               <span>Invite staff member</span>
             </button>
           )}
-        </div>
       </div>
 
       {/* Today: counts, live activity, and the late and not-arrived lists. Every figure comes from
@@ -462,14 +430,11 @@ function DashboardPage() {
         onRefresh={handleManualRefresh}
         onRemoveWfh={removeWfhDay}
         showActivity={false}
+        canReviewLate={isOrgAdmin || isManager}
       />
 
-      {/* Attendance analytics: rates, punctuality, hours and the trend, worked out on the server
-          (/api/analytics) from daily summaries. */}
-      <AnalyticsSection />
-
       {/* Activity: today's check-ins, with search and filters. The Today panel above no longer repeats this list. */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div id="todays-checkins" className="scroll-mt-20 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Table Header Controls */}
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -527,6 +492,15 @@ function DashboardPage() {
                 Clocked OUT
               </button>
             </div>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center gap-1.5 cursor-pointer"
+              title="Download today's check-ins as a spreadsheet file"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
 
@@ -652,6 +626,10 @@ function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Attendance analytics: rates, punctuality, hours and the trend, worked out on the server
+          (/api/analytics) from daily summaries. */}
+      <AnalyticsSection />
 
       {/* Single-use staff invite */}
       {inviteModalOpen && (

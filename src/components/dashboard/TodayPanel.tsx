@@ -29,6 +29,8 @@ interface TodayPanelProps {
   onRemoveWfh?: (employeeId: string) => Promise<void>;
   /** Show the live activity list beside the late and not-arrived lists. The dashboard shows it lower down instead. */
   showActivity?: boolean;
+  /** Offer a link from the late list to the late-arrivals review page (managers and admins only). */
+  canReviewLate?: boolean;
 }
 
 /** "Tuesday, 6 Oct" from the server's day key. Only formats the date, no clock involved. */
@@ -41,7 +43,15 @@ function formatDayLabel(dayKey: string): string {
   });
 }
 
-export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showActivity = true }: TodayPanelProps) {
+export function TodayPanel({
+  data,
+  loading,
+  error,
+  onRefresh,
+  onRemoveWfh,
+  showActivity = true,
+  canReviewLate = false,
+}: TodayPanelProps) {
   if (!data && loading) return <TodayLoading onRefresh={onRefresh} />;
   if (!data) return <TodayUnavailable message={error} onRefresh={onRefresh} />;
 
@@ -79,6 +89,7 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showA
       <div className={TILE_GRID}>
         <Tile
           tone="white"
+          href="#todays-checkins"
           label="Present"
           icon={<CheckCircle2 className="size-4" />}
           value={
@@ -90,6 +101,7 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showA
         />
         <Tile
           tone={counts.late > 0 ? "butter" : "white"}
+          href={counts.late > 0 ? "#late-today" : undefined}
           label="Late"
           icon={<Clock className="size-4" />}
           value={counts.late}
@@ -103,6 +115,7 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showA
         />
         <Tile
           tone="white"
+          href={(data.wfhPeople?.length ?? 0) > 0 ? "#away" : undefined}
           label="Away"
           icon={<Calendar className="size-4" />}
           value={counts.onLeave + counts.wfh}
@@ -110,6 +123,7 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showA
         />
         <Tile
           tone={counts.absent > 0 ? "butter" : "white"}
+          href={counts.absent > 0 ? "#not-arrived" : undefined}
           label="Absent"
           icon={<UserX className="size-4" />}
           value={counts.absent}
@@ -156,58 +170,54 @@ export function TodayPanel({ data, loading, error, onRefresh, onRemoveWfh, showA
 
         )}
 
-        <div
-          className={
-            showActivity
-              ? "lg:col-span-5 space-y-6"
-              : `lg:col-span-12 grid grid-cols-1 gap-6 items-start ${(data.wfhPeople?.length ?? 0) > 0 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`
-          }
-        >
-          {/* Late today */}
-          <Card className="border-border/80 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Late today</CardTitle>
-              <CardDescription className="text-xs">
-                {data.late.length === 0
-                  ? "No late arrivals so far."
-                  : data.late.length > lateShown.length
-                    ? `Showing the first ${lateShown.length} of ${data.late.length} late arrivals.`
-                    : `${data.late.length} arrived after reporting time.`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {lateShown.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">No late arrivals today.</div>
-              ) : (
-                <ul className="divide-y divide-border/70">
-                  {lateShown.map((person) => (
-                    <li key={person.employeeId} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[#0E2322] truncate">{person.name}</p>
-                        {person.department && (
-                          <p className="text-xs text-muted-foreground truncate">{person.department}</p>
-                        )}
-                      </div>
-                      <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold font-mono bg-amber-100 text-amber-900">
-                        {person.arrivedAt}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-
-          <NotArrivedCard people={data.notArrived} expected={counts.expected} />
+        <div className={showActivity ? "lg:col-span-5 space-y-6" : "lg:col-span-12 space-y-6"}>
+          <div className={showActivity ? "space-y-6" : "grid grid-cols-1 lg:grid-cols-2 gap-6 items-start"}>
+            <NotArrivedCard people={data.notArrived} expected={counts.expected} />
+            {/* Late today */}
+            <Card id="late-today" className="scroll-mt-20 border-border/80 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold">Late today</CardTitle>
+                <CardDescription className="text-xs">
+                  {data.late.length === 0
+                    ? "No late arrivals so far."
+                    : data.late.length > lateShown.length
+                      ? `Showing the first ${lateShown.length} of ${data.late.length} late arrivals.`
+                      : `${data.late.length} arrived after reporting time.`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {lateShown.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">No late arrivals today.</div>
+                ) : (
+                  <ul className="divide-y divide-border/70">
+                    {lateShown.map((person) => (
+                      <li key={person.employeeId} className="flex items-center justify-between gap-3 py-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[#0E2322] truncate">{person.name}</p>
+                          {person.department && (
+                            <p className="text-xs text-muted-foreground truncate">{person.department}</p>
+                          )}
+                        </div>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold font-mono bg-amber-100 text-amber-900">
+                          {person.arrivedAt}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {canReviewLate && data.late.length > 0 && (
+                  <div className="pt-3 mt-1 border-t border-border/70 text-right">
+                    <Link to="/late-arrivals" className="text-xs font-semibold text-[#0E2322] hover:underline">
+                      Review late arrivals →
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {(data.wfhPeople?.length ?? 0) > 0 && (
-            <WfhTodayList
-              people={data.wfhPeople ?? []}
-              loading={false}
-              error={null}
-              onRetry={() => onRefresh?.()}
-              onRemove={onRemoveWfh}
-            />
+            <WfhStrip people={data.wfhPeople ?? []} onRetry={() => onRefresh?.()} onRemove={onRemoveWfh} />
           )}
         </div>
       </div>
@@ -241,14 +251,15 @@ function PanelHeader({
         {onRefresh && (
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="icon"
             onClick={onRefresh}
             disabled={refreshing}
-            className="border-slate-200 text-xs"
+            aria-label="Refresh today's numbers"
+            title="Refresh today's numbers"
+            className="size-8 text-slate-600"
           >
-            <RefreshCw className={`size-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
+            <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
         )}
       </div>
@@ -281,20 +292,24 @@ const TILE_TONES: Record<TileTone, { box: string; label: string; icon: string; n
 
 function Tile({
   tone,
+  href,
   label,
   icon,
   value,
   note,
 }: {
   tone: TileTone;
+  /** Where tapping the tile jumps to on this page. Leave out when there is nothing to jump to. */
+  href?: string;
   label: string;
   icon: ReactNode;
   value: ReactNode;
   note: string;
 }) {
   const t = TILE_TONES[tone];
-  return (
-    <div className={`${t.box} p-5 rounded-3xl border shadow-xs flex flex-col justify-between gap-3 min-w-0`}>
+  const box = `${t.box} p-5 rounded-3xl border shadow-xs flex flex-col justify-between gap-3 min-w-0`;
+  const body = (
+    <>
       <div className={`flex items-start justify-between gap-2 ${t.label}`}>
         <span className="text-xs font-semibold uppercase tracking-wider leading-snug">{label}</span>
         <span className={`p-2 rounded-xl shrink-0 ${t.icon}`}>{icon}</span>
@@ -303,6 +318,56 @@ function Tile({
         <div className="text-3xl font-extrabold text-[#0E2322]">{value}</div>
         <div className={`text-xs mt-2 font-medium ${t.note}`}>{note}</div>
       </div>
+    </>
+  );
+  return href ? (
+    <a href={href} className={`${box} no-underline hover:shadow-md transition-shadow focus-visible:outline-2 focus-visible:outline-[#0E2322]`}>
+      {body}
+    </a>
+  ) : (
+    <div className={box}>{body}</div>
+  );
+}
+
+/** Work from home is routine, not urgent: one quiet line that opens into the full list (with Remove) on tap. */
+function WfhStrip({
+  people,
+  onRetry,
+  onRemove,
+}: {
+  people: NonNullable<TodaySummaryData["wfhPeople"]>;
+  onRetry: () => void;
+  onRemove?: (employeeId: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const preview = people.slice(0, 3).map((p) => p.name);
+  const more = people.length - preview.length;
+  return (
+    <div id="away" className="scroll-mt-20">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-3 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+      >
+        <span className="flex items-center gap-2 min-w-0 text-sm">
+          <Home className="size-4 shrink-0 text-slate-500" aria-hidden />
+          <span className="font-semibold text-[#0E2322] shrink-0">Working from home today</span>
+          <span className="text-slate-500 truncate">
+            · {preview.join(", ")}
+            {more > 0 ? ` and ${more} more` : ""}
+          </span>
+        </span>
+        <span className="flex items-center gap-1 shrink-0 text-xs font-semibold text-[#0E2322]">
+          {people.length}
+          {open ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-3">
+          <WfhTodayList people={people} loading={false} error={null} onRetry={onRetry} onRemove={onRemove} />
+        </div>
+      )}
     </div>
   );
 }
@@ -367,7 +432,7 @@ function NotArrivedCard({
   const rows = collapsible && !expanded ? people.slice(0, NOT_ARRIVED_COLLAPSE_AT) : people;
 
   return (
-    <Card className="border-border/80 shadow-sm">
+    <Card id="not-arrived" className="scroll-mt-20 border-border/80 shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">Not arrived yet</CardTitle>
         <CardDescription className="text-xs">
