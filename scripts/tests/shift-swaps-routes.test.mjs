@@ -88,3 +88,14 @@ test("the colleague picker lists only the caller's own team, from their claims, 
   assert.ok(fn.includes('.where("managerId", "==", team)') && fn.includes(".limit(200)"));
   assert.ok(fn.includes("swapCandidatesFrom("));
 });
+
+test("the manager's open-swaps query (status in, newest first) has the index it needs", async () => {
+  const { readFileSync } = await import("node:fs");
+  const indexes = JSON.parse(readFileSync("firestore.indexes.json", "utf8")).indexes;
+  const has = indexes.some(
+    (i) =>
+      i.collectionGroup === "shift_swaps" &&
+      i.fields.map((f) => `${f.fieldPath}:${f.order ?? f.arrayConfig}`).join(",") === "orgId:ASCENDING,status:ASCENDING,createdAt:DESCENDING",
+  );
+  assert.ok(has, "without this index a manager's swap list fails with a 500");
+});
