@@ -46,7 +46,7 @@ test("every self-hosted photo is used on the page, with a description and sizes 
     assert.ok(page.includes(`/images/landing/${file}.webp`), `${file} is placed on the page`);
   }
   const tags = [...page.matchAll(/<img\b[\s\S]*?\/>/g)].map((m) => m[0]);
-  assert.equal(tags.length, 5, "two benefit cards, the strip, and the dashboard screenshot twice");
+  assert.equal(tags.length, 4, "two benefit cards, the team strip, and the hero dashboard screenshot");
   for (const tag of tags) {
     assert.ok(/alt=(\{tile\.alt\}|"[^"]{12,}")/.test(tag), "a real description");
     assert.ok(/width=/.test(tag) && /height=/.test(tag), "width and height");

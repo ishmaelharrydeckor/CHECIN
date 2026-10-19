@@ -532,14 +532,8 @@ function LandingPage() {
         </div>
 
         <div className="max-w-4xl mx-auto relative px-4 py-8">
-          <div className="rounded-3xl border border-slate-200 shadow-2xl overflow-hidden bg-white p-2">
-            <div role="img" aria-label="The ChecIN manager dashboard on a desktop computer" className="rounded-2xl overflow-hidden">
-              <img src="/images/product/dashboard.webp" alt="The ChecIN manager dashboard: people present, late, away and absent today, with who is late and who has not arrived" width={1600} height={875} loading="lazy" decoding="async" className="w-full h-auto block" />
-            </div>
-          </div>
-
           {/* Floating Team Chips */}
-          <div className="flex flex-wrap items-center justify-center gap-3.5 mt-8">
+          <div className="flex flex-wrap items-center justify-center gap-3.5">
             {[
               { label: "Owners & HR", color: "bg-emerald-500" },
               { label: "Team Managers", color: "bg-amber-500" },
