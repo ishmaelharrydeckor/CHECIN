@@ -73,3 +73,31 @@ export function CountUp({ to, durationMs = 1100 }: { to: number; durationMs?: nu
 
   return <span ref={ref}>{value}</span>;
 }
+
+/**
+ * Headline that comes into focus letter by letter: each letter starts blurred and transparent and
+ * sharpens in a short stagger (the CSS is `.focus-letter` in styles.css, pure CSS so there is no wait
+ * for JavaScript). Screen readers read the sentence once; the individual letters are hidden from them.
+ * People who ask for less motion see the finished sentence at once.
+ */
+export function FocusText({ text, startDelayMs = 150 }: { text: string; startDelayMs?: number }) {
+  let index = 0;
+  return (
+    <span aria-label={text} role="text">
+      {text.split(" ").map((word, w, words) => (
+        <span key={w} aria-hidden className="inline-block whitespace-nowrap">
+          {Array.from(word).map((ch) => (
+            <span
+              key={index}
+              className="focus-letter inline-block"
+              style={{ ["--focus-delay" as string]: `${startDelayMs + index++ * 26}ms` }}
+            >
+              {ch}
+            </span>
+          ))}
+          {w < words.length - 1 ? " " : null}
+        </span>
+      ))}
+    </span>
+  );
+}

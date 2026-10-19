@@ -222,7 +222,22 @@
 .landing-rise-2 { --rise-delay: 90ms; }
 .landing-rise-3 { --rise-delay: 180ms; }
 .landing-rise-4 { --rise-delay: 270ms; }
-.landing-rise-5 { --rise-delay: 400ms; }
+/* The dashboard picture comes in last, after the headline has landed, rising a long way from below. */
+@keyframes landing-rise-far {
+  from {
+    opacity: 0;
+    transform: translateY(150px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.landing-rise-5 {
+  animation-name: landing-rise-far;
+  animation-duration: 1.3s;
+  --rise-delay: 1100ms;
+}
 
 /* The progress bar under the active capability tab. When it finishes, the next tab opens. */
 @keyframes landing-progress {
@@ -236,7 +251,28 @@
   animation-play-state: paused;
 }
 
+/* The headline sharpens into focus letter by letter (FocusText). */
+@keyframes landing-focus {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(0.18em);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+.focus-letter {
+  animation: landing-focus 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--focus-delay, 0ms);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .focus-letter {
+    animation: none;
+  }
   .reveal-ready [data-reveal] {
     opacity: 1;
     transform: none;
