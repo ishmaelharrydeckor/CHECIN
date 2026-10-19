@@ -179,3 +179,75 @@
 .animate-beacon {
   animation: beacon-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* ---- Landing page motion ------------------------------------------------------------------
+   Sections fade up as they scroll into view (useScrollReveal in components/landing/Motion.tsx).
+   The hidden starting state only applies once the page's script has run (.reveal-ready), so the
+   page is fully visible without JavaScript, in print and before it loads. */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s ease-out;
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+/* A row of cards appears one after another: data-reveal="1", "2", "3". */
+.reveal-ready [data-reveal="1"] { --reveal-delay: 90ms; }
+.reveal-ready [data-reveal="2"] { --reveal-delay: 180ms; }
+.reveal-ready [data-reveal="3"] { --reveal-delay: 270ms; }
+
+/* The hero text and picture rise into place once when the page opens (pure CSS, no script). */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.landing-rise {
+  animation: landing-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+.landing-rise-1 { --rise-delay: 0ms; }
+.landing-rise-2 { --rise-delay: 90ms; }
+.landing-rise-3 { --rise-delay: 180ms; }
+.landing-rise-4 { --rise-delay: 270ms; }
+.landing-rise-5 { --rise-delay: 400ms; }
+
+/* The progress bar under the active capability tab. When it finishes, the next tab opens. */
+@keyframes landing-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.landing-progress {
+  animation: landing-progress 5s linear forwards;
+}
+[data-paused="true"] .landing-progress {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .landing-rise {
+    animation: none;
+  }
+  /* A bar that never animates never finishes, so the tabs also stop advancing by themselves. */
+  .landing-progress {
+    animation: none;
+    width: 100%;
+  }
+}
