@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
         content:
           "ChecIN puts a rotating 15-second QR code on a tablet at your entrance. Employees scan with their mobile browser to check in and out. No GPS spoofing, no screenshot sharing.",
       },
-      { property: "og:title", content: "ChecIN — Modern Workforce Check-In & Timesheet SaaS" },
+      { property: "og:title", content: "ChecIN — Attendance That Proves People Were There" },
       {
         property: "og:description",
         content:
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "ChecIN — Modern Attendance SaaS" },
+      { name: "twitter:title", content: "ChecIN — Attendance That Proves People Were There" },
       {
         name: "twitter:description",
         content:
@@ -63,25 +63,25 @@ const CAPABILITY_DATA: Record<
     title: "Real-Time Attendance",
     Visual: ActivityPanel,
     alt: "A live list of check-ins and check-outs with who arrived late",
-    description: "Live live attendance tracking showing clock-ins, verified doors, and real-time status.",
+    description: "See check-ins and check-outs as they happen, with who arrived late and who has not arrived yet.",
   },
   leave: {
     title: "Leave & Absence Management",
     Visual: LeavePanel,
     alt: "A list of leave requests with approved and pending status",
-    description: "Streamlined leave requests, balance tracking, and team manager approvals.",
+    description: "Employees ask for leave, their manager approves or declines, and approved leave shows up in attendance.",
   },
   announcements: {
     title: "Announcements & Team Updates",
     Visual: NoticePanel,
     alt: "A company notice and the phone notification that goes with it",
-    description: "Keep whole teams informed with broadcast company updates and push notifications.",
+    description: "Post a notice to everyone or to one team, and send it to their phones.",
   },
   records: {
     title: "Tamper-Resistant Records",
     Visual: RecordsPanel,
     alt: "An attendance register with a letter and colour for each day, and an export button",
-    description: "Cryptographically verified presence logs, automated timesheets, and exportable reports.",
+    description: "Every check-in is verified on the server before it is recorded. Export registers and reports to Excel or PDF.",
   },
 };
 
@@ -96,7 +96,7 @@ const FAQ_ITEMS = [
     id: 2,
     question: "Can someone check in for a colleague with a screenshot?",
     answer:
-      "The code changes every 15 seconds, so a photo or screenshot goes stale almost immediately. The tablet is also the only device with the physical device secret capable of generating valid tokens for your entrance.",
+      "No. The code changes every 15 seconds, so a photo or screenshot goes stale almost immediately. And only your paired tablet can produce a valid code for your entrance, so there is nothing to copy from anywhere else.",
   },
   {
     id: 3,
@@ -112,9 +112,27 @@ const FAQ_ITEMS = [
   },
   {
     id: 5,
+    question: "Does ChecIN track where my people are?",
+    answer:
+      "No. ChecIN never asks for anyone's location. Presence is proven by scanning the code at your entrance, not by GPS.",
+  },
+  {
+    id: 6,
+    question: "What if the internet goes down?",
+    answer:
+      "Checking in needs a connection, because the server has to confirm the code is fresh. If a phone is offline, the check-in fails and says so. Nothing is saved for later. The tablet keeps trying to reconnect, and it hides a code that has gone stale.",
+  },
+  {
+    id: 7,
+    question: "What about people who work from home?",
+    answer:
+      "Employees can mark a day as work from home ahead of time. Managers see it, and it counts as present without a scan.",
+  },
+  {
+    id: 8,
     question: "Is our data kept separate from other companies?",
     answer:
-      "Yes. ChecIN enforces a strict multi-tenant boundary with Firebase custom claims and default-deny database rules. Every company's people and records are completely isolated.",
+      "Yes. Each company's people and records are kept completely apart. A manager sees only their own team, and nobody can see another company's data.",
   },
 ];
 
@@ -242,14 +260,14 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* BENEFITS SECTION: Less Chasing. More Clarity. */}
+      {/* BENEFITS SECTION */}
       <section id="benefits" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
         <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Benefits
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-            Less Chasing. More Clarity.
+            Stop chasing timesheets.
           </h2>
           <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
             Stop reconciling timesheets at the end of the month. See who's in, right now.
@@ -403,11 +421,11 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* CORE CAPABILITIES: Interactive Vertical Tabs + Embedded Dashboard Screen */}
+      {/* CAPABILITIES: Interactive Vertical Tabs + Preview Panel */}
       <section id="capabilities" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
         <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
-            Core Capabilities
+            What's included
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
             Everything a growing team needs at the door.
@@ -487,17 +505,17 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* BUILT FOR EVERY TEAM: Laptop Ecosystem Frame */}
+      {/* WHO IT IS FOR: photo strip and role cards */}
       <section id="teams" className="py-24 bg-[#FAFAFA] border-y border-slate-100 px-4 sm:px-6 text-center">
         <div className="max-w-4xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
-            Built For Every Team
+            Who it's for
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-            One Platform For Everyone<br className="hidden sm:inline" /> Behind Attendance.
+            Everyone sees their part,<br className="hidden sm:inline" /> and only their part.
           </h2>
           <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
-            Whether you run one office or a handful, ChecIN fits the way your team already works.
+            Owners see the whole organization, managers see their own team, and employees see their own record.
           </p>
         </div>
 
@@ -749,11 +767,11 @@ function LandingPage() {
               Customer stories
             </div>
             <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-              Real Teams. Verified Attendance.
+              Be one of our first teams.
             </h2>
             <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
-              Coming soon. We're onboarding our first cohort of corporate pilot teams, and their stories
-              will appear here.
+              We're onboarding a first group of pilot teams. Their stories will appear here once they have
+              something real to say.
             </p>
           </div>
 
@@ -772,7 +790,10 @@ function LandingPage() {
               Pilot Cohort In Progress
             </p>
             <p className="text-sm sm:text-[16px] text-[#6D6D6D] leading-[1.4] font-normal">
-              Want to pilot ChecIN with your workforce? Get in touch to join our launch program.
+              Want to pilot ChecIN with your workforce?{" "}
+              <Link to="/auth" className="font-medium text-[#0E2322] underline underline-offset-4">
+                Create an account to join the pilot.
+              </Link>
             </p>
           </div>
         </div>
@@ -906,7 +927,7 @@ function LandingPage() {
         </div>
         <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between text-[14px] text-white/40">
           <div>© {new Date().getFullYear()} ChecIN Technologies Inc. All rights reserved.</div>
-          <div className="mt-2 sm:mt-0">Modern Attendance For Modern Teams</div>
+          <div className="mt-2 sm:mt-0">No GPS. No app store. Just the door.</div>
         </div>
       </footer>
     </div>

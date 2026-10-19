@@ -59,3 +59,33 @@ test("the Why ChecIN cards show the real kiosk screens, with made-up sample data
   assert.ok(visuals.includes("export function TabletScreen") && /aria-hidden/.test(visuals.slice(visuals.indexOf("export function TabletScreen"))));
   assert.ok(page.includes("<CountdownRing compact />"), "the fifteen second ring stays beside the tablet");
 });
+
+test("wording that came from the template, and claims the product cannot back up, are gone", () => {
+  const text = page.slice(page.indexOf("const CAPABILITY_DATA"));
+  for (const phrase of [
+    "Less Chasing. More Clarity",
+    "One Platform For Everyone",
+    "Core Capabilities",
+    "Real Teams. Verified Attendance",
+    "Modern Attendance For Modern Teams",
+    "Live live",
+    "Cryptographically",
+    "balance tracking",
+    "Coming soon",
+  ]) {
+    assert.ok(!text.includes(phrase), `still says: ${phrase}`);
+  }
+});
+
+test("the FAQ answers the doubts people have, in plain words and without promising what is not built", () => {
+  for (const question of [
+    "Does ChecIN track where my people are?",
+    "What if the internet goes down?",
+    "What about people who work from home?",
+  ]) {
+    assert.ok(page.includes(question), question);
+  }
+  const faq = page.slice(page.indexOf("const FAQ_ITEMS"), page.indexOf("function LandingPage"));
+  assert.ok(!/custom claims|default-deny|multi-tenant|physical device secret/i.test(faq), "no jargon in the answers");
+  assert.equal((faq.match(/id: \d+,/g) ?? []).length, 8, "eight questions");
+});
