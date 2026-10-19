@@ -2,16 +2,15 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactElement } from "react";
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
+import { CountUp, useScrollReveal } from "@/components/landing/Motion";
 import {
   ActivityPanel,
   DashboardPreview,
   DoorPairing,
   LeavePanel,
   NoticePanel,
-  PhoneCheckIn,
   QrTablet,
   RecordsPanel,
-  TeamList,
 } from "@/components/landing/ProductVisuals";
 
 export const Route = createFileRoute("/")({
@@ -112,6 +111,16 @@ function LandingPage() {
   const [activeCap, setActiveCap] = useState<CapabilityKey>("attendance");
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  // The capability tabs move on by themselves until the person chooses one, and wait while they look.
+  const [autoCap, setAutoCap] = useState(true);
+  const [capPaused, setCapPaused] = useState(false);
+  useScrollReveal();
+
+  const advanceCap = () =>
+    setActiveCap((current) => {
+      const order: CapabilityKey[] = ["attendance", "leave", "announcements", "records"];
+      return order[(order.indexOf(current) + 1) % order.length];
+    });
 
   useEffect(() => {
     // If already signed in, provide convenient navigation
@@ -128,7 +137,7 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#0E2322] font-sans antialiased selection:bg-[#C0FD9B] selection:text-[#0E2322]">
-      {/* FLOATING HEADER (Exact 1:1 from preview.html) */}
+      {/* FLOATING HEADER */}
       <header className="fixed top-3 sm:top-5 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[1140px] h-[64px] sm:h-[68px] bg-white/95 backdrop-blur-md rounded-[20px] px-4 sm:px-6 flex items-center justify-between shadow-[0_4px_25px_rgba(0,0,0,0.06)] border border-[#EBEBEB]">
         <a href="#hero" className="flex items-center no-underline">
           <ChecInLogo size={28} textColor="#0E2322" markColor="#0E2322" />
@@ -170,31 +179,31 @@ function LandingPage() {
         </div>
       </header>
 
-      {/* HERO SECTION (Exact 1:1 Dark Forest Background & Typography) */}
+      {/* HERO SECTION */}
       <section
         id="hero"
         className="relative bg-[#0E2322] text-white pt-36 sm:pt-44 pb-0 px-4 sm:px-6 overflow-hidden text-center"
       >
         <div className="max-w-[1040px] mx-auto relative z-10">
           {/* Mint Pill Badge */}
-          <div className="inline-flex items-center px-4 py-1.5 rounded-[10px] border border-[#263F37] backdrop-blur-[2px] bg-transparent text-[#C0FD9B] text-[14px] mb-8 font-medium">
+          <div className="landing-rise landing-rise-1 inline-flex items-center px-4 py-1.5 rounded-[10px] border border-[#263F37] backdrop-blur-[2px] bg-transparent text-[#C0FD9B] text-[14px] mb-8 font-medium">
             Attendance you can trust
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-6xl md:text-[76px] lg:text-[80px] font-medium tracking-[-0.04em] text-white leading-[1.0] text-center mb-6">
+          <h1 className="landing-rise landing-rise-2 text-4xl sm:text-6xl md:text-[76px] lg:text-[80px] font-medium tracking-[-0.04em] text-white leading-[1.0] text-center mb-6">
             Attendance that proves people were actually there.
           </h1>
 
           {/* Subheading */}
-          <p className="text-base sm:text-[18px] text-[#ADC4BD] max-w-[680px] mx-auto mb-10 leading-relaxed font-normal">
+          <p className="landing-rise landing-rise-3 text-base sm:text-[18px] text-[#ADC4BD] max-w-[680px] mx-auto mb-10 leading-relaxed font-normal">
             ChecIN puts a QR code on a tablet at your entrance that changes every 15 seconds. Your team
             scans it with their phone to check in and out. No GPS to spoof, no screenshot to pass around,
             no timesheets to chase.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-14">
+          <div className="landing-rise landing-rise-4 flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-14">
             <Link
               to="/auth"
               className="w-full sm:w-auto h-[48px] px-7 rounded-[14px] bg-[#FFD153] text-[#122300] font-medium text-[15px] hover:brightness-105 active:scale-95 transition shadow-lg inline-flex items-center justify-center no-underline"
@@ -213,7 +222,7 @@ function LandingPage() {
           <div
             role="img"
             aria-label="The ChecIN manager dashboard: how many people are in, late, away or absent today"
-            className="relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+            className="landing-rise landing-rise-5 relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden"
           >
             <DashboardPreview className="h-[460px] sm:h-[560px]" />
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0E2322] to-transparent pointer-events-none" />
@@ -223,7 +232,7 @@ function LandingPage() {
 
       {/* BENEFITS SECTION: Less Chasing. More Clarity. */}
       <section id="benefits" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Benefits
           </div>
@@ -238,15 +247,15 @@ function LandingPage() {
         {/* 3 Full-Bleed Photograph Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
           {/* Card 1: 15 sec */}
-          <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+          <div data-reveal="1" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
             <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
             <div className="absolute inset-x-0 top-[128px] flex justify-center px-4">
               <QrTablet compact onDark />
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div>
                 <div className="text-[54px] font-medium text-[#C0FD9B] tracking-tight leading-none mb-2">
-                  15 sec
+                  <CountUp to={15} /> sec
                 </div>
                 <div className="text-[18px] text-white/90 font-normal">code expiration</div>
               </div>
@@ -262,12 +271,24 @@ function LandingPage() {
           </div>
 
           {/* Card 2: One-tap check-in */}
-          <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
-            <div className="absolute inset-x-0 top-6 flex justify-center scale-[0.85] origin-top">
-              <PhoneCheckIn />
+          <div data-reveal="2" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+            <img
+              src="/images/landing/checkin-phone.webp"
+              alt="A woman in a white shirt checks her phone beside a large window"
+              width={900}
+              height={1350}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-full bg-[#CBEED3] px-3.5 py-1.5 text-sm font-semibold text-[#0E2322] shadow-lg"
+            >
+              <span className="size-2 rounded-full bg-emerald-600" />
+              Checked in 08:12
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -282,12 +303,24 @@ function LandingPage() {
           </div>
 
           {/* Card 3: Live team view */}
-          <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
-            <div className="absolute inset-x-0 top-8 flex justify-center px-6">
-              <TeamList />
+          <div data-reveal="3" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+            <img
+              src="/images/landing/team-lagos-office.webp"
+              alt="A group of colleagues talking together in an office in Lagos"
+              width={1400}
+              height={934}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div
+              aria-hidden
+              className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-1.5 text-sm font-semibold text-[#0E2322] shadow-lg"
+            >
+              <span className="size-2 rounded-full bg-emerald-600 animate-pulse" />
+              34 of 38 in
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent p-8 flex flex-col justify-between text-white">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -305,7 +338,7 @@ function LandingPage() {
       {/* WHY CHECIN (Dual Tinted Bento Cards: Butter #FCF2CB & Soft Mint #CBEED3) */}
       <section id="why" className="py-24 bg-[#FAFAFA] border-y border-slate-100 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
               Why ChecIN
             </div>
@@ -319,7 +352,7 @@ function LandingPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Bento 1: Butter Card */}
-            <div className="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
+            <div data-reveal="1" className="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-amber-200/60 bg-white">
                 <div role="img" aria-label="A tablet showing a code with a fifteen second countdown" className="h-[232px] bg-gradient-to-br from-amber-50 to-white flex items-center justify-center">
                   <QrTablet compact />
@@ -337,7 +370,7 @@ function LandingPage() {
             </div>
 
             {/* Bento 2: Soft Mint Card */}
-            <div className="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
+            <div data-reveal="2" className="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-emerald-200/60 bg-white">
                 <div role="img" aria-label="A tablet paired to one entrance and to your account" className="h-[232px] bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center">
                   <DoorPairing />
@@ -359,7 +392,7 @@ function LandingPage() {
 
       {/* CORE CAPABILITIES: Interactive Vertical Tabs + Embedded Dashboard Screen */}
       <section id="capabilities" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Core Capabilities
           </div>
@@ -372,7 +405,15 @@ function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div
+          data-reveal
+          data-paused={capPaused}
+          onMouseEnter={() => setCapPaused(true)}
+          onMouseLeave={() => setCapPaused(false)}
+          onFocus={() => setCapPaused(true)}
+          onBlur={() => setCapPaused(false)}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+        >
           {/* Left Vertical Tabs */}
           <div className="lg:col-span-5 space-y-3">
             {(
@@ -387,8 +428,11 @@ function LandingPage() {
               return (
                 <button
                   key={key}
-                  onClick={() => setActiveCap(key)}
-                  className={`w-full text-left p-6 sm:p-7 rounded-[14px] text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition cursor-pointer ${
+                  onClick={() => {
+                    setActiveCap(key);
+                    setAutoCap(false);
+                  }}
+                  className={`relative overflow-hidden w-full text-left p-6 sm:p-7 rounded-[14px] text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition cursor-pointer ${
                     isActive
                       ? "bg-[#C0FD9B] text-[#0E2322] font-medium shadow-sm"
                       : "bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#0E2322] font-normal"
@@ -398,6 +442,14 @@ function LandingPage() {
                   <span className={`text-xl sm:text-[24px] ${isActive ? "text-[#0E2322]" : "text-[#0E2322]/60"}`}>
                     →
                   </span>
+                  {isActive && autoCap && (
+                    <span
+                      key={key}
+                      aria-hidden
+                      onAnimationEnd={advanceCap}
+                      className="landing-progress absolute left-0 bottom-0 h-1 bg-[#0E2322]/60"
+                    />
+                  )}
                 </button>
               );
             })}
@@ -436,6 +488,50 @@ function LandingPage() {
           </p>
         </div>
 
+        <div data-reveal className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          {[
+            {
+              src: "/images/landing/team-laptop.webp",
+              alt: "Four women in colourful outfits gathered around a laptop",
+              label: "Office teams",
+              width: 1400,
+              height: 934,
+              position: "object-center",
+            },
+            {
+              src: "/images/landing/health-nurses.webp",
+              alt: "Four nurses in matching blue uniforms and white headscarves",
+              label: "Clinics and hospitals",
+              width: 900,
+              height: 1164,
+              position: "object-[50%_25%]",
+            },
+            {
+              src: "/images/landing/manager-tablet.webp",
+              alt: "A smiling man holds a tablet in one hand and a phone to his ear",
+              label: "Managers on the move",
+              width: 1400,
+              height: 934,
+              position: "object-center",
+            },
+          ].map((tile) => (
+            <figure key={tile.label} className="relative h-[260px] sm:h-[300px] rounded-3xl overflow-hidden shadow-lg">
+              <img
+                src={tile.src}
+                alt={tile.alt}
+                width={tile.width}
+                height={tile.height}
+                loading="lazy"
+                decoding="async"
+                className={`absolute inset-0 w-full h-full object-cover ${tile.position}`}
+              />
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-5 pb-4 pt-12 text-left text-white text-lg font-medium tracking-[-0.01em]">
+                {tile.label}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+
         <div className="max-w-4xl mx-auto relative px-4 py-8">
           <div className="rounded-3xl border border-slate-200 shadow-2xl overflow-hidden bg-white p-2">
             <div role="img" aria-label="The ChecIN manager dashboard on a desktop computer" className="rounded-2xl overflow-hidden">
@@ -467,7 +563,7 @@ function LandingPage() {
 
       {/* PRICING SECTION: Monthly / Yearly Toggle & 3 Cards */}
       <section id="pricing" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-14">
+        <div data-reveal className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Pricing
           </div>
@@ -641,10 +737,10 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* CUSTOMER STORIES (Exact 1:1 Layout) */}
+      {/* CUSTOMER STORIES */}
       <section id="stories" className="py-24 bg-[#FAFAFA] border-t border-slate-100 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
               Customer stories
             </div>
@@ -678,7 +774,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ ACCORDION (Exact 1:1 Layout & Transitions) */}
+      {/* FAQ ACCORDION */}
       <section id="faq" className="py-24 px-4 sm:px-6 max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322]">
@@ -718,7 +814,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* DARK FOOTER (Exact 1:1 from preview.html) */}
+      {/* DARK FOOTER */}
       <footer className="bg-[#0E2322] text-white py-20 px-4 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
           <div>
