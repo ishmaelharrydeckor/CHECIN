@@ -33,3 +33,11 @@ The QR code is hidden on purpose when the tablet cannot refresh it. A code that 
 
 ## If check-in is impossible
 If neither the tablet nor employees' phones have any internet, check-in cannot work. That is by design: the server must confirm each scan. Ask the manager to note who was present, so attendance can be added later (a manual-entry feature is planned).
+
+## Moving or resetting a tablet
+
+There is no unpair button on the tablet itself, so nobody at the entrance can switch it off by accident. An admin does it from the dashboard:
+
+1. In **Settings**, revoke the tablet's pairing for that entrance.
+2. Within about a minute the tablet shows **Token Minting Paused** with a **Re-pair** button.
+3. Press **Re-pair** and enter a new pairing code from Settings.
