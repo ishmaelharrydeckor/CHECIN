@@ -95,7 +95,14 @@ export function RefusedScansTab() {
                     <p className="text-sm font-medium text-[#0E2322] truncate">{n.employeeName}</p>
                     <p className="text-xs text-muted-foreground">{describeRefusal(n, timezone)}</p>
                   </div>
-                  <p className="text-xs text-slate-500 shrink-0">
+                  <p className="text-xs text-slate-500 shrink-0 flex items-center gap-2">
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        n.recorded ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"
+                      }`}
+                    >
+                      {n.recorded ? "Recorded, not counted" : "Turned away"}
+                    </span>
                     {(() => {
                       const day = dayKey(n.at, timezone);
                       return day ? formatDayHeader(day) : "";

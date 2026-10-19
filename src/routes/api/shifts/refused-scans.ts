@@ -61,6 +61,7 @@ export const Route = createFileRoute("/api/shifts/refused-scans")({
               shiftEnd: typeof x.shiftEnd === "string" ? x.shiftEnd : null,
               opensAt: str(x.opensAt),
               closesAt: str(x.closesAt),
+              recorded: x.recorded === true,
             };
           });
           const hasMore = snap.docs.length > pageSize;

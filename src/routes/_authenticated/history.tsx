@@ -54,6 +54,7 @@ interface ClockRecord {
   late?: boolean;
   lateExcused?: boolean;
   earlyDeparture?: boolean;
+  outsideWindow?: boolean;
   voided?: boolean;
 }
 
@@ -350,6 +351,11 @@ function HistoryPage() {
                         {r.voided && (
                           <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700 no-underline">
                             Undone by employee
+                          </span>
+                        )}
+                        {r.outsideWindow && (
+                          <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
+                            Outside shift, not counted
                           </span>
                         )}
                         {r.late && (

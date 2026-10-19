@@ -21,9 +21,12 @@ import {
   assignmentFromDoc,
   candidateShiftDays,
   planShiftScan,
+  describeRecordedOutside,
   refusedScanId,
   type ShiftScanPlan,
 } from "@/lib/shift-scan";
+import { classifyScan as classifyLenientScan } from "@/lib/shift-lenient";
+import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { createTtlCache } from "@/lib/ttl-cache.server";
 
@@ -210,7 +213,9 @@ export const Route = createFileRoute("/api/check-in/scan")({
                 summaries,
               });
               if (plan.kind === "refuse") {
-                return { refused: true as const, plan };
+                // The direction this scan would have had, from the counted summary only. Lenient mode shows it
+                // on the uncounted event; Strict ignores it.
+                return { refused: true as const, plan, outsideType: nextTypeFromSummary(summaries[plan.shiftDay] ?? null) };
               }
               prev = plan.kind === "shift" ? plan.prev : (summaries[today] ?? null);
             } else {
@@ -237,6 +242,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
               for (const d of recent.docs) {
                 const e = d.data();
                 if (e.voidedAt) continue; // an undone scan counts for nothing
+                if (e.outsideWindow === true) continue; // recorded in Lenient mode, never counted
                 if ((e.dayKey ?? dayKey(e.timestamp, orgTimezone)) === activeDay) {
                   todays.push({
                     type: e.type === "out" ? "out" : "in",
@@ -353,7 +359,7 @@ export const Route = createFileRoute("/api/check-in/scan")({
           });
 
           if (txResult.refused) {
-            const { plan } = txResult;
+            const { plan, outsideType } = txResult;
             // A retry of a scan that WAS recorded (its answer was lost) can arrive after the window has
             // closed. Answer with the original result, exactly as the normal path does, instead of
             // telling the person it was not recorded.
@@ -362,6 +368,81 @@ export const Route = createFileRoute("/api/check-in/scan")({
               logEvent({ action: "scan.record", outcome: "ok", correlationId: cid, ...scanActor, fields: { replayed: true } });
               return Response.json({ ok: true, ...replay });
             }
+
+            // Strict refuses the scan. Lenient records it but never counts it (src/lib/shift-lenient.ts):
+            // it starts or ends no shift, changes no direction and adds no hours, because nothing below
+            // touches the daily summary.
+            const recorded = classifyLenientScan({ mode: kiosk.shifts.shiftScanMode, insideWindow: false }).record;
+            let outsideResult: Record<string, unknown> | null = null;
+
+            if (recorded) {
+              // Nothing else slows repeated scans down (they do not touch the summary's cooldown), so limit them.
+              const rate = await checkRateLimit(`lenient_outside_${caller.uid}`, { limit: 6, windowMs: 10 * 60_000 });
+              if (!rate.allowed) {
+                logEvent({
+                  action: "scan.outside_window",
+                  outcome: "denied",
+                  correlationId: cid,
+                  ...scanActor,
+                  fields: { reason: "rate_limited", locationId },
+                });
+                return Response.json(
+                  { error: "You have scanned several times outside your shift. Please wait a few minutes, or speak to your manager." },
+                  { status: 429 },
+                );
+              }
+              const cached = profileCache.get(caller.uid);
+              const employeeName = cached?.name ?? tokenName;
+              const eventData = {
+                eventId: eventRef.id,
+                orgId: caller.orgId,
+                managerId,
+                employeeId: caller.uid,
+                employeeName,
+                employeeEmail: caller.email || "",
+                department: cached?.department ?? "General",
+                type: outsideType,
+                late: false,
+                earlyDeparture: false,
+                timestamp: nowIso,
+                dayKey: plan.shiftDay,
+                shiftId: plan.shift.shiftId,
+                // The marker every reader checks: this event is a record only, never counted.
+                outsideWindow: true,
+                outsideReason: plan.reason,
+                shiftStart: plan.shift.start,
+                shiftEnd: plan.shift.end,
+                locationId,
+                locationName: kiosk.locationName,
+                deviceFingerprint: deviceFingerprint || "browser-client",
+                verifiedBy: "kiosk_hmac_sha256",
+                schemaVersion: 1,
+              };
+              try {
+                await eventRef.create(eventData); // fails with ALREADY_EXISTS if this scanId was used
+              } catch (createErr: any) {
+                if (!isAlreadyExists(createErr)) throw createErr;
+                const again = await replayOf(scanActor, requestScanId);
+                if (again) return Response.json({ ok: true, ...again });
+                return Response.json({ error: "This scan could not be recorded. Please scan again." }, { status: 409 });
+              }
+              outsideResult = {
+                eventId: eventRef.id,
+                type: outsideType,
+                late: false,
+                earlyDeparture: false,
+                outsideWindow: true,
+                message: describeRecordedOutside(plan),
+                timestamp: nowIso,
+                timeDisplay: formatClock(now, orgTimezone),
+                employeeName,
+                locationName: kiosk.locationName,
+                undoSeconds: 0, // nothing was counted, so there is nothing to undo
+                replayed: false,
+              };
+            }
+
+            // Both modes leave one short note for the manager (it is not an attendance record).
             try {
               const noteId = refusedScanId(caller.uid, plan.shiftDay, plan.reason, now);
               await firestoreAdmin
@@ -374,6 +455,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
                   employeeName: tokenName,
                   at: nowIso,
                   reason: plan.reason,
+                  // Whether the scan was kept (Lenient) or turned away (Strict).
+                  recorded,
                   shiftId: plan.shift.shiftId,
                   shiftName: plan.shift.name,
                   shiftStart: plan.shift.start,
@@ -388,8 +471,8 @@ export const Route = createFileRoute("/api/check-in/scan")({
               }
             }
             logEvent({
-              action: "scan.refused",
-              outcome: "denied",
+              action: recorded ? "scan.outside_window" : "scan.refused",
+              outcome: recorded ? "ok" : "denied",
               correlationId: cid,
               ...scanActor,
               fields: {
@@ -397,9 +480,10 @@ export const Route = createFileRoute("/api/check-in/scan")({
                 shiftDay: plan.shiftDay,
                 shiftId: plan.shift.shiftId,
                 locationId,
-                ...(kiosk.shifts.shiftScanMode === "lenient" ? { lenientNotYet: true } : {}),
+                ...(recorded ? { lenient: true } : {}),
               },
             });
+            if (outsideResult) return Response.json({ ok: true, ...outsideResult });
             return Response.json({ error: plan.message }, { status: 400 });
           }
 
@@ -467,6 +551,25 @@ async function replayOf(
     const e = snap.data()!;
     if (e.employeeId !== actor.uid || e.orgId !== actor.orgId) return null;
     const kiosk = await getKioskEntry(String(e.locationId));
+    if (e.outsideWindow === true) {
+      return {
+        eventId: snap.id,
+        type: e.type,
+        late: false,
+        earlyDeparture: false,
+        outsideWindow: true,
+        message: describeRecordedOutside({
+          reason: e.outsideReason === "too_late" ? "too_late" : "too_early",
+          shift: { start: typeof e.shiftStart === "string" ? e.shiftStart : null, end: typeof e.shiftEnd === "string" ? e.shiftEnd : null },
+        }),
+        timestamp: e.timestamp,
+        timeDisplay: formatClock(e.timestamp, kiosk?.timezone ?? "UTC"),
+        employeeName: e.employeeName,
+        locationName: e.locationName,
+        undoSeconds: 0,
+        replayed: true,
+      };
+    }
     return {
       eventId: snap.id,
       type: e.type,

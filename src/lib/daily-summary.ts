@@ -35,6 +35,8 @@ export interface SummaryEvent {
   timestamp: string;
   late?: boolean;
   earlyDeparture?: boolean;
+  /** A Lenient-mode record outside the allowed time: never part of a summary. */
+  outsideWindow?: boolean;
 }
 
 export interface DailySummary extends SummaryIdentity {
@@ -191,7 +193,7 @@ export function summaryFromEvents(
   identity: SummaryIdentity,
   nowIso: string,
 ): DailySummary | null {
-  const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const sorted = events.filter((e) => e.outsideWindow !== true).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   let summary: DailySummary | null = null;
   for (const e of sorted) summary = applyEventToSummary(summary, e, identity, nowIso);
   return summary;
