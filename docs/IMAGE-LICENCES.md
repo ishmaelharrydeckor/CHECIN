@@ -29,6 +29,9 @@ Captured on 2026-10-19 from ChecIN's own screens, rendered with made-up sample p
 |---|---|---|
 | `dashboard.webp` | The manager dashboard Today view: present, late, away and absent counts and the late, not-arrived and work-from-home lists. | The real Today panel with sample data |
 
+| `kiosk-code.webp` | The entrance tablet's check-in screen with its QR code. | The real kiosk screen with a made-up sample code (cannot check anyone in) |
+| `kiosk-pairing.webp` | The tablet setup screen taking a one-time pairing code. | The real kiosk screen with a made-up sample code |
+
 ## Our own photos
 None yet. When we take photos of our own team or a partner workplace, add a row here with the date, who took it, and where **written consent** from every identifiable person is kept.
 
