@@ -138,6 +138,37 @@ function presentDay(d: string, s: ReportSummary, timezone: string, breaks = fals
   };
 }
 
+/** One person-day of the work diary, as the register needs it. */
+export interface ReportDiaryDay {
+  employeeId: string;
+  dayKey: string;
+  status: string;
+  verifiedMinutes: number;
+}
+
+/**
+ * Work-diary figures for one person over the report's days. Only an APPROVED day's verified minutes are
+ * hours; flagged days and days still waiting are counted, never added to anything. Scanned hours
+ * (minutesWorked) are never changed by the diary.
+ */
+export function diaryTotals(
+  days: readonly string[],
+  mine: readonly ReportDiaryDay[] | undefined,
+): { diaryApprovedMinutes: number; diaryFlaggedDays: number; diaryWaitingDays: number } {
+  const inRange = new Set(days);
+  const seen = new Set<string>();
+  const out = { diaryApprovedMinutes: 0, diaryFlaggedDays: 0, diaryWaitingDays: 0 };
+  for (const d of mine ?? []) {
+    if (!inRange.has(d.dayKey) || seen.has(d.dayKey)) continue;
+    seen.add(d.dayKey);
+    if (d.status === "approved") {
+      out.diaryApprovedMinutes += typeof d.verifiedMinutes === "number" && Number.isFinite(d.verifiedMinutes) && d.verifiedMinutes > 0 ? Math.round(d.verifiedMinutes) : 0;
+    } else if (d.status === "flagged") out.diaryFlaggedDays++;
+    else out.diaryWaitingDays++;
+  }
+  return out;
+}
+
 function breakTotals(days: readonly RegisterDay[]): { breakMinutes: number; paidMinutes: number } {
   return {
     breakMinutes: days.reduce((n, x) => n + (x.breakMinutes ?? 0), 0),
@@ -159,6 +190,9 @@ export function buildAttendanceRegister(input: {
   wfh?: readonly { employeeId: string; dayKey: string }[];
   /** The organization tracks breaks: add break and paid-time figures. Time at work is never changed. */
   breaks?: boolean;
+  /** Work-diary days for the range (the diary is on): add the diary columns, apart from scanned hours. */
+  diary?: readonly ReportDiaryDay[];
+  diaryTracked?: boolean;
   /** True if a read stopped at its safety cap, so the report may be missing people or days. */
   readTruncated?: boolean;
   shifts?: {
@@ -168,6 +202,14 @@ export function buildAttendanceRegister(input: {
 }): AttendanceRegister {
   const { days, timezone } = input;
   const breaks = input.breaks === true;
+  const diaryTracked = input.diaryTracked === true;
+  const diaryByPerson = new Map<string, ReportDiaryDay[]>();
+  for (const d of input.diary ?? []) {
+    if (!d || typeof d.employeeId !== "string" || typeof d.dayKey !== "string") continue;
+    const list = diaryByPerson.get(d.employeeId) ?? [];
+    list.push(d);
+    diaryByPerson.set(d.employeeId, list);
+  }
   const holiday = new Set(input.holidays);
 
   const byPerson = new Map<string, Map<string, ReportSummary>>();
@@ -251,6 +293,7 @@ export function buildAttendanceRegister(input: {
         wfhDays: count((x) => x.status === "wfh"),
         minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
         ...(breaks ? breakTotals(outDays) : {}),
+        ...(diaryTracked ? diaryTotals(days, diaryByPerson.get(p.uid)) : {}),
       },
     };
   });
@@ -286,6 +329,7 @@ export function buildAttendanceRegister(input: {
         wfhDays: 0,
         minutesWorked: outDays.reduce((n, x) => n + x.minutesWorked, 0),
         ...(breaks ? breakTotals(outDays) : {}),
+        ...(diaryTracked ? diaryTotals(days, diaryByPerson.get(employeeId)) : {}),
       },
     });
   }
@@ -299,6 +343,7 @@ export function buildAttendanceRegister(input: {
     generatedAt: input.generatedAt,
     rows: [...rows, ...former.slice(0, room)],
     ...(breaks ? { breaksTracked: true } : {}),
+    ...(diaryTracked ? { diaryTracked: true } : {}),
     truncated: input.readTruncated === true || people.length > REPORT_ROW_CAP || former.length > room,
   };
 }
