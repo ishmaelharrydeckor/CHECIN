@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import { clearUserAppCache } from "@/lib/query-client";
 
 // Pages employees must never see (management views); they are sent to their own history instead
-const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings", "/shifts", "/late-arrivals"];
+const MANAGER_ONLY_PATHS = ["/dashboard", "/reports", "/departments", "/settings", "/shifts", "/late-arrivals", "/wfh-review"];
 
 // Whether the menu is the slim icon rail. A per-person convenience, so a failure to read or write it is ignored.
 const COLLAPSE_KEY = "checin.menu.collapsed";
@@ -70,6 +70,7 @@ function navGroupsFor(canManage: boolean): NavGroup[] {
         items: [
           { to: "/late-arrivals", label: "Late arrivals", icon: AlarmClock },
           { to: "/shifts", label: "Shifts", icon: CalendarClock },
+          { to: "/wfh-review", label: "Work diary", icon: Laptop },
           { to: "/leave", label: "Leave", icon: Umbrella },
           { to: "/holidays", label: "Holidays", icon: CalendarDays },
           { to: "/announcements", label: "Notices", icon: Megaphone },
