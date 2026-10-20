@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { checkCronAuth, MIN_CRON_SECRET_LENGTH } from "../../src/lib/cron-auth.server.ts";
+import { checkCronAuth, cleanCronSecret, presentedCronToken, MIN_CRON_SECRET_LENGTH } from "../../src/lib/cron-auth.server.ts";
 import { runRefill, REFILL_BATCH_SIZE, REFILL_MAX_BATCHES, REFILL_BUDGET_MS } from "../../src/lib/pattern-refill.ts";
 
 const read = (p) => readFileSync(p, "utf8");
@@ -169,4 +169,40 @@ test("the operations notes say staging will not run it by itself, and how to run
   const ops = read("docs/OPERATIONS.md").replace(/\s+/g, " ");
   assert.ok(ops.includes("only runs scheduled jobs on the production deployment"));
   assert.ok(ops.includes("curl -s -H"));
+});
+
+// ---------------------------------------------------------------- a pasted secret often carries an invisible line break
+test("a stored secret with a stray space or line break around it still works", () => {
+  const LF = String.fromCharCode(10);
+  const CR = String.fromCharCode(13);
+  for (const stored of [SECRET + LF, SECRET + CR + LF, " " + SECRET + " ", LF + SECRET]) {
+    assert.equal(checkCronAuth("Bearer " + SECRET, stored), "ok", "the value you type matches the cleaned one");
+  }
+  assert.equal(cleanCronSecret(SECRET + LF), SECRET);
+  assert.equal(cleanCronSecret(undefined), "");
+});
+
+test("only the ends are cleaned: a different value, or spaces inside, never match", () => {
+  assert.equal(checkCronAuth("Bearer " + SECRET, "x" + SECRET), "denied");
+  assert.equal(checkCronAuth("Bearer " + SECRET, SECRET.slice(0, 10) + " " + SECRET.slice(10)), "denied");
+});
+
+test("a secret that is only spaces, or too short once cleaned, is treated as not set", () => {
+  assert.equal(checkCronAuth("Bearer " + " ".repeat(40), " ".repeat(40)), "not_configured");
+  assert.equal(checkCronAuth("Bearer short", "short" + " ".repeat(40)), "not_configured");
+});
+
+test("the value sent is taken exactly as sent (only the stored secret is cleaned), and a missing prefix gives nothing", () => {
+  assert.equal(presentedCronToken("Bearer abc "), "abc ");
+  assert.equal(presentedCronToken("abc"), "");
+  assert.equal(presentedCronToken(null), "");
+  assert.equal(checkCronAuth("Bearer " + SECRET + " ", SECRET), "denied", "extra characters on the value sent are a different value");
+});
+
+test("a rejected attempt logs only lengths, never either value", () => {
+  assert.ok(route.includes("sentLength:") && route.includes("expectedLength:"));
+  const denied = route.slice(route.indexOf('auth === "denied"'), route.indexOf("const summary"));
+  assert.ok(denied.includes("presentedCronToken(request.headers.get(\"authorization\")).length"), "the value sent is only measured");
+  assert.ok(denied.includes("cleanCronSecret(process.env.CRON_SECRET).length"), "the stored secret is only measured");
+  assert.equal(denied.split("process.env.CRON_SECRET").length - 1, 1, "and it appears nowhere else in the rejection");
 });

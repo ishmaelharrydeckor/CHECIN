@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { checkCronAuth } from "@/lib/cron-auth.server";
+import { checkCronAuth, cleanCronSecret, presentedCronToken } from "@/lib/cron-auth.server";
 import { runRefill } from "@/lib/pattern-refill";
 import { fillDuePatterns } from "@/lib/shift-patterns.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
@@ -36,7 +36,17 @@ export const Route = createFileRoute("/api/cron/shift-patterns")({
               windowMs: 15 * 60_000,
               failClosed: true,
             });
-            logEvent({ action: "cron.shift_patterns", outcome: "denied", correlationId: cid, fields: { limited: !rate.allowed } });
+            // Lengths only, never the values: enough to tell a stray space or the wrong project from a typo.
+            logEvent({
+              action: "cron.shift_patterns",
+              outcome: "denied",
+              correlationId: cid,
+              fields: {
+                limited: !rate.allowed,
+                sentLength: presentedCronToken(request.headers.get("authorization")).length,
+                expectedLength: cleanCronSecret(process.env.CRON_SECRET).length,
+              },
+            });
             return rate.allowed
               ? Response.json({ error: "Not allowed." }, { status: 401 })
               : Response.json({ error: "Too many attempts. Try again later." }, { status: 429 });
