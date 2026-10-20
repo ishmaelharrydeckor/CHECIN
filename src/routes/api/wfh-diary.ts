@@ -177,6 +177,8 @@ function sessionView(sessionId: string, data: FirebaseFirestore.DocumentData, se
     endedAtMs: sessionEndMs(session, nowMs),
     pauses: session.pauses,
     nextIndex: Math.max(0, Math.floor((Math.min(nowMs, sessionEndMs(session, nowMs) ?? nowMs) - session.startedAtMs) / DIARY_INTERVAL_MS)),
+    // The server's clock, so the page can line its blocks up with the server's even if the phone's clock is off.
+    serverNowMs: nowMs,
   };
 }
 
@@ -452,6 +454,7 @@ async function viewMe(caller: Caller, orgId: string) {
   );
   const base = {
     ok: true,
+    serverNowMs: nowMs,
     enabled: org.settings.enabled,
     today: org.today,
     consent: { agreed: consentSnap.exists, version: DIARY_CONSENT_VERSION, text: DIARY_CONSENT_TEXT },

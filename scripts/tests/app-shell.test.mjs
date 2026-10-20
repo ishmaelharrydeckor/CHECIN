@@ -26,7 +26,7 @@ test("a manager or admin still has every page they had in the top menu", () => {
 
 test("an employee still has only their own pages", () => {
   const links = linksOf(employeeBlock);
-  assert.deepEqual(links.sort(), ["/announcements", "/history", "/holidays", "/leave", "/me", "/my-shifts"]);
+  assert.deepEqual(links.sort(), ["/announcements", "/history", "/holidays", "/leave", "/me", "/my-shifts", "/wfh-diary"]);
   for (const forbidden of ["/dashboard", "/reports", "/departments", "/settings", "/shifts", "/late-arrivals"]) {
     assert.ok(!links.includes(forbidden), `employee menu must not have ${forbidden}`);
   }

@@ -18,6 +18,7 @@ import {
   Building2,
   Tablet,
   ScanLine,
+  Laptop,
   type LucideIcon,
 } from "lucide-react";
 import { firebaseAuth, fbSignOut } from "@/integrations/firebase/config";
@@ -94,6 +95,7 @@ function navGroupsFor(canManage: boolean): NavGroup[] {
         { to: "/me", label: "My Page", icon: User },
         { to: "/history", label: "My History", icon: Clock },
         { to: "/my-shifts", label: "My Shifts", icon: CalendarClock },
+        { to: "/wfh-diary", label: "Work diary", icon: Laptop },
         { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },
         { to: "/announcements", label: "Notices", icon: Megaphone },
