@@ -8,6 +8,7 @@ import {
   loadWfhRange,
 } from "@/lib/attendance-data.server";
 import { dashboardCacheKey } from "@/lib/dashboard-scope";
+import { gateFeature } from "@/lib/plan-gate.server";
 import { authorizeReportCaller, loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
 import { createCachedLoader } from "@/lib/ttl-cache.server";
 import { dayKey } from "@/lib/attendance-day";
@@ -36,6 +37,9 @@ export const Route = createFileRoute("/api/analytics")({
           const auth = await authorizeReportCaller(request);
           if ("response" in auth) return auth.response;
           const { scope } = auth;
+          // Paid feature (Growth): applied only when plan enforcement is on or in shadow mode (src/lib/plans.ts).
+          const blocked = await gateFeature(scope.orgId, "analytics", { uid: scope.uid, request });
+          if (blocked) return blocked;
 
           const url = new URL(request.url);
           const period = url.searchParams.get("period") ?? "last-14";
