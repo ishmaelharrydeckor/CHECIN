@@ -74,6 +74,18 @@ Target look and structure: [DASHBOARD-DESIGN-REFERENCE.md](DASHBOARD-DESIGN-REFE
 
 **Exit criteria:** a manager can go organization, then team, then person in at most three clicks; numbers agree everywhere on a screen; nothing is drawn for the future; no screen reads raw events for a period view; the geo-fence screens and India's EPFO filing from the reference are **not** built (no GPS, ever).
 
+## Phase 6: Website analytics (decided: Vercel Web Analytics)
+
+Cookieless visitor counts on the **public pages only** (landing, pricing, sign-up). Never inside the signed-in app, and never any advertising or cross-site tracker.
+
+| # | Task | Who | Size | Notes |
+|---|---|---|---|---|
+| 6.1 | **Add Vercel Web Analytics** to the public pages only | I | S | Enable it on both Vercel projects (`checin`, `checin-6982`). Add the `@vercel/analytics` package (approved by the owner) |
+| 6.2 | **Funnel events:** viewed pricing, started sign-up, completed sign-up, started trial | I | S | Event names only; no emails, names, ids or org details in any event |
+| 6.3 | **Cookie, privacy and terms wording** updated to match (what we use: sign-in session, preference settings, cookieless counter; adding ads or social pixels would require a consent banner) | I | S | Edits #158 and the privacy proposal; lawyer confirms the no-banner position |
+| 6.4 | **Guard test:** the build fails if a third-party tracker, advertising pixel or analytics script appears in the signed-in app, or any script from an unapproved host | I | S | Same pattern as the self-hosted-fonts test |
+| 6.5 | Owner view of the numbers | I | S | Vercel's own dashboard to start; an in-app "Visitors" view only if asked |
+
 ## Shared files — teammates do not edit these (integrator wires them in)
 
 `src/components/AppShell.tsx`, `src/routes/auth.tsx`, `src/integrations/firebase/admin.server.ts`,
