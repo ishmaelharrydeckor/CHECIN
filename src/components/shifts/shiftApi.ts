@@ -10,6 +10,9 @@ export interface ShiftRow {
   end: string | null;
   graceMinutes: number;
   expectedMinutes: number | null;
+  /** A fixed unpaid break in minutes (0 for none), and the time at work after which it is taken off. */
+  unpaidBreakMinutes: number;
+  deductAfterMinutes: number;
   createdBy: string | null;
   archived: boolean;
 }
@@ -19,6 +22,7 @@ export interface ShiftSettingsData {
   shiftsEnabled: boolean;
   shiftScanMode: "strict" | "lenient";
   shiftWindowMinutes: number;
+  breaksEnabled: boolean;
 }
 
 /** A manager and whether they may manage shifts (GET /api/shifts/access). */

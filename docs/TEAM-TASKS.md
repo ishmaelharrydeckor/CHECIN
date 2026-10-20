@@ -24,7 +24,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 3.1-P6 | Shifts phase 6: repeating patterns | L | Augustine | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 | 2.3b | Work-from-home diary | L | Augustine | todo. Starts after 3.1-P6 is merged. Design approved (docs/WFH-DIARY-DESIGN.md) | 2.3 (done), 3.1-P6 |
 | 3.1-P7 | Shifts phase 7: shift swaps | L | Augustine | todo. Starts after 3.1-P6 is merged. Brief below | 3.1-P6 |
-| 3.1-P8 | Shifts phase 8: breaks (the calculation, no screens) | M | Cobberson | todo. Brief below; start now | shifts phases 1 to 5b (done) |
+| 3.1-P8 | Shifts phase 8: breaks | M | Cobberson (the calculation, #128); integrator (wiring) | done: wired into shifts, assignments, summaries, the setting and the register report (see `docs/SHIFTS-DESIGN.md`, build plan 8) | shifts phases 1 to 5b (done) |
 | 3.1-P3b | Shifts phase 3b: Lenient mode | M | Cobberson (rules, #129); integrator (wiring) | done: wired into the scan route, History, the refused list and the settings screen (see `docs/SHIFTS-DESIGN.md`, 3b) | shifts phases 1 to 5b (done) |
 
 Next: nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.

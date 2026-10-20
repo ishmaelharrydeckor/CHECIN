@@ -6,7 +6,10 @@ export interface RegisterDay {
   status: RegisterStatus;
   firstIn: string | null;    // "08:14", already formatted in the organization's timezone
   lastOut: string | null;    // "17:02"
-  minutesWorked: number;     // whole minutes, worked out on the server
+  minutesWorked: number;     // whole minutes, worked out on the server (time at work, never changed by a break)
+  /** Only when breaks are tracked: the unpaid break taken off this day, and what is left to pay. */
+  breakMinutes?: number;
+  paidMinutes?: number;
   late: boolean;          // late and NOT excused
   lateExcused?: boolean;  // was late, and a manager excused it
   earlyDeparture: boolean;
@@ -17,7 +20,7 @@ export interface RegisterRow {
   name: string;
   department: string;
   days: RegisterDay[];       // one per day in the range, oldest first
-  totals: { presentDays: number; lateDays: number; absentDays: number; leaveDays: number; wfhDays: number; minutesWorked: number };
+  totals: { presentDays: number; lateDays: number; absentDays: number; leaveDays: number; wfhDays: number; minutesWorked: number; breakMinutes?: number; paidMinutes?: number };
 }
 
 export interface AttendanceRegister {
@@ -27,6 +30,8 @@ export interface AttendanceRegister {
   generatedAt: string;       // ISO
   rows: RegisterRow[];
   truncated: boolean;        // true if the server stopped at its limit
+  /** True when the organization tracks breaks: the report then has break and paid-time figures. */
+  breaksTracked?: boolean;
 }
 
 export interface LeaveLedgerRow {

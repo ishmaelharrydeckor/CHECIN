@@ -22,16 +22,20 @@ interface ShiftFormDialogProps {
   onOpenChange: (open: boolean) => void;
   /** The shift being edited, or null to create a new one. */
   editing: ShiftRow | null;
+  /** The organization tracks breaks: ask for the shift's unpaid break. */
+  breaksEnabled?: boolean;
   onSaved: () => void;
 }
 
-export function ShiftFormDialog({ open, onOpenChange, editing, onSaved }: ShiftFormDialogProps) {
+export function ShiftFormDialog({ open, onOpenChange, editing, breaksEnabled = false, onSaved }: ShiftFormDialogProps) {
   const [name, setName] = useState("");
   const [type, setType] = useState<ShiftType>("day");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
   const [grace, setGrace] = useState("0");
   const [hours, setHours] = useState("8");
+  const [breakMinutes, setBreakMinutes] = useState("0");
+  const [deductHours, setDeductHours] = useState("6");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -47,6 +51,8 @@ export function ShiftFormDialog({ open, onOpenChange, editing, onSaved }: ShiftF
       setEnd(editing.end ?? "17:00");
       setGrace(String(editing.graceMinutes));
       setHours(expectedMinutesToHours(editing.expectedMinutes) || "8");
+      setBreakMinutes(String(editing.unpaidBreakMinutes ?? 0));
+      setDeductHours(String((editing.deductAfterMinutes ?? 360) / 60));
     } else {
       setName("");
       setType("day");
@@ -54,6 +60,8 @@ export function ShiftFormDialog({ open, onOpenChange, editing, onSaved }: ShiftF
       setEnd("17:00");
       setGrace("0");
       setHours("8");
+      setBreakMinutes("0");
+      setDeductHours("6");
     }
   }, [open, editing]);
 
@@ -73,6 +81,14 @@ export function ShiftFormDialog({ open, onOpenChange, editing, onSaved }: ShiftF
       payload.start = start;
       payload.end = end;
     }
+    // The break. While breaks are switched off the shift keeps whatever break it already has, so editing a
+    // shift never silently removes one.
+    payload.unpaidBreakMinutes = breaksEnabled
+      ? breakMinutes.trim() === "" ? 0 : Number(breakMinutes)
+      : editing?.unpaidBreakMinutes ?? 0;
+    payload.deductAfterMinutes = breaksEnabled
+      ? Math.round((deductHours.trim() === "" ? 6 : Number(deductHours)) * 60)
+      : editing?.deductAfterMinutes ?? 360;
     const checked = parseShiftInput(payload);
     if (!checked.ok) {
       setError(checked.error);
@@ -217,6 +233,48 @@ export function ShiftFormDialog({ open, onOpenChange, editing, onSaved }: ShiftF
               How many minutes after the start someone can arrive before they are marked late.
             </p>
           </div>
+
+          {breaksEnabled && (
+            <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="shift-break" className="text-xs font-medium text-[#0E2322]">
+                  Unpaid break (minutes)
+                </Label>
+                <Input
+                  id="shift-break"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={240}
+                  value={breakMinutes}
+                  onChange={(e) => setBreakMinutes(e.target.value)}
+                  className="h-10 text-sm"
+                  disabled={saving}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="shift-break-after" className="text-xs font-medium text-[#0E2322]">
+                  Take the break off only after (hours at work)
+                </Label>
+                <Input
+                  id="shift-break-after"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={12}
+                  step="0.5"
+                  value={deductHours}
+                  onChange={(e) => setDeductHours(e.target.value)}
+                  className="h-10 text-sm"
+                  disabled={saving || Number(breakMinutes) === 0}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Reports show time at work, the break, and paid time. The break comes off only when someone was at work
+                for longer than this. Leave the break at 0 for none.
+              </p>
+            </div>
+          )}
 
           {error && (
             <p role="alert" className="text-xs text-destructive">

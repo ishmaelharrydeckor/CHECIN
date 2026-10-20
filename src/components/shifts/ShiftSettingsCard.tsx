@@ -28,7 +28,7 @@ export function ShiftSettingsCard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [windowText, setWindowText] = useState("120");
   const [windowError, setWindowError] = useState<string | null>(null);
-  const [savingKey, setSavingKey] = useState<"enabled" | "window" | "mode" | null>(null);
+  const [savingKey, setSavingKey] = useState<"enabled" | "window" | "breaks" | "mode" | null>(null);
   const [confirmOn, setConfirmOn] = useState(false);
 
   const load = useCallback(async () => {
@@ -42,6 +42,7 @@ export function ShiftSettingsCard() {
       shiftsEnabled: result.data.shiftsEnabled,
       shiftScanMode: result.data.shiftScanMode,
       shiftWindowMinutes: result.data.shiftWindowMinutes,
+      breaksEnabled: result.data.breaksEnabled === true,
     });
     setWindowText(String(result.data.shiftWindowMinutes));
   }, []);
@@ -50,7 +51,7 @@ export function ShiftSettingsCard() {
     void load();
   }, [load]);
 
-  async function save(change: Partial<ShiftSettingsData>, key: "enabled" | "window" | "mode", success: string) {
+  async function save(change: Partial<ShiftSettingsData>, key: "enabled" | "window" | "breaks" | "mode", success: string) {
     setSavingKey(key);
     const result = await authedFetch<ShiftSettingsData>("/api/shifts/settings", {
       method: "PUT",
@@ -65,6 +66,7 @@ export function ShiftSettingsCard() {
       shiftsEnabled: result.data.shiftsEnabled,
       shiftScanMode: result.data.shiftScanMode,
       shiftWindowMinutes: result.data.shiftWindowMinutes,
+      breaksEnabled: result.data.breaksEnabled === true,
     });
     setWindowText(String(result.data.shiftWindowMinutes));
     toast.success(success);
@@ -217,6 +219,24 @@ export function ShiftSettingsCard() {
                   </Label>
                 </div>
               </RadioGroup>
+            </div>
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium text-[#0E2322]">Track breaks</p>
+                <p className="text-xs text-muted-foreground">
+                  Give a shift an unpaid break. Reports then show time at work, the break, and paid time. The times people
+                  checked in and out are never changed.
+                </p>
+              </div>
+              <Switch
+                checked={settings?.breaksEnabled === true}
+                disabled={settings === null || savingKey !== null}
+                aria-label="Track breaks"
+                onCheckedChange={(next) =>
+                  void save({ breaksEnabled: next }, "breaks", next ? "Breaks are on." : "Breaks are off. Reports show time at work only.")
+                }
+              />
             </div>
 
             <p className="text-xs text-muted-foreground">

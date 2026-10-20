@@ -30,6 +30,7 @@ test("shift-requests exports the expected limits and defaults", () => {
     shiftsEnabled: false,
     shiftScanMode: "strict",
     shiftWindowMinutes: 120,
+    breaksEnabled: false,
   });
 });
 
@@ -53,6 +54,7 @@ test("readShiftSettings reads valid stored settings and ignores wrong types fiel
       shiftsEnabled: true,
       shiftScanMode: "lenient",
       shiftWindowMinutes: 60,
+      breaksEnabled: false,
     },
   );
 
@@ -67,6 +69,7 @@ test("readShiftSettings reads valid stored settings and ignores wrong types fiel
       shiftsEnabled: false,
       shiftScanMode: "lenient",
       shiftWindowMinutes: 90,
+      breaksEnabled: false,
     },
   );
 
@@ -81,6 +84,7 @@ test("readShiftSettings reads valid stored settings and ignores wrong types fiel
       shiftsEnabled: true,
       shiftScanMode: "strict",
       shiftWindowMinutes: 45,
+      breaksEnabled: false,
     },
   );
 });
