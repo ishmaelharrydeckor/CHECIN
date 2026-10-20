@@ -6,7 +6,9 @@
  * reads the database, the clock or the browser.
  *
  * Three steps, each a real thing that has to exist before attendance can work:
- *   1. an entrance (a location), 2. a paired tablet at it, 3. people to check in.
+ *   1. an entrance (a location), 2. a paired tablet at it, 3. people to check in. The third is done as soon
+ *   as the admin has invited someone (an invitation exists), or someone else has joined: it does not wait
+ *   for the invited person to open their link.
  * Once all three are done the checklist never shows again. It deliberately does NOT include "first
  * check-in", because that would reappear on a quiet day for an organization that is long set up.
  */
@@ -23,19 +25,26 @@ export interface SetupStep {
   title: string;
   detail: string;
   done: boolean;
+  /** A short extra line, shown even when the step is done (for example "2 invitations sent"). */
+  note?: string;
 }
 
 export interface SetupInput {
   locations: readonly SetupLocation[];
   /** Everyone in the organization, including the admin. A brand new organization has 1. */
   headcount: number;
+  /** How many invitations the admin has created, in any state (waiting, used, expired). Optional: 0 when unknown. */
+  invitesSent?: number;
 }
 
 export function buildSetupSteps(input: SetupInput): SetupStep[] {
   const locations = Array.isArray(input.locations) ? input.locations : [];
   const hasEntrance = locations.length > 0;
   const hasTablet = locations.some((l) => l?.isPaired === true);
-  const hasTeam = Number.isFinite(input.headcount) && input.headcount > 1;
+  const hasJoined = Number.isFinite(input.headcount) && input.headcount > 1;
+  const invitesSent = Number.isInteger(input.invitesSent) && (input.invitesSent as number) > 0 ? (input.invitesSent as number) : 0;
+  // An invitation sent counts: the step is the admin's job, and it is done once they have invited someone.
+  const hasTeam = hasJoined || invitesSent > 0;
 
   return [
     {
@@ -57,6 +66,9 @@ export function buildSetupSteps(input: SetupInput): SetupStep[] {
       title: "Invite your team",
       detail: "Send each person a link. They create their account and can check in from their phone.",
       done: hasTeam,
+      ...(invitesSent > 0 && !hasJoined
+        ? { note: `${invitesSent === 1 ? "1 invitation" : `${invitesSent} invitations`} sent. People appear on your team once they open their link and join.` }
+        : {}),
     },
   ];
 }
