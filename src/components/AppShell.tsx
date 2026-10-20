@@ -31,6 +31,10 @@ import {
   listenToDeviceStatus,
 } from "@/lib/device-manager";
 import { InAppNotificationCenter } from "@/components/PushNotificationManager";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { JumpTo } from "@/components/nav/JumpTo";
+import { useNavCounts } from "@/components/nav/useNavCounts";
+import { EMPTY_NAV_COUNTS, badgeLabel, badgeText, breadcrumbFor, countFor, flattenNav, type NavCounts } from "@/lib/nav-helpers";
 import { ReportProblemButton } from "@/components/ReportProblemDialog";
 import { useIsPlatformOwner } from "@/lib/platform-owner-client";
 import { toast } from "sonner";
@@ -111,12 +115,15 @@ function NavList({
   pathname,
   onNavigate,
   collapsed = false,
+  counts = EMPTY_NAV_COUNTS,
 }: {
   groups: NavGroup[];
   pathname: string;
   onNavigate?: () => void;
   /** Icons only, with the name as a tooltip and for screen readers. */
   collapsed?: boolean;
+  /** What is waiting for this person, shown as a small number on the page that holds it. */
+  counts?: NavCounts;
 }) {
   return (
     <nav aria-label="Main" className="space-y-5">
@@ -132,6 +139,7 @@ function NavList({
             {group.items.map((item) => {
               const isActive = pathname.startsWith(item.to);
               const Icon = item.icon;
+              const waiting = countFor(item.to, counts);
               return (
                 <li key={item.to}>
                   <Link
@@ -139,7 +147,7 @@ function NavList({
                     onClick={onNavigate}
                     aria-current={isActive ? "page" : undefined}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-2.5 py-1.5 rounded-lg text-sm font-medium transition ${
+                    className={`relative flex items-center gap-2.5 py-1.5 rounded-lg text-sm font-medium transition ${
                       collapsed ? "justify-center px-0" : "px-3"
                     } ${
                       isActive
@@ -149,6 +157,16 @@ function NavList({
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
                     <span className={collapsed ? "sr-only" : undefined}>{item.label}</span>
+                    {waiting > 0 && (
+                      <span
+                        aria-label={badgeLabel(waiting)}
+                        className={`rounded-full bg-amber-100 text-amber-900 text-[11px] font-semibold leading-none ${
+                          collapsed ? "absolute -top-0.5 right-1 px-1.5 py-0.5" : "ml-auto px-2 py-1"
+                        }`}
+                      >
+                        {badgeText(waiting)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
@@ -229,7 +247,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user?.id, navigate]);
 
   const groups = navGroupsFor(canManage);
-  const currentLabel = groups.flatMap((g) => g.items).find((i) => pathname.startsWith(i.to))?.label ?? "";
+  const crumb = breadcrumbFor(pathname, groups);
+  // Only managers and admins have things waiting for them; everyone else makes no request at all.
+  const counts = useNavCounts(!loading && !!user && canManage, pathname);
+  const jumpItems = flattenNav(groups).map((i) => ({ ...i, count: countFor(i.to, counts) }));
   const homePath = canManage ? "/dashboard" : "/history";
   const closeMenu = () => setMobileMenuOpen(false);
 
@@ -329,7 +350,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className={collapsed ? "px-3 py-4" : "px-5 py-4"}>{collapsed ? brandMark : brand}</div>
         <div className="flex-1 overflow-y-auto px-3 pb-4">
-          <NavList groups={groups} pathname={pathname} collapsed={collapsed} />
+          <NavList groups={groups} pathname={pathname} collapsed={collapsed} counts={counts} />
         </div>
         <div className="px-3 pb-3">{renderFooter(collapsed)}</div>
       </aside>
@@ -356,12 +377,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Menu className="size-5" />
             </button>
             <div className="md:hidden">{brand}</div>
-            {currentLabel && (
-              <p className="hidden md:block text-sm font-semibold text-[#0E2322] truncate">{currentLabel}</p>
+            {crumb && (
+              <Breadcrumb className="hidden md:block min-w-0">
+                <BreadcrumbList className="flex-nowrap">
+                  {crumb.group && (
+                    <>
+                      <BreadcrumbItem>
+                        <span className="text-sm text-slate-500">{crumb.group}</span>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator />
+                    </>
+                  )}
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbPage className="truncate text-sm font-semibold text-[#0E2322]">{crumb.page}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             )}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <JumpTo items={jumpItems} />
             {user?.id && <InAppNotificationCenter userId={user.id} />}
             {isPlatformOwner && (
               <Link
@@ -384,7 +420,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <SheetDescription className="sr-only">Pages you can open</SheetDescription>
             <div className="px-5 py-4">{brand}</div>
             <div className="flex-1 overflow-y-auto px-3 pb-4">
-              <NavList groups={groups} pathname={pathname} onNavigate={closeMenu} />
+              <NavList groups={groups} pathname={pathname} onNavigate={closeMenu} counts={counts} />
             </div>
             <div className="px-3 pb-3">{renderFooter(false)}</div>
           </SheetContent>
