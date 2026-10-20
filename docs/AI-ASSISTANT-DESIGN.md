@@ -1,10 +1,10 @@
 # AI assistant: design note (task 5.12)
 
-Status: **proposal for the owner's decisions.** Nothing here is built. Build tasks are 5.13 to 5.16 in [V2-TASK-PLAN.md](V2-TASK-PLAN.md). The security rules in [AGENTS.md](../AGENTS.md) apply in full.
+Status: **owner decisions made (see section 9).** Nothing here is built. Build tasks are 5.13 to 5.16 in [V2-TASK-PLAN.md](V2-TASK-PLAN.md). The security rules in [AGENTS.md](../AGENTS.md) apply in full.
 
 ## 1. What it is, in one sentence
 
-A chat panel inside ChecIN where a signed-in person asks questions about the data they are already allowed to see, and later asks for drafts and (with a confirmation click) actions. It is never a back door: **it can do exactly what that person can already do on the screens, and nothing more.**
+A chat panel inside ChecIN where a signed-in **manager or org admin** asks questions about the data they are already allowed to see, and later asks for drafts and (with a confirmation click) actions. It is never a back door: **it can do exactly what that person can already do on the screens, and nothing more.**
 
 ## 2. Who it is for, and what they ask
 
@@ -12,7 +12,7 @@ A chat panel inside ChecIN where a signed-in person asks questions about the dat
 |---|---|---|
 | Manager | "Who was late this week?" "Who is off on Friday?" "Summarise my team's attendance for October." | **Yes** |
 | Org admin | "Which team has the most absences?" "Which locations have unpaired kiosks?" | Yes (same engine, wider scope) |
-| Employee | "How many leave days do I have left?" "When is my next shift?" "Did my swap get approved?" | Later (5.13b), after managers prove it |
+| Employee | Not planned. **Employees do not get the assistant.** | No |
 
 ## 3. The rules it can never break
 
@@ -56,8 +56,6 @@ Browser panel --(ID token + question)--> POST /api/assistant
 | `leave_requests` | pending/approved leave for a date range | `leave_requests` | same |
 | `who_is_off` | people on approved leave or holiday on a date | `leave_requests`, `holidays` | same |
 | `shift_roster` | shifts for a date range | shift assignments | same |
-| `my_leave_balance` | caller's own balances (when 2.2 exists) | leave balances | own record only |
-| `my_next_shift` | caller's own upcoming shifts | shift assignments | own record only |
 
 Every tool has a hard row cap (with "and N more" returned), no raw timestamps beyond what the screens show, and no field the screen would not show that person.
 
@@ -69,7 +67,7 @@ Every tool has a hard row cap (with "and N more" returned), no raw timestamps be
 
 - Staff names, attendance and leave are personal data. They are sent to the AI provider **only for the question being asked** and **only what the tool returned**, never in bulk.
 - **Provider terms:** use the API with no training on our data and the shortest retention available. Record the provider as a sub-processor in the privacy policy ([PRIVACY-POLICY-PROPOSAL.md](PRIVACY-POLICY-PROPOSAL.md) needs a paragraph, and a lawyer's review, before launch).
-- **Switch per organization:** off by default; an org admin turns it on and can turn it off again at once. Employees' data is included only if the org has switched it on.
+- **Switch per organization:** off by default; an org admin turns it on and can turn it off again at once. Employees' records are included in answers only if the org has switched it on; employees themselves never use the assistant.
 - **What we store:** by default one log line per question: time, organization, verified user id, tools used, tokens used, outcome. **Not the question text and not the answer.** Storing conversations (for history) would be a separate, opt-in decision with its own retention period.
 - **Sensitive notes:** a leave note may mention health. Leave `note` text is excluded from tool results by default, and returned only to a manager who can already read it on screen and only when the question needs it.
 - **Data requests:** the data export (5.4) and deletion process need no change, because we store no conversation text.
@@ -84,18 +82,19 @@ Every tool has a hard row cap (with "and N more" returned), no raw timestamps be
 
 ## 8. Plan gating
 
-Add `ai_assistant` to the `FEATURES` table in `src/lib/plans.ts` with `built: false` until it ships. Which plan includes it is an owner decision (section 9). Because it costs money per use, the **free trial gets a small allowance** (for example 50 questions) rather than unlimited.
+Add `ai_assistant` to the `FEATURES` table in `src/lib/plans.ts` with `minPlan: "growth"` and `built: false` until it ships (owner decision D2: it sits behind the Growth plan, Enterprise includes it too). Because it costs money per use, the **free trial gets a small allowance** (for example 50 questions) rather than unlimited.
 
-## 9. Decisions for the owner
+## 9. Decisions (made by the owner)
 
-| # | Decision | Recommendation |
+| # | Decision | Outcome |
 |---|---|---|
-| D1 | First audience | Managers and org admins first, employees second |
-| D2 | Plan level | **Growth** gets a monthly allowance; **Enterprise** a larger one; heavy users can buy more. Or sell it as a separate paid add-on |
-| D3 | Provider | Anthropic API (what this note assumes) |
-| D4 | Keep conversation history? | No for the first release. Add later, opt-in, with a retention period |
-| D5 | Where it appears | A button in the dashboard header opening a side panel; later a shortcut on the employee scan screen |
-| D6 | Languages | English first; ask the pilot whether Twi or other languages are wanted |
+| D1 | First audience | **Org admins and managers only.** Employees do not get the assistant |
+| D2 | Plan level | **Growth plan** (and Enterprise, which includes Growth). Gated by `ai_assistant` |
+| D3 | Provider | Anthropic API |
+| D4 | Conversation history | None in the first release |
+| D5 | Where it appears | Header button opening a side panel on the dashboard |
+| D6 | Languages | English first |
+| D7 | Monthly allowance per organization | Still to set once we know the real cost per question (task 5.16) |
 
 ## 10. How we will test it
 
@@ -115,11 +114,10 @@ Tests run without calling the real model (a fake model returns scripted tool cal
 
 1. Foundation: the route, token and scope, rate limit and budget counter, kill switch, plan gate, fake-model test harness, the log line. No tools yet.
 2. Read tools for managers and admins (5.13), with the side panel.
-3. Employee read tools (5.13b), once leave balances exist.
-4. Usage page and notices (5.16).
-5. Drafting (5.14).
-6. Confirmed actions (5.15).
-7. Privacy policy update, red-team pass, then offer it to the pilot organization first.
+3. Usage page and notices (5.16).
+4. Drafting (5.14).
+5. Confirmed actions (5.15).
+6. Privacy policy update, red-team pass, then offer it to the pilot organization first.
 
 ## 12. Environment variables (to add to `.env.example` when built)
 
