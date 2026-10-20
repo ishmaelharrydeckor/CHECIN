@@ -37,6 +37,27 @@ A staging deployment pointed at the live database refuses to start (environment 
 - Vercel holds its own service-account key. Never delete a key unless its ID is the one you created.
 - The Firebase web API key in `DEPLOYMENT.md` is public by design (access is controlled by the Firestore rules), but should be restricted by website in Google Cloud Console, APIs and Services, Credentials.
 
+## Scheduled jobs: the nightly pattern refill
+
+**What it does.** Every night at 01:30 UTC, `/api/cron/shift-patterns` tops up every organization's repeating shift patterns to 62 days ahead, so a pattern never runs dry. It is safe to run any number of times: it only writes days that are not filled yet and never overwrites a manual assignment. If it is missed, nothing breaks: opening the Rota also tops up that team's patterns, and the next night's run catches up.
+
+**Set it up (once per environment).**
+1. In Vercel, add an environment variable **`CRON_SECRET`**: a long random string of at least 16 characters (for example `openssl rand -hex 32`). Use a different value for each environment, and never put it in a file or a message.
+2. Redeploy. Vercel then sends `Authorization: Bearer <CRON_SECRET>` on each scheduled call.
+3. **Vercel only runs scheduled jobs on the production deployment**, not on preview deployments. The staging site will not run it on its own, so on staging trigger it by hand (below) when you want to test.
+
+**Run it by hand** (to test, or to catch up). Replace the address and the secret:
+
+```bash
+curl -s -H "Authorization: Bearer YOUR_SECRET" https://YOUR-ADDRESS/api/cron/shift-patterns
+```
+
+It answers with a short summary, for example `{"ok":true,"batches":1,"checked":3,"written":186,"failed":0,"partial":false,"stoppedBecause":"done"}`. `written` is the number of shift assignments added. `partial: true` means some patterns were left for the next run (it stops after about 20 seconds, or if a batch changes nothing).
+
+**What the answers mean.** `503`: `CRON_SECRET` is not set or is too short, so the job refuses everyone (the safe default). `401`: wrong secret. `429`: too many wrong attempts from one address; wait 15 minutes. Every run is logged as `cron.shift_patterns` with the counts; `failed` above 0 shows as an error line, naming no one.
+
+**Check it is working.** In Vercel, open the project, then **Settings, Cron Jobs**, to see the last run and its result.
+
 ## When something goes wrong
 1. **Stop the harm:** Vercel, project `checin`, Deployments, promote the previous production deployment.
 2. **Say so:** one plain message to the team and the affected customers.
