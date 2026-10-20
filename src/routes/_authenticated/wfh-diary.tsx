@@ -94,7 +94,7 @@ function WorkDiaryPage() {
     },
     [post, applyReply],
   );
-  useDiaryRecorder({ session, sessionKey, offsetMs, send: sendReport });
+  const { flush } = useDiaryRecorder({ session, sessionKey, offsetMs, send: sendReport });
 
   // Opens each still-here check when it falls due (by the server's clock), once.
   useEffect(() => {
@@ -148,6 +148,8 @@ function WorkDiaryPage() {
 
   async function change(action: "pause" | "resume" | "stop") {
     setBusy(action);
+    // Stopping: first report the block that has just finished, so its minutes are not lost.
+    if (action === "stop") await flush();
     const result = await post({ action });
     setBusy(null);
     setConfirmStop(false);

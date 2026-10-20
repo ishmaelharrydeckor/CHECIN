@@ -65,3 +65,27 @@ test("loading, error and every empty state exist; buttons are tall enough to tap
   }
   assert.ok((page.match(/className="h-10/g) ?? []).length >= 4);
 });
+
+// Added by the integrator on top of #154.
+test("the diary page can be found: a menu entry for employees and a link from My page", () => {
+  const shell = readFileSync("src/components/AppShell.tsx", "utf8");
+  assert.ok(shell.includes('{ to: "/wfh-diary", label: "Work diary", icon: Laptop }'));
+  const section = readFileSync("src/components/wfh/MyWfhSection.tsx", "utf8");
+  assert.ok(section.includes('to="/wfh-diary"'));
+});
+
+test("stopping first reports the block that just finished, so its minutes are not lost", () => {
+  assert.ok(page.includes('if (action === "stop") await flush();'));
+  assert.ok(page.indexOf('await flush();') < page.indexOf("const result = await post({ action });"));
+  assert.ok(hook.includes("flush: async"));
+});
+
+test("scrolling by finger counts; figures for blocks that can no longer be reported are dropped", () => {
+  assert.ok(hook.includes('addEventListener("touchmove", onScroll'));
+  assert.ok(hook.includes("finished.current.delete(index)"));
+});
+
+test("a small change in the clock difference does not rebuild the listeners and the timer", () => {
+  assert.ok(hook.includes("offsetRef.current = offsetMs;"));
+  assert.ok(hook.includes("}, [running, startedAtMs, sessionId, sessionKey]);"));
+});
