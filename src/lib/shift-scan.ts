@@ -136,6 +136,24 @@ export function planShiftStatus(input: {
   return { kind: "legacy" };
 }
 
+/**
+ * What the phone says when Lenient mode recorded a scan that was outside the allowed time. The scan is kept
+ * for the record but is not counted: it does not start or end the shift and does not change the hours.
+ */
+export function describeRecordedOutside(input: {
+  reason: "too_early" | "too_late";
+  /** A flexible shift has no fixed start or end, so either can be missing. */
+  shift: { start: string | null; end: string | null };
+}): string {
+  const tail = "Your scan was recorded, but it does not count toward your hours.";
+  if (input.reason === "too_early") {
+    return input.shift.start ? `Your shift starts at ${input.shift.start}. ${tail}` : `Your shift has not started yet. ${tail}`;
+  }
+  return input.shift.end
+    ? `Your shift ended at ${input.shift.end}. ${tail} Please speak to your manager.`
+    : `Your shift has ended. ${tail} Please speak to your manager.`;
+}
+
 /** Deterministic id: one note per person, shift day, reason and 10-minute period, so retries and repeated tries cannot flood the list. */
 export function refusedScanId(
   employeeId: string,

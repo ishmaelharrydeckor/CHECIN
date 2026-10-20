@@ -90,6 +90,8 @@ async function backfillDay(day) {
     for (const d of snap.docs) {
       const e = d.data();
       if (!e.orgId || !e.employeeId || !e.timestamp || (onlyOrg && e.orgId !== onlyOrg)) continue;
+      // An undone scan, and a Lenient record outside the allowed time, count for nothing.
+      if (e.voidedAt || e.outsideWindow === true) continue;
       const tz = await timezoneOf(e.orgId);
       const eventDay = e.dayKey || dayKey(e.timestamp, tz);
       if (eventDay !== day) continue;

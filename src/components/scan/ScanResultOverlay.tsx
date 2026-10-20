@@ -1,4 +1,4 @@
-import { Check, TriangleAlert } from "lucide-react";
+import { Check, Clock, TriangleAlert } from "lucide-react";
 
 /**
  * Full-viewfinder result of a scan. The employee's phone is the confirmation, so
@@ -19,7 +19,9 @@ export type ScanOverlayState =
       time: string;
       location: string;
     }
-  | { kind: "failure"; title: string; detail: string };
+  | { kind: "failure"; title: string; detail: string }
+  // Lenient mode: the scan was recorded but is outside the allowed time, so it does not count.
+  | { kind: "outside"; time: string; location: string; detail: string };
 
 interface Props {
   state: ScanOverlayState;
@@ -48,6 +50,27 @@ export function ScanResultOverlay({ state, onPrimary, onUndo, undoSecondsLeft = 
           className="py-2.5 px-6 rounded-xl bg-white text-[#0E2322] text-sm font-bold"
         >
           Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (state.kind === "outside") {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 text-center bg-[#FCF2CB] text-[#0E2322]"
+      >
+        <div className="w-16 h-16 rounded-full bg-[#0E2322] text-[#C0FD9B] flex items-center justify-center mb-4">
+          <Clock className="size-8" aria-hidden />
+        </div>
+        <h2 className="text-2xl font-extrabold tracking-tight mb-1">Recorded outside your shift</h2>
+        <p className="text-5xl font-extrabold tabular-nums my-2">{state.time.slice(0, 5)}</p>
+        <p className="text-sm font-medium opacity-80 mb-3">{state.location}</p>
+        <p className="text-sm max-w-[280px] mb-4">{state.detail}</p>
+        <button onClick={onPrimary} className="mt-2 py-2.5 px-6 rounded-xl bg-[#0E2322] text-white text-sm font-bold">
+          Scan again
         </button>
       </div>
     );

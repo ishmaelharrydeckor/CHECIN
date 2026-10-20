@@ -100,6 +100,7 @@ export async function loadScopedEvents(
   for (const doc of snap.docs) {
     const d = doc.data();
     if (d.voidedAt) continue; // undone by the employee
+    if (d.outsideWindow === true) continue; // Lenient mode: recorded, never counted or listed here
     if (!d.employeeId || !d.timestamp || (d.type !== "in" && d.type !== "out")) continue;
     events.push({
       id: doc.id,

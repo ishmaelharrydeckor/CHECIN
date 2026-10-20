@@ -150,9 +150,11 @@ export const Route = createFileRoute("/api/check-in/status")({
               .where("orgId", "==", caller.orgId)
               .where("employeeId", "==", caller.uid)
               .orderBy("timestamp", "desc")
-              .limit(1)
+              .limit(5)
               .get();
-            const last = lastSnap.empty ? null : lastSnap.docs[0].data();
+            // The latest scan that counted: not undone, and not a Lenient record.
+            const lastDoc = lastSnap.docs.find((d) => d.data().outsideWindow !== true && !d.data().voidedAt);
+            const last = lastDoc ? lastDoc.data() : null;
             status = nextScanType(last, now, tz) === "out" ? "in" : "out";
             lastTime = last && dayKey(last.timestamp, tz) === today ? formatClock(last.timestamp, tz) || null : null;
           } else {

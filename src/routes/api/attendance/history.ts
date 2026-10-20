@@ -146,6 +146,8 @@ export const Route = createFileRoute("/api/attendance/history")({
               lateExcused: excused,
               earlyDeparture: d.earlyDeparture === true,
               voided: !!d.voidedAt,
+              // Lenient mode: recorded outside the allowed time, never counted.
+              outsideWindow: d.outsideWindow === true,
               timestamp: d.timestamp,
               verifiedMethod: d.verifiedBy || "15s Dynamic QR · HMAC Verified",
             };

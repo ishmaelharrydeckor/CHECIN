@@ -55,6 +55,10 @@ export const Route = createFileRoute("/api/check-in/undo")({
               throw new UndoRefused(404, "That scan could not be found.");
             }
             if (e.voidedAt) return { type: e.type as "in" | "out" };
+            // Lenient mode records these but counts nothing, so there is nothing to put back.
+            if (e.outsideWindow === true) {
+              throw new UndoRefused(409, "That check-in was recorded outside your shift and can't be undone.");
+            }
 
             const age = now - new Date(e.timestamp).getTime();
             if (!Number.isFinite(age) || age > UNDO_WINDOW_MS + GRACE_MS) {

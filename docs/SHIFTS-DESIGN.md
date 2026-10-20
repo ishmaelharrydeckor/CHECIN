@@ -65,7 +65,13 @@ An organization can define **shifts** (Day, Early, Late, Night, Flex) and assign
 1. **Pure engine and tests** (no screens, no database): shift windows including across midnight, which shift a scan belongs to, late / early with grace, direction by shift day, expected / absent. A large table of tests.
 2. **Data and routes:** collections, rules, indexes, create/list/edit shifts, assign (with the repeat helper), the organization switch.
 3. **Scan integration** behind the switch: choosing the shift, late / early, direction by shift day, **refusing a scan outside the window** (Strict only in this phase) with the new reasons on the phone, the refused-scan note, a load test and fallback tests (missing data records the scan as today).
-3b. **Lenient mode:** a scan outside the window is recorded but not counted. It needs its own design pass, because an uncounted event must not change the direction of the next scan or the hours; until then the setting behaves as Strict.
+3b. **Lenient mode (built).** A scan outside the window is recorded but never counted. How it works:
+   - The scan route writes **one `clock_events` record marked `outsideWindow: true`** (with `late` and `earlyDeparture` false) and **one refused-scans note marked `recorded: true`**. It writes **nothing to the daily summary**, so it cannot start or end a shift, change the direction of the next scan, set the cooldown or add hours.
+   - The record's direction (`type`) is what the scan would have been, read from the counted summary. It is for display only.
+   - It is **rate limited** (6 per 10 minutes per person), because it does not hit the summary's cooldown, and it **cannot be undone** (nothing was counted).
+   - **Every reader of raw events skips it:** the Today, week and register event lists, the rollout fallback and the summary rebuild script, and the status fallback. **History shows it, marked "Outside shift, not counted"**, and the Refused check-ins list shows "Recorded, not counted" against "Turned away".
+   - The phone shows "Recorded outside your shift" with the reason, and leaves the in/out status as it was.
+   - The admin chooses Strict or Lenient on the shifts Settings tab; Strict is still the default.
 4. **Today panel, week chart, register and reports** read the shift rules (expected, absent, late, "still on a night shift").
 5. **Screens:** shift templates, a rota grid (week view) for admins and managers, "My shifts" for employees, the per-manager "Manage shifts" switch, the Strict / Lenient setting, the "Refused scans" tab in History, phone first.
 6. **Repeating patterns and rotations** (the alternative to filling ranges by hand), with the server keeping assignments filled ahead.

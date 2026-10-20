@@ -104,6 +104,8 @@ export interface RefusedNote {
   shiftEnd: string | null;
   opensAt: string;
   closesAt: string;
+  /** Lenient mode kept the scan (it is not counted); otherwise it was turned away. */
+  recorded: boolean;
 }
 
 /** One plain sentence for the refused-scans list, with times in the organization's timezone. */
