@@ -331,6 +331,23 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---- Work-from-home diary (docs/WFH-DIARY-DESIGN.md) ----
+    // No client access at all, by design: every read and write goes through /api/wfh-diary, which checks who is
+    // asking and applies the rules. The sessions hold each session's key hash and the interval counts; the
+    // consents hold the signed notice text. None of it may ever be read or written from a browser.
+    match /wfh_diary_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+    match /wfh_diary_intervals/{intervalId} {
+      allow read, write: if false;
+    }
+    match /wfh_diary_days/{dayId} {
+      allow read, write: if false;
+    }
+    match /diary_consents/{consentId} {
+      allow read, write: if false;
+    }
+
     // Default Deny: Catch-all for any collection not explicitly matched above
     match /{document=**} {
       allow read, write: if false;
