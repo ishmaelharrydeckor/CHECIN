@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authedFetch } from "@/components/shifts/shiftApi";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/lib/auth";
 import { DiaryConsentCard } from "@/components/wfh/diary/DiaryConsentCard";
+import { DiaryTeamReview } from "@/components/wfh/diary/DiaryTeamReview";
 import { StillHereDialog } from "@/components/wfh/diary/StillHereDialog";
 import { useDiaryRecorder } from "@/components/wfh/diary/useDiaryRecorder";
 import {
@@ -43,6 +46,8 @@ function newRequestId(): string {
 }
 
 function WorkDiaryPage() {
+  const { isManager, isOrgAdmin } = useAuth();
+  const reviewer = isManager || isOrgAdmin;
   const [me, setMe] = useState<DiaryMe | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<DiarySessionView | null>(null);
@@ -158,16 +163,8 @@ function WorkDiaryPage() {
     if (action === "stop") await load();
   }
 
-  return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#0E2322]">Work diary</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          For a work-from-home day: start a session, keep this page open, and answer the occasional "still here?" check.
-        </p>
-      </div>
-
-      {error && me === null ? (
+  // The person's own session; managers and admins also get the team review next to it.
+  const mySession = (error && me === null ? (
         <Card className="border-border/80 shadow-sm">
           <CardContent className="py-8 text-center space-y-3">
             <p className="text-sm font-medium text-[#0E2322]">Couldn't load your work diary</p>
@@ -228,6 +225,30 @@ function WorkDiaryPage() {
           onResume={() => void change("resume")}
           onStop={() => setConfirmStop(true)}
         />
+      ));
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#0E2322]">Work diary</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          For a work-from-home day: start a session, keep this page open, and answer the occasional "still here?" check.
+        </p>
+      </div>
+
+      {reviewer && me?.enabled ? (
+        <Tabs defaultValue="mine" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="mine">My session</TabsTrigger>
+            <TabsTrigger value="team">Team review</TabsTrigger>
+          </TabsList>
+          <TabsContent value="mine">{mySession}</TabsContent>
+          <TabsContent value="team">
+            <DiaryTeamReview today={me.today} />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        mySession
       )}
 
       <StillHereDialog check={activeCheck} offsetMs={offsetMs} onAnswer={answerCheck} onExpired={expireCheck} />

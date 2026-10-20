@@ -42,6 +42,7 @@ import {
   sessionChecks,
   sessionKeyFor,
   sha256Hex,
+  clockLabel,
 } from "@/lib/wfh-diary.server";
 
 /**
@@ -513,20 +514,32 @@ async function viewDetail(caller: Caller, orgId: string, employeeId: string | nu
     return refuse(404, "That day was not found.");
   }
   const nowMs = Date.now();
+  const { timezone } = await loadDiaryOrg(orgId, nowMs);
   const session = sessionFrom(data);
   const built = rebuild(getDiarySecret(), id, data, session, summaryFrom(daySnap.data()), nowMs);
   const rows = new Map(rowsFrom(data).map((r) => [r.index, r]));
+  const end = sessionEndMs(session, nowMs);
   return Response.json({
     ok: true,
+    employeeId,
+    dayKey: day,
     employeeName: data.employeeName ?? "",
+    // Times already written in the organization's timezone, for the screen to show as they are.
+    timezone,
+    startedLabel: clockLabel(session.startedAtMs, timezone),
+    endedLabel: end !== null ? clockLabel(end, timezone) : null,
+    canDecide: !own && canDecideDay({ uid: caller.uid, role: caller.role as string }, { employeeId, managerId: data.managerId ?? null }),
     session: sessionView(id, data, session, nowMs),
     summary: summaryFrom(daySnap.data()),
     // Counts and timings per block, as recorded. Never content.
-    intervals: built.evaluated.intervals.map((i) => ({ ...i, startMs: intervalWindow(session.startedAtMs, i.index).startMs, ...rows.get(i.index) })),
+    intervals: built.evaluated.intervals.map((i) => {
+      const startMs = intervalWindow(session.startedAtMs, i.index).startMs;
+      return { ...rows.get(i.index), ...i, startMs, startLabel: clockLabel(startMs, timezone) };
+    }),
     flags: built.evaluated.flags,
     checks: built.checks
       .filter((c) => c.dueAtMs <= nowMs && c.dueAtMs < (sessionEndMs(session, nowMs) ?? nowMs))
-      .map((c) => ({ index: c.index, dueAtMs: c.dueAtMs, answeredAtMs: c.answeredAtMs })),
+      .map((c) => ({ index: c.index, dueAtMs: c.dueAtMs, dueLabel: clockLabel(c.dueAtMs, timezone), answeredAtMs: c.answeredAtMs })),
   });
 }
 

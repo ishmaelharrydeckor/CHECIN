@@ -102,6 +102,12 @@ export function AttendanceRegisterReport({
       onDownloadPdf={downloadPdfFile}
     >
       <Legend />
+      {data?.diaryTracked && (
+        <p className="text-[11px] text-slate-600">
+          Diary: approved work-from-home diary hours, kept apart from Hours. Unapproved: diary time a manager has not
+          approved yet, or flagged.
+        </p>
+      )}
 
       {isDesktop ? (
         <div className="overflow-x-auto rounded-2xl border border-border/70 bg-white shadow-sm">
@@ -115,7 +121,15 @@ export function AttendanceRegisterReport({
                     {k.slice(8)}
                   </th>
                 ))}
-                {["Present", "Late", "Absent", "Leave", "Hours", ...(data?.breaksTracked ? ["Break", "Paid"] : [])].map((h) => (
+                {[
+                  "Present",
+                  "Late",
+                  "Absent",
+                  "Leave",
+                  "Hours",
+                  ...(data?.breaksTracked ? ["Break", "Paid"] : []),
+                  ...(data?.diaryTracked ? ["Diary", "Unapproved", "Flagged"] : []),
+                ].map((h) => (
                   <th key={h} className="bg-slate-50 px-2 py-2 text-center font-semibold">
                     {h}
                   </th>
@@ -163,6 +177,17 @@ export function AttendanceRegisterReport({
                       </td>
                     </>
                   )}
+                  {data?.diaryTracked && (
+                    <>
+                      <td className="border-t border-slate-100 px-2 text-center" title="Approved work-from-home diary hours (not part of Hours)">
+                        {formatHours(r.totals.diaryApprovedMinutes ?? 0)}
+                      </td>
+                      <td className="border-t border-slate-100 px-2 text-center text-slate-500" title="Diary time not yet approved, or flagged">
+                        {formatHours(r.totals.diaryUnapprovedMinutes ?? 0)}
+                      </td>
+                      <td className="border-t border-slate-100 px-2 text-center">{r.totals.diaryFlaggedDays ?? 0}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -189,6 +214,12 @@ export function AttendanceRegisterReport({
                     {data?.breaksTracked && (
                       <p className="text-[11px] text-muted-foreground">
                         Break {formatHours(r.totals.breakMinutes ?? 0)} · Paid {formatHours(r.totals.paidMinutes ?? 0)}
+                      </p>
+                    )}
+                    {data?.diaryTracked && ((r.totals.diaryApprovedMinutes ?? 0) > 0 || (r.totals.diaryUnapprovedMinutes ?? 0) > 0) && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Diary {formatHours(r.totals.diaryApprovedMinutes ?? 0)} · Unapproved {formatHours(r.totals.diaryUnapprovedMinutes ?? 0)}
+                        {(r.totals.diaryFlaggedDays ?? 0) > 0 ? ` · ${r.totals.diaryFlaggedDays} flagged` : ""}
                       </p>
                     )}
                   </div>

@@ -109,3 +109,24 @@ test("plain words for the page: durations, statuses and flags", async () => {
   assert.equal(ui.secondsLeft(T0, T0 + 30_000, 90_000), 60);
   assert.equal(ui.secondsLeft(T0, T0 + 200_000, 90_000), 0);
 });
+
+test("the review strip: one colour and name per block state, and a tally of the checks", async () => {
+  const ui = await import("../../src/lib/wfh-diary-ui.ts");
+  assert.match(ui.blockLook("verified").className, /CBEED3/);
+  assert.match(ui.blockLook("unverified").className, /amber/);
+  assert.equal(ui.blockLook("paused").label, "Paused");
+  assert.equal(ui.blockLook("pending").label, "Waiting for a check");
+  const checks = [
+    { dueAtMs: T0, answeredAtMs: T0 + 5000 },
+    { dueAtMs: T0 + 60_000, answeredAtMs: null },
+    { dueAtMs: T0 + 10 * MIN, answeredAtMs: null },
+  ];
+  assert.deepEqual(ui.checkTally(checks, T0 + 10 * MIN + 30_000, 90_000), { answered: 1, missed: 1, open: 1 });
+});
+
+test("the manager's view of a day's decision", async () => {
+  const ui = await import("../../src/lib/wfh-diary-ui.ts");
+  assert.equal(ui.reviewStatusLabel("pending").text, "Waiting for your decision");
+  assert.equal(ui.reviewStatusLabel("approved").text, "Approved");
+  assert.match(ui.reviewStatusLabel("flagged").className, /amber/);
+});

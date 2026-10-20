@@ -64,3 +64,40 @@ export function storeKey(sessionId: string, key: string): void {
     // Private mode without storage: the key stays in memory for this page only.
   }
 }
+
+/** One person's day in a manager's list (GET /api/wfh-diary?view=team&day=). */
+export interface DiaryTeamDay extends DiarySummaryView {
+  employeeId: string;
+  employeeName: string;
+  dayKey: string;
+}
+
+export interface DiaryTeamData {
+  day: string;
+  days: DiaryTeamDay[];
+  capped: boolean;
+}
+
+/** One person's day in detail (GET /api/wfh-diary?view=detail&employeeId=&day=). Counts and timings only. */
+export interface DiaryDayDetail {
+  employeeId: string;
+  dayKey: string;
+  employeeName: string;
+  timezone: string;
+  startedLabel: string;
+  endedLabel: string | null;
+  canDecide: boolean;
+  session: DiarySessionView;
+  summary: DiarySummaryView | null;
+  intervals: {
+    index: number;
+    state: "verified" | "unverified" | "paused" | "pending";
+    reasons: string[];
+    startLabel: string;
+    counts?: { keys: number; clicks: number; scrolls: number; moves: number };
+    activeMinutes?: number;
+    visibleSeconds?: number;
+  }[];
+  flags: { code: string; severity: "review" | "info"; indexes: number[]; text: string }[];
+  checks: { index: number; dueAtMs: number; dueLabel: string; answeredAtMs: number | null }[];
+}

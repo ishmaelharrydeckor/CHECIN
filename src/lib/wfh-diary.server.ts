@@ -6,7 +6,7 @@
  */
 import crypto from "node:crypto";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
-import { dayKey } from "./attendance-day.ts";
+import { dayKey, formatClock } from "./attendance-day.ts";
 import {
   DIARY_MAX_SESSION_HOURS,
   deriveSessionKey,
@@ -23,6 +23,8 @@ export const DIARY_INTERVALS = "wfh_diary_intervals";
 export const DIARY_DAYS = "wfh_diary_days";
 export const DIARY_CONSENTS = "diary_consents";
 export const DIARY_TEAM_CAP = 200;
+/** One summary per person per day: a 31-day register of about 190 people. */
+export const DIARY_REPORT_CAP = 6000;
 
 const HOUR_MS = 60 * 60_000;
 const MIN_SECRET_LENGTH = 32;
@@ -103,6 +105,7 @@ export function sessionChecks(input: {
 }
 
 export interface DiaryOrg {
+  timezone: string;
   today: string;
   yesterday: string;
   settings: DiarySettings;
@@ -117,5 +120,41 @@ export async function loadDiaryOrg(orgId: string, nowMs: number): Promise<DiaryO
   const today = dayKey(nowMs, tz) || new Date(nowMs).toISOString().slice(0, 10);
   const y = new Date(`${today}T00:00:00Z`);
   y.setUTCDate(y.getUTCDate() - 1);
-  return { today, yesterday: y.toISOString().slice(0, 10), settings: readDiarySettings(data) };
+  return { timezone: tz, today, yesterday: y.toISOString().slice(0, 10), settings: readDiarySettings(data) };
+}
+
+/**
+ * The diary day summaries for a report, scoped like the register: an org admin the organization, a
+ * manager their own team. Null when the organization does not use the diary, so the report shows no
+ * diary columns. Needs the indexes (orgId, dayKey) and (orgId, managerId, dayKey).
+ */
+export async function loadDiaryReportDays(
+  scope: { orgId: string; uid: string; role: string },
+  fromDay: string,
+  toDay: string,
+): Promise<{ days: { employeeId: string; dayKey: string; status: string; verifiedMinutes: number }[]; truncated: boolean } | null> {
+  const org = await firestoreAdmin.collection("organizations").doc(scope.orgId).get();
+  if (!readDiarySettings(org.exists ? org.data() : undefined).enabled) return null;
+  let query: FirebaseFirestore.Query = firestoreAdmin.collection(DIARY_DAYS).where("orgId", "==", scope.orgId);
+  if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
+  const snap = await query.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay).limit(DIARY_REPORT_CAP).get();
+  const days = snap.docs.map((d) => {
+    const x = d.data();
+    return {
+      employeeId: String(x.employeeId ?? ""),
+      dayKey: String(x.dayKey ?? ""),
+      status: String(x.status ?? ""),
+      verifiedMinutes: Number(x.verifiedMinutes ?? 0),
+    };
+  });
+  return { days, truncated: snap.size >= DIARY_REPORT_CAP };
+}
+
+/** "08:10" in the organization's timezone, so screens never work out times themselves. */
+export function clockLabel(ms: number, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(ms);
+  } catch {
+    return formatClock(ms, "UTC").slice(0, 5);
+  }
 }

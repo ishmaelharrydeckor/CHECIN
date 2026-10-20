@@ -90,6 +90,8 @@ export function registerToCsv(reg: AttendanceRegister): string {
     "Hours worked",
     // Only when the organization tracks breaks: the break taken off, and the time left to pay.
     ...(reg.breaksTracked ? ["Break hours", "Paid hours"] : []),
+    // Only when the organization uses the work-from-home diary. Never part of "Hours worked".
+    ...(reg.diaryTracked ? ["WFH diary hours (approved)", "WFH diary hours (not yet approved)", "Flagged diary days"] : []),
   ];
   const body = reg.rows.map((r) => {
     const byKey = new Map(r.days.map((d) => [d.dayKey, d]));
@@ -107,6 +109,9 @@ export function registerToCsv(reg: AttendanceRegister): string {
       r.totals.wfhDays ?? 0,
       formatHours(r.totals.minutesWorked),
       ...(reg.breaksTracked ? [formatHours(r.totals.breakMinutes ?? 0), formatHours(r.totals.paidMinutes ?? 0)] : []),
+      ...(reg.diaryTracked
+        ? [formatHours(r.totals.diaryApprovedMinutes ?? 0), formatHours(r.totals.diaryUnapprovedMinutes ?? 0), r.totals.diaryFlaggedDays ?? 0]
+        : []),
     ];
   });
   return buildCsv([head, ...body]);
@@ -199,7 +204,8 @@ export async function buildRegisterPdf(reg: AttendanceRegister): Promise<jsPDF> 
 
   const dayKeys = reg.rows[0]?.days.map((d) => d.dayKey) ?? [];
   const usable = doc.internal.pageSize.getWidth() - MARGIN * 2;
-  const totalCols = reg.breaksTracked ? 7 : 5; // present, late, absent, leave, hours, plus break and paid when tracked
+  // present, late, absent, leave, hours; plus break and paid when tracked; plus the three diary figures when used
+  const totalCols = 5 + (reg.breaksTracked ? 2 : 0) + (reg.diaryTracked ? 3 : 0);
   const fixed = 96 + 64 + totalCols * 32; // name + department + the totals columns
   const dayW = dayKeys.length ? Math.max(9, Math.min(16, Math.floor((usable - fixed) / dayKeys.length))) : 16;
 
@@ -213,7 +219,7 @@ export async function buildRegisterPdf(reg: AttendanceRegister): Promise<jsPDF> 
   autoTable(doc, {
     startY: 86,
     margin: { top: MARGIN, left: MARGIN, right: MARGIN, bottom: 30 },
-    head: [["Name", "Department", ...dayKeys.map((k) => k.slice(8)), "Present", "Late", "Absent", "Leave", "Hours", ...(reg.breaksTracked ? ["Break", "Paid"] : [])]],
+    head: [["Name", "Department", ...dayKeys.map((k) => k.slice(8)), "Present", "Late", "Absent", "Leave", "Hours", ...(reg.breaksTracked ? ["Break", "Paid"] : []), ...(reg.diaryTracked ? ["Diary", "Unappr.", "Flagged"] : [])]],
     body: reg.rows.map((r) => {
       const byKey = new Map(r.days.map((d) => [d.dayKey, d]));
       return [
@@ -229,6 +235,9 @@ export async function buildRegisterPdf(reg: AttendanceRegister): Promise<jsPDF> 
         String(r.totals.leaveDays),
         formatHours(r.totals.minutesWorked),
         ...(reg.breaksTracked ? [formatHours(r.totals.breakMinutes ?? 0), formatHours(r.totals.paidMinutes ?? 0)] : []),
+        ...(reg.diaryTracked
+          ? [formatHours(r.totals.diaryApprovedMinutes ?? 0), formatHours(r.totals.diaryUnapprovedMinutes ?? 0), String(r.totals.diaryFlaggedDays ?? 0)]
+          : []),
       ];
     }),
     theme: "grid",
@@ -259,6 +268,13 @@ export async function buildRegisterPdf(reg: AttendanceRegister): Promise<jsPDF> 
     MARGIN,
     y,
   );
+  if (reg.diaryTracked) {
+    doc.text(
+      "Diary: approved work-from-home diary hours, not part of Hours.   Unappr.: diary time not yet approved, or flagged.   Flagged: diary days a manager flagged.",
+      MARGIN,
+      y + 11,
+    );
+  }
   writePageNumbers(doc);
   return doc;
 }

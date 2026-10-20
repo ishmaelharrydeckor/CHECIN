@@ -89,3 +89,20 @@ test("a small change in the clock difference does not rebuild the listeners and 
   assert.ok(hook.includes("offsetRef.current = offsetMs;"));
   assert.ok(hook.includes("}, [running, startedAtMs, sessionId, sessionKey]);"));
 });
+
+test("the team review is for managers and admins only, and decides through the server", () => {
+  const review = readFileSync("src/components/wfh/diary/DiaryTeamReview.tsx", "utf8");
+  const dlg = readFileSync("src/components/wfh/diary/DiaryDayDialog.tsx", "utf8");
+  assert.ok(page.includes("const reviewer = isManager || isOrgAdmin;"));
+  assert.ok(page.includes("{reviewer && me?.enabled ? ("));
+  assert.ok(review.includes("/api/wfh-diary?view=team&day="));
+  assert.ok(dlg.includes('JSON.stringify({ action: "decide", employeeId: target.employeeId, dayKey: target.dayKey, decision })'));
+  assert.ok(dlg.includes("{detail.canDecide && ("), "the buttons show only when the server says this person may decide");
+  assert.ok(dlg.includes("disabled={busy !== null || running}"), "not while the session is still running");
+  assert.ok(dlg.includes("These are hints, not proof. Nothing is decided automatically"));
+  assert.ok(!/\bcode\b/.test(dlg.replace(/f\.code/g, "")), "check codes are never shown to the reviewer");
+  for (const s of [review, dlg]) {
+    assert.ok(s.includes("<Skeleton") && s.includes("Try again"));
+  }
+  assert.ok(review.includes("No work-diary sessions on"));
+});

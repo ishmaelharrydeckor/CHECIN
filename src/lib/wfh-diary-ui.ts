@@ -46,3 +46,38 @@ export function flagLines(codes: readonly string[]): string[] {
 export function secondsLeft(dueAtMs: number, nowMs: number, windowMs: number): number {
   return Math.max(0, Math.ceil((dueAtMs + windowMs - nowMs) / 1000));
 }
+
+/** One block on the review strip: its colour (style guide status colors only) and its plain name. */
+export function blockLook(state: string): { className: string; label: string } {
+  switch (state) {
+    case "verified":
+      return { className: "bg-[#CBEED3] border-emerald-600/30", label: "Counted" };
+    case "unverified":
+      return { className: "bg-amber-100 border-amber-400", label: "Not counted (missed check or bad signature)" };
+    case "paused":
+      return { className: "bg-slate-100 border-slate-300", label: "Paused" };
+    default:
+      return { className: "bg-white border-slate-300 border-dashed", label: "Waiting for a check" };
+  }
+}
+
+/** How many still-here checks were answered, missed, or are still open, as of `nowMs`. */
+export function checkTally(checks: readonly { dueAtMs: number; answeredAtMs: number | null }[], nowMs: number, windowMs: number) {
+  let answered = 0;
+  let missed = 0;
+  let open = 0;
+  for (const c of checks) {
+    if (c.answeredAtMs !== null) answered++;
+    else if (nowMs > c.dueAtMs + windowMs) missed++;
+    else open++;
+  }
+  return { answered, missed, open };
+}
+
+/** The day's decision as the manager sees it. */
+export function reviewStatusLabel(status: string): { text: string; className: string } {
+  const pill = "inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold";
+  if (status === "approved") return { text: "Approved", className: `${pill} bg-[#CBEED3] text-[#0E2322]` };
+  if (status === "flagged") return { text: "Flagged", className: `${pill} bg-amber-100 text-amber-900` };
+  return { text: "Waiting for your decision", className: `${pill} bg-slate-100 text-slate-700` };
+}

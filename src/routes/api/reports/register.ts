@@ -11,6 +11,8 @@ import {
 import { authorizeReportCaller, loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
 import { buildAttendanceRegister, parseReportRange } from "@/lib/report-data";
 import { correlationId, logEvent } from "@/lib/log.server";
+import { loadDiaryReportDays } from "@/lib/wfh-diary.server";
+import { withDiaryTotals } from "@/lib/wfh-diary-report";
 
 /**
  * GET /api/reports/register?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -40,6 +42,11 @@ export const Route = createFileRoute("/api/reports/register")({
             days: [] as { employeeId: string; dayKey: string }[],
             truncated: true,
           }));
+          // Work-from-home diary figures, only when the organization uses the diary. Never part of the scanned hours.
+          // If they cannot be read the register still works, without the diary columns.
+          const diaryRead = await loadDiaryReportDays(scope, range.from, range.to).catch(() => null);
+          const withDiary = (reg: Parameters<typeof withDiaryTotals>[0]) =>
+            diaryRead ? withDiaryTotals(reg, diaryRead.days, diaryRead.truncated) : reg;
 
           if (shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1") {
             try {
@@ -71,7 +78,7 @@ export const Route = createFileRoute("/api/reports/register")({
                 breaks: shifts.shiftsEnabled && shifts.breaksEnabled,
               });
               return Response.json(
-                { ok: true, report: register },
+                { ok: true, report: withDiary(register) },
                 { headers: { "Cache-Control": "private, no-store" } },
               );
             } catch (shiftErr) {
@@ -107,7 +114,7 @@ export const Route = createFileRoute("/api/reports/register")({
             breaks: shifts.shiftsEnabled && shifts.breaksEnabled,
           });
           return Response.json(
-            { ok: true, report: register },
+            { ok: true, report: withDiary(register) },
             { headers: { "Cache-Control": "private, no-store" } },
           );
         } catch (err: any) {
