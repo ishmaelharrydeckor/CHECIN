@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  DIARY_RANGE_CAP,
   SHIFT_ASSIGNMENT_CAP_RANGE,
   WEEK_SUMMARY_CAP,
   WFH_RANGE_CAP,
   loadOrgContext,
+  loadDiaryDays,
   loadScopedSummaries,
   loadShiftAssignments,
   loadWfhRange,
@@ -41,6 +43,15 @@ export const Route = createFileRoute("/api/reports/register")({
             truncated: true,
           }));
 
+          // The work-diary columns, only when the organization has the diary on. If they cannot be read the
+          // register still works and says it may be incomplete.
+          const diaryRead = context.diaryEnabled
+            ? await loadDiaryDays(scope, range.from, range.to, DIARY_RANGE_CAP).catch(() => ({
+                days: [] as { employeeId: string; dayKey: string; status: string; verifiedMinutes: number }[],
+                truncated: true,
+              }))
+            : { days: [], truncated: false };
+
           if (shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1") {
             try {
               const [summaries, leave, holidays, shiftResult] = await Promise.all([
@@ -65,10 +76,12 @@ export const Route = createFileRoute("/api/reports/register")({
                 generatedAt: new Date().toISOString(),
                 from: range.from,
                 to: range.to,
-                readTruncated: summaries.truncated || leave.truncated || shiftResult.truncated || wfhRead.truncated,
+                readTruncated: summaries.truncated || leave.truncated || shiftResult.truncated || wfhRead.truncated || diaryRead.truncated,
                 shifts: shiftData,
                 wfh: wfhRead.days,
                 breaks: shifts.shiftsEnabled && shifts.breaksEnabled,
+                diary: diaryRead.days,
+                diaryTracked: context.diaryEnabled,
               });
               return Response.json(
                 { ok: true, report: register },
@@ -102,9 +115,11 @@ export const Route = createFileRoute("/api/reports/register")({
             generatedAt: new Date().toISOString(),
             from: range.from,
             to: range.to,
-            readTruncated: summaries.truncated || leave.truncated || wfhRead.truncated,
+            readTruncated: summaries.truncated || leave.truncated || wfhRead.truncated || diaryRead.truncated,
             wfh: wfhRead.days,
             breaks: shifts.shiftsEnabled && shifts.breaksEnabled,
+            diary: diaryRead.days,
+            diaryTracked: context.diaryEnabled,
           });
           return Response.json(
             { ok: true, report: register },

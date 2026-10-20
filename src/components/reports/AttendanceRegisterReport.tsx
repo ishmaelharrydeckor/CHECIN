@@ -115,7 +115,7 @@ export function AttendanceRegisterReport({
                     {k.slice(8)}
                   </th>
                 ))}
-                {["Present", "Late", "Absent", "Leave", "Hours", ...(data?.breaksTracked ? ["Break", "Paid"] : [])].map((h) => (
+                {["Present", "Late", "Absent", "Leave", "Hours", ...(data?.breaksTracked ? ["Break", "Paid"] : []), ...(data?.diaryTracked ? ["Diary hrs", "Diary flagged", "Diary waiting"] : [])].map((h) => (
                   <th key={h} className="bg-slate-50 px-2 py-2 text-center font-semibold">
                     {h}
                   </th>
@@ -163,6 +163,13 @@ export function AttendanceRegisterReport({
                       </td>
                     </>
                   )}
+                  {data?.diaryTracked && (
+                    <>
+                      <td className="border-t border-slate-100 px-2 text-center font-medium">{formatHours(r.totals.diaryApprovedMinutes ?? 0)}</td>
+                      <td className="border-t border-slate-100 px-2 text-center">{r.totals.diaryFlaggedDays ?? 0}</td>
+                      <td className="border-t border-slate-100 px-2 text-center">{r.totals.diaryWaitingDays ?? 0}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -189,6 +196,11 @@ export function AttendanceRegisterReport({
                     {data?.breaksTracked && (
                       <p className="text-[11px] text-muted-foreground">
                         Break {formatHours(r.totals.breakMinutes ?? 0)} · Paid {formatHours(r.totals.paidMinutes ?? 0)}
+                      </p>
+                    )}
+                    {data?.diaryTracked && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Diary {formatHours(r.totals.diaryApprovedMinutes ?? 0)} approved · {r.totals.diaryFlaggedDays ?? 0} flagged · {r.totals.diaryWaitingDays ?? 0} waiting
                       </p>
                     )}
                   </div>
