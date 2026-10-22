@@ -30,6 +30,24 @@ import type {
 } from "./report-types.ts";
 
 export const MAX_REPORT_DAYS = 31;
+/** The most daily records one register may read (people x days); the same ceiling as WEEK_SUMMARY_CAP. */
+export const REGISTER_READ_BUDGET = 6000;
+
+/**
+ * How many days one register can cover for a team of this size: as many as the read budget allows (at most 31,
+ * at least 1). A longer range would be cut off while reading and would show people as absent on days that were
+ * simply not read, so the route refuses it with a sentence instead (see registerRangeError).
+ */
+export function maxRegisterDays(headcount: number, budget = REGISTER_READ_BUDGET): number {
+  return Math.max(1, Math.min(MAX_REPORT_DAYS, Math.floor(budget / Math.max(1, headcount))));
+}
+
+/** The plain sentence for a range that is too long for this team, or null when it is fine. */
+export function registerRangeError(headcount: number, rangeDays: number, budget = REGISTER_READ_BUDGET): string | null {
+  const most = maxRegisterDays(headcount, budget);
+  if (rangeDays <= most) return null;
+  return `Your team has ${headcount} people, so a register can cover at most ${most} ${most === 1 ? "day" : "days"} at a time. Please choose a shorter range.`;
+}
 /** The most people (register) or requests (ledger) one report returns; beyond it the report says so. */
 export const REPORT_ROW_CAP = 500;
 

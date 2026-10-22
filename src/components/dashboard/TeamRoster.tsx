@@ -57,7 +57,7 @@ export function TeamRoster({
           <div className="min-w-0">
             <CardTitle className="text-base font-semibold">Team roster</CardTitle>
             <CardDescription className="text-[13px]">
-              Where everyone is today, and how they have done since the 1st of the month. Times are in your organization's timezone.
+              Where everyone is today, and how they have done {data?.periodLabel ?? "this month so far"}. Times are in your organization's timezone.
             </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onRefresh} disabled={loading} aria-label="Refresh the roster" title="Refresh the roster" className="size-8 text-slate-600">
@@ -216,6 +216,7 @@ export function TeamRoster({
                   <span>
                     Showing {page.length} of {shown.length}
                     {data.truncated ? ". Some people or days may be missing: this is a very large team." : "."}
+                    {!data.periodFull && " Your team is large, so the bars cover a shorter period to keep this page fast and complete."}
                   </span>
                   {shown.length > page.length && (
                     <Button type="button" variant="outline" size="sm" onClick={() => setVisible((v) => v + PAGE_SIZE)} className="text-[13px]">

@@ -11,7 +11,7 @@ import {
   loadWfhRange,
 } from "@/lib/attendance-data.server";
 import { authorizeReportCaller, loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
-import { buildAttendanceRegister, parseReportRange } from "@/lib/report-data";
+import { buildAttendanceRegister, parseReportRange, registerRangeError } from "@/lib/report-data";
 import { correlationId, logEvent } from "@/lib/log.server";
 
 /**
@@ -37,6 +37,10 @@ export const Route = createFileRoute("/api/reports/register")({
 
           const context = await loadOrgContext(scope);
           const { timezone, roster, shifts } = context;
+          // A very large team cannot be read for a long range in one answer: say so, instead of showing people as
+          // absent on days that were simply not read.
+          const tooLong = registerRangeError(roster.length, range.days.length);
+          if (tooLong) return Response.json({ error: tooLong }, { status: 400 });
           // If work-from-home days cannot be read the register still works, and says it may be incomplete.
           const wfhRead = await loadWfhRange(scope, range.from, range.to, WFH_RANGE_CAP).catch(() => ({
             days: [] as { employeeId: string; dayKey: string }[],

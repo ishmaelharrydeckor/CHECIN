@@ -18,7 +18,7 @@ import { loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
 import { buildAttendanceRegister } from "@/lib/report-data";
 import type { ShiftSnapshot } from "@/lib/shift-engine";
 import { evaluateShiftToday, rosterTodayFrom } from "@/lib/shift-today";
-import { buildTeamRoster, type RosterData, type RosterShift, type RosterTodayOverride } from "@/lib/team-roster";
+import { buildTeamRoster, rosterPeriod, type RosterData, type RosterShift, type RosterTodayOverride } from "@/lib/team-roster";
 
 // One answer per scope for 45 s, like the Today panel. The Refresh button asks for ?fresh=1.
 const loadRoster = createCachedLoader<RosterData>(45_000, 200, 5_000);
@@ -54,19 +54,20 @@ export const Route = createFileRoute("/api/attendance/roster")({
               const { timezone, roster, shifts } = await loadOrgContext(scope);
               const now = Date.now();
               const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
-              const monthFrom = `${today.slice(0, 8)}01`;
+              // The month so far, or fewer days for a large team (see rosterPeriod), so every figure is complete.
+              const period = rosterPeriod({ today, headcount: roster.length });
               const days: string[] = [];
-              for (let d = monthFrom; d <= today; d = addDays(d, 1)) days.push(d);
+              for (let d = period.from; d <= today; d = addDays(d, 1)) days.push(d);
 
               // If work-from-home days cannot be read the roster still works, and says it may be incomplete.
-              const wfh = await loadWfhRange(scope, monthFrom, today, WFH_RANGE_CAP).catch(() => ({
+              const wfh = await loadWfhRange(scope, period.from, today, WFH_RANGE_CAP).catch(() => ({
                 days: [] as { employeeId: string; dayKey: string }[],
                 truncated: true,
               }));
               // On the 1st, a night shift that began yesterday belongs to last month: read from yesterday so the
               // roster can still see it (the register only uses the days of this month).
               const yesterday = addDays(today, -1);
-              const readFrom = yesterday < monthFrom ? yesterday : monthFrom;
+              const readFrom = yesterday < period.from ? yesterday : period.from;
               const [summaries, leave, holidays] = await Promise.all([
                 loadScopedSummaries(scope, readFrom, today, WEEK_SUMMARY_CAP),
                 loadScopedLeave(scope, "approved"),
@@ -102,7 +103,7 @@ export const Route = createFileRoute("/api/attendance/roster")({
                 holidays,
                 timezone,
                 generatedAt: new Date(now).toISOString(),
-                from: monthFrom,
+                from: period.from,
                 to: today,
                 readTruncated: summaries.truncated || leave.truncated || wfh.truncated || assignmentsTruncated,
                 shifts: assignments.length > 0 ? { assignments, nowMs: now } : undefined,
@@ -143,6 +144,7 @@ export const Route = createFileRoute("/api/attendance/roster")({
                 todayStates,
                 todayShifts,
                 todayOverride,
+                period,
                 generatedAt: new Date(now).toISOString(),
               });
             },
