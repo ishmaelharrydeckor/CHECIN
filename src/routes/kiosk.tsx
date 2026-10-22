@@ -108,9 +108,12 @@ function KioskPage() {
     if (typeof toDataURL !== "function") {
       throw new Error("QRCode.toDataURL function is not available");
     }
+    // Fewer, bigger squares are what make a code readable from a few steps away: the lowest
+    // error-correction level (the code is always fresh on a clean screen) and a short payload.
     return await toDataURL(payload, {
-      width: 340,
-      margin: 1,
+      errorCorrectionLevel: "L",
+      width: 720,
+      margin: 2,
       color: {
         dark: "#0E2322",
         light: "#FFFFFF",
@@ -202,11 +205,9 @@ function KioskPage() {
       if (data.note) handleNote(data.note as ChannelNote);
 
       // Generate real QR code image
-      const qrPayload = JSON.stringify({
-        locationId,
-        token: data.token,
-        timeBucket: data.timeBucket,
-      });
+      // Short "locationId::token" form (the phone scanner reads it). The time bucket is already
+      // inside the token, so sending it again only made the code denser.
+      const qrPayload = `${locationId}::${data.token}`;
 
       const url = await renderQrCodeDataUrl(qrPayload);
       setQrDataUrl(url);
@@ -497,7 +498,7 @@ function KioskPage() {
         )}
 
         {/* Real Dynamic QR Code SVG / Canvas */}
-        <div className="w-72 h-72 mx-auto bg-white rounded-2xl p-4 shadow-inner flex items-center justify-center">
+        <div className="w-[min(80vw,48vh,28rem)] h-[min(80vw,48vh,28rem)] mx-auto bg-white rounded-2xl p-3 shadow-inner flex items-center justify-center">
           {status === "live" && qrDataUrl ? (
             <img
               src={qrDataUrl}
