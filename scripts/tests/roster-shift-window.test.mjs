@@ -69,7 +69,7 @@ test("the month's bars still come from the register, not from the shift evaluati
 });
 
 test("on the 1st of the month the roster still reads yesterday, so a night shift from the last day of the month is seen", () => {
-  assert.ok(route.includes("const readFrom = yesterday < monthFrom ? yesterday : monthFrom;"));
+  assert.ok(route.includes("const readFrom = yesterday < period.from ? yesterday : period.from;"));
   assert.ok(route.includes("loadScopedSummaries(scope, readFrom, today, WEEK_SUMMARY_CAP)"));
   assert.ok(route.includes("loadShiftAssignments(scope, readFrom, today, SHIFT_ASSIGNMENT_CAP_RANGE)"));
 });

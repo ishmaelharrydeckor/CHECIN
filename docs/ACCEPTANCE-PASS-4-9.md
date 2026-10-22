@@ -41,8 +41,8 @@ Estimated from the code (the load test has not been run):
 | Dashboard: `/api/attendance/today` | about one summary per person, plus 20 events, leave, holidays, work from home | Cached 45 s per scope; the page refreshes every 2 minutes while someone is using it |
 | Dashboard: `/api/admin/staff-invites` | **up to 2,500** (500 invitations + 2,000 people) | **Not cached.** The dashboard only needs the headcount and how many invitations are waiting. Recommendation: answer those two from count queries |
 | Dashboard: `/api/locations` | locations + one kiosk record each | Small |
-| Team roster | month-to-date summaries, **capped at 6,000** | Cached 45 s. **For a large organization the cap is reached** (6,000 = about 200 people for a full month, or 1,000 people for 6 days), so the bars undercount and the card says "very large team". Recommendation before a large customer: a per-person monthly summary document |
-| Attendance register | same loader, same cap | Existing limit |
+| Team roster | month-to-date summaries, never more than 6,000 | Cached 45 s. *Resolved for large teams:* the bars now cover the whole month so far when people x days fits the 6,000-record budget, and otherwise the most days that fit (never fewer than 3; for example 15 days for 400 people, 6 days for 1,000). The card says "over the last N days" and why, so every figure is complete for the days it names. A full month for a very large team needs a per-person monthly total (a stored record kept up to date as days are saved): not built, and not needed until a customer wants the whole month at that size |
+| Attendance register | same loader | *Resolved:* a range that would be cut off is refused before anything is read, with a plain sentence ("Your team has 400 people, so a register can cover at most 15 days at a time"), instead of showing people as absent on days that were not read |
 | Menu badges `/api/nav-counts` | two count queries (about 1 read per 1,000 matches) | Cached 30 s, asked once a minute at most |
 | Reports hub | none until a report is generated | |
 
@@ -65,5 +65,5 @@ Estimated from the code (the load test has not been run):
 1. Click through as an employee, a manager and an org admin: diary session, review and approve, register diary columns, roster filters, reports downloads, menu badges, Jump to.
 2. Phone check of the remaining screens listed above.
 3. Run the load-test harness (`scripts/load-test.mjs`) against staging and record reads per page.
-4. Decide the two known gaps (night shift, work from home on a day with no shift).
-5. Decide whether to cache or count the staff-invites reads, and whether to build the monthly summary before a large customer.
+4. Confirm on staging that the two earlier gaps are closed (a running night shift is on site in the roster; work from home on a day with no shift is not counted) and that a large team sees the shorter period.
+5. Decide whether the whole month is ever needed for very large teams (it would need a stored per-person monthly total); until then the roster shows a shorter period and the register refuses a range that is too long, both with a plain sentence.

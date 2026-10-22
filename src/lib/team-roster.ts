@@ -14,10 +14,48 @@
  * Today only counts once the person has turned up: someone not here yet is not marked absent for the month.
  * A figure with nothing to base it on is null, never 0 or 100.
  */
+import { addDays } from "./attendance-today.ts";
 import type { AttendanceRegister, RegisterStatus } from "./report-types.ts";
 
 /** The most people one roster returns; beyond it the roster says so. */
 export const ROSTER_ROW_CAP = 500;
+
+/**
+ * How many daily records the roster may read to work out its bars (people x days). It is the same ceiling the
+ * register uses (WEEK_SUMMARY_CAP in attendance-data.server.ts; a test keeps the two equal).
+ */
+export const ROSTER_READ_BUDGET = 6000;
+/** The shortest period worth showing bars for. */
+export const ROSTER_MIN_DAYS = 3;
+
+export interface RosterPeriod {
+  /** First day the bars cover (YYYY-MM-DD). The last day is today. */
+  from: string;
+  /** How many days that is, counting today. */
+  days: number;
+  /** True when it is the whole month so far; false when a large team made it shorter. */
+  full: boolean;
+  /** Said after "how they have done": "this month so far" or "over the last 6 days". */
+  label: string;
+}
+
+/**
+ * The period the attendance and on-time bars cover. Normally the 1st of the month up to today. For a large team
+ * the month would be more daily records than one answer may read (people x days), and a cut-off read would show
+ * people as absent on days that were simply not read. So the period is shortened to the most days the budget
+ * allows (never fewer than ROSTER_MIN_DAYS), and the screen says so. Every figure is then complete for the days
+ * it names.
+ */
+export function rosterPeriod(input: { today: string; headcount: number; budget?: number }): RosterPeriod {
+  const budget = input.budget ?? ROSTER_READ_BUDGET;
+  const monthFrom = `${input.today.slice(0, 8)}01`;
+  const monthDays = Number(input.today.slice(8, 10));
+  const affordable = Math.floor(budget / Math.max(1, input.headcount));
+  if (affordable >= monthDays) return { from: monthFrom, days: monthDays, full: true, label: "this month so far" };
+  const days = Math.max(ROSTER_MIN_DAYS, Math.min(affordable, monthDays));
+  if (days >= monthDays) return { from: monthFrom, days: monthDays, full: true, label: "this month so far" };
+  return { from: addDays(input.today, -(days - 1)), days, full: false, label: `over the last ${days} days` };
+}
 
 export type RosterStatus = "in" | "out" | "wfh" | "leave" | "absent" | "expected" | "off" | "holiday";
 
@@ -64,8 +102,11 @@ export interface RosterData {
   dayKey: string;
   timezone: string;
   generatedAt: string;
-  /** First day of the month the bars cover. */
-  monthFrom: string;
+  /** First day the bars cover, and how they are described (see rosterPeriod). */
+  from: string;
+  periodLabel: string;
+  /** True when the bars cover the whole month so far; false when a large team made the period shorter. */
+  periodFull: boolean;
   rows: RosterRow[];
   truncated: boolean;
 }
@@ -98,6 +139,8 @@ export function buildTeamRoster(input: {
   todayShifts: ReadonlyMap<string, RosterShift>;
   /** Shift-aware state for today (see RosterTodayOverride). A person without an entry is read from the register. */
   todayOverride?: ReadonlyMap<string, RosterTodayOverride>;
+  /** The period the register was built for (see rosterPeriod). Omitted means the month so far. */
+  period?: RosterPeriod;
   generatedAt: string;
 }): RosterData {
   const { register, today } = input;
@@ -141,7 +184,9 @@ export function buildTeamRoster(input: {
     dayKey: today,
     timezone: register.timezone,
     generatedAt: input.generatedAt,
-    monthFrom: register.from,
+    from: register.from,
+    periodLabel: input.period?.label ?? "this month so far",
+    periodFull: input.period?.full ?? true,
     rows,
     truncated: register.truncated || mine.length > ROSTER_ROW_CAP,
   };
