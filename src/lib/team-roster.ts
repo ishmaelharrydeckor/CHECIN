@@ -45,6 +45,21 @@ export interface RosterRow {
   daysCounted: number;
 }
 
+/**
+ * Where a person is "right now" when the organization uses shifts: worked out by the same evaluation the Today
+ * tiles use (shift-today.ts), so a night shift that began yesterday and is still running is "On site", not
+ * "Expected later". It replaces today's state, time and shift on the row; the month bars still come from the
+ * register.
+ */
+export interface RosterTodayOverride {
+  status: RosterStatus;
+  late: boolean;
+  lateExcused: boolean;
+  earlyDeparture: boolean;
+  firstIn: string | null;
+  shift: RosterShift | null;
+}
+
 export interface RosterData {
   dayKey: string;
   timezone: string;
@@ -81,6 +96,8 @@ export function buildTeamRoster(input: {
   todayStates: ReadonlyMap<string, "in" | "out">;
   /** Each person's shift today, when shifts are in use. */
   todayShifts: ReadonlyMap<string, RosterShift>;
+  /** Shift-aware state for today (see RosterTodayOverride). A person without an entry is read from the register. */
+  todayOverride?: ReadonlyMap<string, RosterTodayOverride>;
   generatedAt: string;
 }): RosterData {
   const { register, today } = input;
@@ -104,16 +121,17 @@ export function buildTeamRoster(input: {
         missed++; // today's absence is "not here yet", not a missed day
       }
     }
+    const shifted = input.todayOverride?.get(r.employeeId);
     return {
       employeeId: r.employeeId,
       name: r.name,
       department: r.department,
-      status: todayStatus(now?.status, input.todayStates.get(r.employeeId)),
-      late: now?.status === "present" && now.late === true,
-      lateExcused: now?.status === "present" && now.lateExcused === true,
-      earlyDeparture: now?.earlyDeparture === true,
-      firstIn: now?.status === "present" ? now.firstIn : null,
-      shift: input.todayShifts.get(r.employeeId) ?? null,
+      status: shifted ? shifted.status : todayStatus(now?.status, input.todayStates.get(r.employeeId)),
+      late: shifted ? shifted.late : now?.status === "present" && now.late === true,
+      lateExcused: shifted ? shifted.lateExcused : now?.status === "present" && now.lateExcused === true,
+      earlyDeparture: shifted ? shifted.earlyDeparture : now?.earlyDeparture === true,
+      firstIn: shifted ? shifted.firstIn : now?.status === "present" ? now.firstIn : null,
+      shift: shifted ? shifted.shift : (input.todayShifts.get(r.employeeId) ?? null),
       attendance: pct(attended, attended + missed),
       punctuality: pct(onTime, present),
       daysCounted: attended + missed,
