@@ -37,11 +37,13 @@ import {
   subscribeDeviceToPush,
   unsubscribeDeviceFromPush,
   getExistingPushSubscription,
+  authHeaders,
   isIOS,
   isStandalone,
   PushPermissionStatus,
   PushUserContext,
 } from "@/lib/push-client";
+import { useAuth } from "@/lib/auth";
 
 /** Crash-proof date formatter for notifications */
 function formatNotificationDate(rawDate: any): string {
@@ -89,6 +91,10 @@ export function PushNotificationManager({
   onSubscribedChange,
 }: PushNotificationManagerProps) {
   const [status, setStatus] = useState<PushPermissionStatus>("prompt");
+  const { user, isOrgAdmin, isManager } = useAuth();
+  // Who is signed in comes from the session; it is never sent to the server (the token says who).
+  const uid = userContext.userId || user?.id || "";
+  const isStaff = isOrgAdmin || isManager;
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -119,9 +125,9 @@ export function PushNotificationManager({
 
   // Load preferences from server
   const loadPreferences = useCallback(async () => {
-    if (!userContext.userId) return;
+    if (!uid) return;
     try {
-      const res = await fetch(`/api/push/preferences?userId=${encodeURIComponent(userContext.userId)}`);
+      const res = await fetch("/api/push/preferences", { headers: await authHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (data.preferences) {
@@ -131,7 +137,7 @@ export function PushNotificationManager({
     } catch {
       // Non-blocking
     }
-  }, [userContext.userId]);
+  }, [uid]);
 
   // History state
   const [history, setHistory] = useState<any[]>([]);
@@ -139,13 +145,10 @@ export function PushNotificationManager({
   const [historyFilter, setHistoryFilter] = useState<string>("all");
 
   const loadHistory = useCallback(async () => {
-    if (!userContext.userId) return;
+    if (!uid) return;
     setHistoryLoading(true);
     try {
-      const altParam = userContext.employeeId ? `&altId=${encodeURIComponent(userContext.employeeId)}` : "";
-      const res = await fetch(
-        `/api/push/notifications?userId=${encodeURIComponent(userContext.userId)}${altParam}`,
-      );
+      const res = await fetch("/api/push/notifications", { headers: await authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setHistory(data.notifications || []);
@@ -155,7 +158,7 @@ export function PushNotificationManager({
     } finally {
       setHistoryLoading(false);
     }
-  }, [userContext.userId, userContext.employeeId]);
+  }, [uid]);
 
   useEffect(() => {
     checkStatus();
@@ -167,8 +170,8 @@ export function PushNotificationManager({
     try {
       await fetch("/api/push/notifications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userContext.userId, markAllRead: true }),
+        headers: await authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ markAllRead: true }),
       });
       setHistory((prev) => prev.map((item) => ({ ...item, isRead: true })));
       toast.success("All notifications marked as read");
@@ -181,8 +184,8 @@ export function PushNotificationManager({
     try {
       await fetch("/api/push/notifications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationId, userId: userContext.userId }),
+        headers: await authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ notificationId }),
       });
       setHistory((prev) =>
         prev.map((item) => (item.id === notificationId ? { ...item, isRead: true } : item)),
@@ -239,11 +242,8 @@ export function PushNotificationManager({
     try {
       await fetch("/api/push/preferences", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userContext.userId,
-          preferences: updated,
-        }),
+        headers: await authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ preferences: updated }),
       });
       toast.success("Notification preferences updated");
     } catch {
@@ -261,9 +261,9 @@ export function PushNotificationManager({
     try {
       const res = await fetch("/api/push/send", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          userId: userContext.userId,
+          userId: uid,
           payload: {
             type: "TEST",
             title: "ChecIN Presence Push Verified",
@@ -393,16 +393,18 @@ export function PushNotificationManager({
           <div className="flex items-center gap-2 shrink-0">
             {isSubscribed ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSendTest}
-                  disabled={testing}
-                  className="text-xs flex items-center gap-1.5"
-                >
-                  {testing ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-                  Send Test Alert
-                </Button>
+                {isStaff && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendTest}
+                    disabled={testing}
+                    className="text-xs flex items-center gap-1.5"
+                  >
+                    {testing ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                    Send Test Alert
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -679,7 +681,7 @@ export function InAppNotificationCenter({ userId }: { userId: string }) {
     if (!userId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/push/notifications?userId=${encodeURIComponent(userId)}`);
+      const res = await fetch("/api/push/notifications", { headers: await authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
@@ -699,8 +701,8 @@ export function InAppNotificationCenter({ userId }: { userId: string }) {
     try {
       await fetch("/api/push/notifications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, markAllRead: true }),
+        headers: await authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ markAllRead: true }),
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch {
@@ -715,8 +717,8 @@ export function InAppNotificationCenter({ userId }: { userId: string }) {
       try {
         await fetch("/api/push/notifications", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notificationId: item.id, userId }),
+          headers: await authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ notificationId: item.id }),
         });
         setNotifications((prev) =>
           prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)),
@@ -933,7 +935,7 @@ export function WorkforcePushBanner({
         // Trigger a test alert to phone
         fetch("/api/push/send", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             userId: userContext.userId,
             payload: {

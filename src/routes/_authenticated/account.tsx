@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChangePasswordCard } from "@/components/ChangePasswordCard";
 import { ReportProblemCard } from "@/components/ReportProblemDialog";
+import { PushNotificationManager } from "@/components/PushNotificationManager";
+import { deactivateThisDeviceOnServer } from "@/lib/push-client";
 import { toast } from "sonner";
 import {
   User,
@@ -72,6 +74,7 @@ function AccountPage() {
       toast.success(`Revoked ${d.device_name}`);
       await fetchDevices();
       if (d.device_id === currentDeviceId) {
+        await deactivateThisDeviceOnServer();
         await fbSignOut(firebaseAuth);
         navigate({ to: "/auth" });
       }
@@ -81,6 +84,7 @@ function AccountPage() {
   };
 
   const handleSignOut = async () => {
+    await deactivateThisDeviceOnServer();
     await fbSignOut(firebaseAuth);
     navigate({ to: "/auth" });
   };
@@ -137,6 +141,9 @@ function AccountPage() {
 
       {/* Change password (email/password accounts only) */}
       <ChangePasswordCard />
+
+      {/* Notifications on this phone: the only place an employee can switch them on */}
+      <PushNotificationManager />
 
       {/* Report a problem */}
       <ReportProblemCard />
