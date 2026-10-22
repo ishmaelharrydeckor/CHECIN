@@ -40,6 +40,13 @@ function parseChecinPayload(raw: string): { token: string; locationId: string } 
   }
 }
 
+// 1x / 2x / 3x style presets, limited to what this camera can actually do.
+function zoomPresets(range: { min: number; max: number }): number[] {
+  const levels = [1, 2, 3].filter((l) => l >= range.min && l <= range.max);
+  if (levels.length === 0 || levels[0] > range.min + 0.01) levels.unshift(range.min);
+  return levels.slice(0, 4);
+}
+
 function describeCameraError(err: any): string {
   switch (err?.name) {
     case "NotAllowedError":
@@ -141,7 +148,16 @@ function ScanPage() {
         { facingMode: "environment" },
         {
           // No qrbox: decode the entire camera frame, not a small centre square.
-          fps: 20,
+          fps: 25,
+          // Like the phone's own scanner: ask for a sharp, high-resolution picture and
+          // continuous autofocus, so a small or distant code still has enough pixels to read.
+          // These are preferences, not requirements, so a basic camera still starts.
+          videoConstraints: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+          },
         },
         (decodedText) => {
           void onDecoded(decodedText);
@@ -305,6 +321,9 @@ function ScanPage() {
       return;
     }
 
+    // Instant "got it" buzz the moment the code is read, so they can keep walking while the
+    // check-in is sent.
+    navigator.vibrate?.(30);
     await handleScanDecoded(payload);
   };
 
@@ -605,33 +624,48 @@ function ScanPage() {
             </div>
           )}
 
-          {/* Torch and zoom, only where the camera supports them */}
-          {cameraActive && (torchSupported || zoomRange) && (
-            <div className="absolute right-3 top-14 z-20 flex flex-col items-center gap-2">
+          {/* Torch and zoom, only where the camera supports them: zoom presets above the
+              prompt, flash bottom-right, like a normal camera app */}
+          {cameraActive && !overlay && !processingScan && (torchSupported || zoomRange) && (
+            <>
+              {zoomRange && (
+                <div className="absolute bottom-14 left-0 right-0 z-20 flex justify-center">
+                  <div className="flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-white/15">
+                    {zoomPresets(zoomRange).map((level) => {
+                      const active = Math.abs(zoom - level) < 0.25;
+                      return (
+                        <button
+                          key={level}
+                          onClick={() => changeZoom(level)}
+                          aria-label={`Zoom ${level} times`}
+                          className={`min-w-9 h-8 px-2 rounded-full text-[11px] font-bold transition ${
+                            active ? "bg-[#C0FD9B] text-[#122300]" : "text-white/80"
+                          }`}
+                        >
+                          {Number.isInteger(level) ? level : level.toFixed(1)}×
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {torchSupported && (
                 <button
                   onClick={toggleTorch}
                   aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
-                  className={`w-9 h-9 rounded-full text-sm border ${
-                    torchOn ? "bg-[#C0FD9B] text-[#122300] border-[#C0FD9B]" : "bg-black/60 text-white border-white/30"
+                  aria-pressed={torchOn}
+                  className={`absolute bottom-3 right-3 z-20 w-11 h-11 rounded-full flex items-center justify-center border backdrop-blur-sm transition ${
+                    torchOn
+                      ? "bg-[#C0FD9B] text-[#122300] border-[#C0FD9B]"
+                      : "bg-black/60 text-white border-white/20"
                   }`}
                 >
-                  ⚡
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill={torchOn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+                    <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+                  </svg>
                 </button>
               )}
-              {zoomRange && (
-                <input
-                  type="range"
-                  aria-label="Zoom"
-                  min={zoomRange.min}
-                  max={zoomRange.max}
-                  step={zoomRange.step}
-                  value={zoom}
-                  onChange={(e) => changeZoom(Number(e.target.value))}
-                  className="w-24 accent-[#C0FD9B]"
-                />
-              )}
-            </div>
+            </>
           )}
 
           {/* The result of the scan: this is the employee's confirmation (or the reason there is none) */}
