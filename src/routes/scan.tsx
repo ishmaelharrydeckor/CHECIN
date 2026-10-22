@@ -321,6 +321,9 @@ function ScanPage() {
       return;
     }
 
+    // Instant "got it" buzz the moment the code is read, so they can keep walking while the
+    // check-in is sent.
+    navigator.vibrate?.(30);
     await handleScanDecoded(payload);
   };
 
