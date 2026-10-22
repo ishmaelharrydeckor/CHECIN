@@ -21,6 +21,37 @@ test("each step completes on its own real condition", () => {
   assert.equal(stateOf({ locations: [{ isPaired: false }], headcount: 2 }), "entrance:done tablet:todo team:done");
 });
 
+test("the team step is done as soon as the admin has invited someone, without waiting for them to join", () => {
+  assert.equal(stateOf({ locations: [], headcount: 1, invitesSent: 1 }), "entrance:todo tablet:todo team:done");
+  assert.equal(stateOf({ locations: [], headcount: 1, invitesSent: 3 }), "entrance:todo tablet:todo team:done");
+  assert.equal(stateOf({ locations: [], headcount: 1, invitesSent: 0 }), "entrance:todo tablet:todo team:todo");
+  assert.equal(stateOf({ locations: [], headcount: 1 }), "entrance:todo tablet:todo team:todo", "unknown count is none");
+});
+
+test("an invitation that was used or has expired still counts as invited", () => {
+  // The page passes every invitation in any state, so a used or expired one cannot un-tick the step.
+  assert.ok(page.includes("setInvitesSentCount(Array.isArray(staffData.invites) ? staffData.invites.length : 0)"));
+  assert.ok(page.includes("invitesSent: invitesSentCount"));
+});
+
+test("after invites are sent but nobody has joined, the step says so; once someone joins the note goes", () => {
+  const sent = buildSetupSteps({ locations: [], headcount: 1, invitesSent: 1 })[2];
+  assert.match(sent.note, /^1 invitation sent\./);
+  assert.match(buildSetupSteps({ locations: [], headcount: 1, invitesSent: 4 })[2].note, /^4 invitations sent\./);
+  assert.equal(buildSetupSteps({ locations: [], headcount: 2, invitesSent: 4 })[2].note, undefined);
+  assert.equal(buildSetupSteps({ locations: [], headcount: 1, invitesSent: 0 })[2].note, undefined);
+});
+
+test("odd invitation counts never tick the step", () => {
+  for (const bad of [Number.NaN, -1, 1.5, "2", null, undefined]) {
+    assert.ok(stateOf({ locations: [], headcount: 1, invitesSent: bad }).includes("team:todo"), String(bad));
+  }
+});
+
+test("the card shows the note under a finished step", () => {
+  assert.ok(card.includes("step.done && step.note"));
+});
+
 test("one paired tablet among several entrances is enough", () => {
   assert.equal(stateOf({ locations: [{ isPaired: false }, { isPaired: true }, { isPaired: false }], headcount: 1 }).includes("tablet:done"), true);
 });

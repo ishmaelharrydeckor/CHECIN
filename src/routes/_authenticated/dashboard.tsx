@@ -72,6 +72,8 @@ function DashboardPage() {
   const [orgName, setOrgName] = useState<string>("My Organization");
   const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
+  // Every invitation the admin has made, in any state: it is what ticks the "Invite your team" step.
+  const [invitesSentCount, setInvitesSentCount] = useState<number>(0);
   // Numbers and feed come from the server, computed for TODAY in the organization's timezone.
   const [today, setToday] = useState<TodaySummaryData | null>(null);
   const [todayError, setTodayError] = useState<string | null>(null);
@@ -170,7 +172,7 @@ function DashboardPage() {
     }
   };
 
-  const setupSteps = setupLocations ? buildSetupSteps({ locations: setupLocations, headcount: totalHeadcount }) : null;
+  const setupSteps = setupLocations ? buildSetupSteps({ locations: setupLocations, headcount: totalHeadcount, invitesSent: invitesSentCount }) : null;
   const showSetup = Boolean(isOrgAdmin && setupSteps && !setupHidden && !setupProgress(setupSteps).complete);
 
   const fetchOrgAndStaff = async () => {
@@ -193,6 +195,7 @@ function DashboardPage() {
         const staffData = await staffRes.json();
         if (staffData.ok) {
           setTotalHeadcount(staffData.totalHeadcount ?? 1);
+          setInvitesSentCount(Array.isArray(staffData.invites) ? staffData.invites.length : 0);
           const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
           setPendingInvitesCount(pending);
         }
