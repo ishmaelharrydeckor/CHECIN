@@ -530,6 +530,13 @@ async function viewDetail(caller: Caller, orgId: string, employeeId: string | nu
   });
 }
 
+/** The organization's diary settings, for the admin's settings card. */
+async function viewSettings(caller: Caller, orgId: string) {
+  if (caller.role !== "org_admin") return refuse(403, "Only an organization admin can see the diary settings.");
+  const org = await loadDiaryOrg(orgId, Date.now());
+  return Response.json({ ok: true, settings: org.settings });
+}
+
 function diaryError(err: unknown, label: string): Response {
   if (err instanceof DiaryNotConfigured) {
     console.error(`${label}: ${err.message}`);
@@ -543,7 +550,8 @@ export const Route = createFileRoute("/api/wfh-diary")({
   server: {
     handlers: {
       // ?view=me (default): your own session today; ?view=team&day=: a manager's or admin's day list;
-      // ?view=detail&employeeId=&day=: one person's day, for that person, their manager or an admin.
+      // ?view=detail&employeeId=&day=: one person's day, for that person, their manager or an admin;
+      // ?view=settings: the diary settings, for an org admin.
       GET: async ({ request }) => {
         try {
           const auth = await authCaller(request);
@@ -553,6 +561,7 @@ export const Route = createFileRoute("/api/wfh-diary")({
           if (view === "me") return await viewMe(auth.caller, auth.orgId);
           if (view === "team") return await viewTeam(auth.caller, auth.orgId, q.get("day"));
           if (view === "detail") return await viewDetail(auth.caller, auth.orgId, q.get("employeeId"), q.get("day"));
+          if (view === "settings") return await viewSettings(auth.caller, auth.orgId);
           return refuse(400, "Choose what to show.");
         } catch (err) {
           return diaryError(err, "GET /api/wfh-diary");

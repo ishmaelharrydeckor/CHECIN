@@ -5,6 +5,7 @@ import type { RawEvent, RosterMember, TodayLeave } from "./attendance-today.ts";
 import type { DailySummary } from "./daily-summary.ts";
 import { IN_QUERY_LIMIT, chunk, mergeByKey, movedInMembers } from "./manager-history.ts";
 import { readShiftSettings, type ShiftSettings } from "./shift-requests.ts";
+import { readDiarySettings } from "./wfh-diary.ts";
 import { assignmentFromDoc } from "./shift-scan.ts";
 import type { ShiftSnapshot } from "./shift-engine.ts";
 
@@ -32,6 +33,8 @@ interface OrgContext {
   timezone: string;
   roster: RosterMember[];
   shifts: ShiftSettings;
+  /** The organization has switched the work-from-home diary on. */
+  diaryEnabled: boolean;
 }
 
 // The roster and timezone change rarely; caching them keeps a poll from re-reading every user.
@@ -72,7 +75,8 @@ export async function loadOrgContext(scope: DashboardScope): Promise<OrgContext>
     };
   });
 
-  const value = { timezone, roster, shifts };
+  const diaryEnabled = readDiarySettings(orgSnap.exists ? orgSnap.data() : undefined).enabled;
+  const value = { timezone, roster, shifts, diaryEnabled };
   orgContextCache.set(key, value);
   return value;
 }
@@ -248,6 +252,41 @@ export async function loadShiftAssignments(
 /** The most work-from-home days one dashboard or register read returns. */
 export const WFH_TODAY_CAP = 2000;
 export const WFH_RANGE_CAP = 6000;
+/** Most work-diary day summaries one report reads (one per person per day). */
+export const DIARY_RANGE_CAP = 6000;
+
+/**
+ * Work-diary day summaries (one per person per day) for [fromDay, toDay] in the caller's scope: the whole
+ * organization for an admin, the manager's own team for a manager. Reads the summaries, never the blocks.
+ * Needs the wfh_diary_days (orgId, dayKey) and (orgId, managerId, dayKey) indexes.
+ */
+export async function loadDiaryDays(
+  scope: DashboardScope,
+  fromDay: string,
+  toDay: string,
+  cap: number,
+): Promise<{ days: { employeeId: string; dayKey: string; status: string; verifiedMinutes: number }[]; truncated: boolean }> {
+  let query: FirebaseFirestore.Query = firestoreAdmin.collection("wfh_diary_days").where("orgId", "==", scope.orgId);
+  if (scope.role === "manager") query = query.where("managerId", "==", scope.uid);
+  query =
+    fromDay === toDay
+      ? query.where("dayKey", "==", fromDay)
+      : query.where("dayKey", ">=", fromDay).where("dayKey", "<=", toDay);
+  const snap = await query.limit(cap).get();
+  const days: { employeeId: string; dayKey: string; status: string; verifiedMinutes: number }[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    if (typeof data.employeeId === "string" && typeof data.dayKey === "string") {
+      days.push({
+        employeeId: data.employeeId,
+        dayKey: data.dayKey,
+        status: typeof data.status === "string" ? data.status : "pending",
+        verifiedMinutes: typeof data.verifiedMinutes === "number" ? data.verifiedMinutes : 0,
+      });
+    }
+  }
+  return { days, truncated: snap.size >= cap };
+}
 
 /**
  * Work-from-home days for the caller's scope in [fromDay, toDay] (inclusive). An org admin sees the

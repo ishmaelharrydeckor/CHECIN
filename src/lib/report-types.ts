@@ -20,7 +20,9 @@ export interface RegisterRow {
   name: string;
   department: string;
   days: RegisterDay[];       // one per day in the range, oldest first
-  totals: { presentDays: number; lateDays: number; absentDays: number; leaveDays: number; wfhDays: number; minutesWorked: number; breakMinutes?: number; paidMinutes?: number };
+  totals: { presentDays: number; lateDays: number; absentDays: number; leaveDays: number; wfhDays: number; minutesWorked: number; breakMinutes?: number; paidMinutes?: number;
+    /** Only when the work diary is on: approved diary minutes, flagged days and days still waiting for a decision. Never added to minutesWorked. */
+    diaryApprovedMinutes?: number; diaryFlaggedDays?: number; diaryWaitingDays?: number };
 }
 
 export interface AttendanceRegister {
@@ -32,6 +34,8 @@ export interface AttendanceRegister {
   truncated: boolean;        // true if the server stopped at its limit
   /** True when the organization tracks breaks: the report then has break and paid-time figures. */
   breaksTracked?: boolean;
+  /** True when the work diary is on: the report then has diary columns, kept apart from scanned hours. */
+  diaryTracked?: boolean;
 }
 
 export interface LeaveLedgerRow {
