@@ -148,7 +148,16 @@ function ScanPage() {
         { facingMode: "environment" },
         {
           // No qrbox: decode the entire camera frame, not a small centre square.
-          fps: 20,
+          fps: 25,
+          // Like the phone's own scanner: ask for a sharp, high-resolution picture and
+          // continuous autofocus, so a small or distant code still has enough pixels to read.
+          // These are preferences, not requirements, so a basic camera still starts.
+          videoConstraints: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+          },
         },
         (decodedText) => {
           void onDecoded(decodedText);
