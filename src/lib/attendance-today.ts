@@ -433,6 +433,11 @@ export interface BuildTodayFromSummariesInput {
   wfhEmployeeIds?: readonly string[];
   /** Approved leave that has not ended yet (any dates; only those covering today count). Without it nobody is on leave. */
   leaves?: readonly TodayLeave[];
+  /**
+   * The organization's holidays (YYYY-MM-DD). With no shifts, nobody is expected on a holiday or a weekend,
+   * exactly as the attendance register and the team roster count it. Without it only weekends are non-working.
+   */
+  holidays?: readonly string[];
   /** Today's summaries for the caller's scope (any other day is ignored). */
   summaries: DailySummary[];
   /** The newest events today, for the activity list only. */
@@ -487,13 +492,16 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
   const worked = todays.map((s) => s.minutesWorked).filter((m) => m > 0);
   const wfhPeople = wfhPeopleToday(roster, input.wfhEmployeeIds, presentIds, onLeaveIds);
   const wfhIds = new Set(wfhPeople.map((p) => p.employeeId));
+  // Nobody is expected at a weekend or on a holiday (without shifts), so nobody is "not arrived" or absent.
+  // A scan on such a day still counts as present. This is the same rule the register and the roster use.
+  const nonWorkingDay = weekdayIndex(today) >= 5 || (input.holidays ?? []).includes(today);
   const notArrived: TodayPerson[] = roster
-    .filter((r) => !presentIds.has(r.uid) && !onLeaveIds.has(r.uid) && !wfhIds.has(r.uid))
+    .filter((r) => !nonWorkingDay && !presentIds.has(r.uid) && !onLeaveIds.has(r.uid) && !wfhIds.has(r.uid))
     .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const expected = roster.length - onLeaveIds.size;
   const present = presentIds.size;
+  const expected = nonWorkingDay ? present : roster.length - onLeaveIds.size;
   const onLeave = onLeaveIds.size;
   const wfh = wfhPeople.length;
 

@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { firestoreDb, firebaseAuth } from "@/integrations/firebase/config";
+import { firebaseAuth } from "@/integrations/firebase/config";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { dayKey } from "@/lib/attendance-day";

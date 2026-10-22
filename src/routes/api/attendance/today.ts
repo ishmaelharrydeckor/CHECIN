@@ -133,7 +133,7 @@ export const Route = createFileRoute("/api/attendance/today")({
                 }
               }
 
-              const [{ summaries, truncated }, { events: recentEvents }, leaveResult, wfhIds] = await Promise.all([
+              const [{ summaries, truncated }, { events: recentEvents }, leaveResult, wfhIds, holidays] = await Promise.all([
                 loadScopedSummaries(scope, today, today, SUMMARY_CAP),
                 loadScopedEvents(scope, startMs, endMs, RECENT_EVENT_LIMIT),
                 // People on approved leave are not expected. If leave cannot be read, the panel still works
@@ -150,8 +150,12 @@ export const Route = createFileRoute("/api/attendance/today")({
                   return { leaves: [], truncated: false };
                 }),
                 loadWfhIds(scope, today, request),
+                // Holidays and weekends: nobody is expected, so nobody is absent (same rule as the register).
+                // If they cannot be read the panel still works, treating only weekends as non-working.
+                loadHolidayDays(scope.orgId).catch(() => [] as string[]),
               ]);
               return buildTodayFromSummaries({
+                holidays,
                 summaries,
                 recentEvents,
                 roster,
