@@ -30,7 +30,7 @@ test("the team step is done as soon as the admin has invited someone, without wa
 
 test("an invitation that was used or has expired still counts as invited", () => {
   // The page passes every invitation in any state, so a used or expired one cannot un-tick the step.
-  assert.ok(page.includes("setInvitesSentCount(Array.isArray(staffData.invites) ? staffData.invites.length : 0)"));
+  assert.ok(page.includes("setInvitesSentCount(Number.isInteger(staffData.invitesSent) && staffData.invitesSent > 0 ? staffData.invitesSent : 0)"));
   assert.ok(page.includes("invitesSent: invitesSentCount"));
 });
 

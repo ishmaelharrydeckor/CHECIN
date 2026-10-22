@@ -252,8 +252,12 @@ export function buildAttendanceRegister(input: {
       if (s) return presentDay(d, s, timezone, breaks);
       const blank = { dayKey: d, firstIn: null, lastOut: null, minutesWorked: 0, late: false, earlyDeparture: false };
       if (leave.some((l) => l.start <= d && d <= l.end)) return { ...blank, status: "leave" };
-      // Declared work from home counts as attended (no hours are recorded for it).
-      if (wfhSet.has(`${p.uid}|${d}`)) return { ...blank, status: "wfh" };
+      // Declared work from home counts as attended (no hours are recorded for it). When the organization uses
+      // shifts it counts only on a day the person has a shift: on a day they were not rostered it is not a day
+      // attended, so it cannot lift their attendance. This is the same rule the Today tiles use (a declared day
+      // only counts for someone who is rostered). Without shifts a declaration counts on any day, as before.
+      const rosteredForWfh = !input.shifts || assignmentsByPersonDay.get(p.uid)?.has(d) === true;
+      if (wfhSet.has(`${p.uid}|${d}`) && rosteredForWfh) return { ...blank, status: "wfh" };
       if (holiday.has(d)) return { ...blank, status: "holiday" };
 
       if (!input.shifts) {

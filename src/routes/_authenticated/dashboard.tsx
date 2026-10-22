@@ -189,14 +189,16 @@ function DashboardPage() {
       }
 
       // 2. Fetch staff invites and members
-      const staffRes = await fetch("/api/admin/staff-invites", { headers });
+      // Only the numbers this page shows (people, invitations made, invitations waiting), as counts: the full
+      // list of people and invitations is for the pages that list them.
+      const staffRes = await fetch("/api/admin/staff-invites?view=summary", { headers });
       if (staffRes.ok) {
         const staffData = await staffRes.json();
         if (staffData.ok) {
           setTotalHeadcount(staffData.totalHeadcount ?? 1);
-          setInvitesSentCount(Array.isArray(staffData.invites) ? staffData.invites.length : 0);
-          const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
-          setPendingInvitesCount(pending);
+          // Every invitation made, in any state: it is what ticks the "Invite your team" step.
+          setInvitesSentCount(Number.isInteger(staffData.invitesSent) && staffData.invitesSent > 0 ? staffData.invitesSent : 0);
+          setPendingInvitesCount(Number.isInteger(staffData.pendingInvites) && staffData.pendingInvites > 0 ? staffData.pendingInvites : 0);
         }
       }
 
