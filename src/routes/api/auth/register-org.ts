@@ -9,6 +9,7 @@ import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { isValidZone } from "@/lib/timezone-options";
 import { buildDepartmentList, DEFAULT_DEPARTMENT } from "@/lib/departments";
+import { trialEndsAtFrom } from "@/lib/plans";
 
 export const Route = createFileRoute("/api/auth/register-org")({
   server: {
@@ -120,7 +121,10 @@ export const Route = createFileRoute("/api/auth/register-org")({
 
           await orgRef.set({
             name: orgName,
-            plan: "growth", // Default 14-day trial
+            plan: "growth", // the plan the trial is a trial of
+            // When the free trial ends. Organizations created before this field have no end date and keep every
+            // feature (src/lib/plans.ts). Nothing enforces it until PLAN_ENFORCEMENT is switched on.
+            trialEndsAt: trialEndsAtFrom(Date.now()),
             timezone,
             departments,
             region: "nam5", // where this org's data lives; every org has one value today
