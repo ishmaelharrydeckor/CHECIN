@@ -84,9 +84,67 @@ function isApprovedLeaveCovering(leaves: ReportLeave[], employeeId: string, day:
   );
 }
 
-export function buildTodayWithShifts(input: {
+/** One person's place in today's shift picture. */
+export interface ShiftTodayEvaluation {
+  member: RosterMember;
+  status: ShiftDayStatus;
+  /** The summary of the shift day that counts right now (yesterday's for a night shift still running). */
+  relevantSummary: DailySummary | null;
+  /** The shift that counts right now, with the day it started. */
+  relevantAssignment: { dayKey: string; shift: ShiftSnapshot } | null;
+}
+
+/**
+ * The roster's view of one evaluation (same facts the Today tiles count, shown for one person). `wfhToday` is
+ * true when the person declared work from home today; as on the Today tiles it only counts for someone who is
+ * expected or absent on their shift.
+ */
+export function rosterTodayFrom(
+  ev: ShiftTodayEvaluation,
+  wfhToday: boolean,
+  timezone: string,
+): {
+  status: "in" | "out" | "wfh" | "leave" | "absent" | "expected" | "off" | "holiday";
+  late: boolean;
+  lateExcused: boolean;
+  earlyDeparture: boolean;
+  firstIn: string | null;
+  shift: { name: string; start: string | null; end: string | null } | null;
+} {
+  const s = ev.relevantSummary;
+  const shift = ev.relevantAssignment
+    ? { name: ev.relevantAssignment.shift.name, start: ev.relevantAssignment.shift.start ?? null, end: ev.relevantAssignment.shift.end ?? null }
+    : null;
+  const base = { late: false, lateExcused: false, earlyDeparture: false, firstIn: null as string | null, shift };
+  switch (ev.status) {
+    case "present":
+      return {
+        ...base,
+        status: s?.state === "out" ? "out" : "in",
+        late: Boolean(s && s.firstIn && s.late === true && s.lateExcused !== true),
+        lateExcused: Boolean(s && s.firstIn && s.late === true && s.lateExcused === true),
+        earlyDeparture: s?.earlyDeparture === true,
+        firstIn: s && typeof s.firstIn === "string" ? formatClock(s.firstIn, timezone).slice(0, 5) || null : null,
+      };
+    case "expected":
+    case "absent":
+      return { ...base, status: wfhToday ? "wfh" : ev.status };
+    case "on_leave":
+      return { ...base, status: "leave" };
+    case "holiday":
+      return { ...base, status: "holiday" };
+    default:
+      return { ...base, status: "off" };
+  }
+}
+
+/**
+ * Each person's status for "right now" according to their shifts: present, expected, absent, on leave, holiday or
+ * not rostered. A night shift that began yesterday and is still running counts as today's shift. This is the one
+ * place that rule lives: the Today tiles and the team roster both read it, so they cannot disagree.
+ */
+export function evaluateShiftToday(input: {
   summaries: DailySummary[];
-  recentEvents: RawEvent[];
   roster: RosterMember[];
   assignments: { employeeId: string; dayKey: string; shift: ShiftSnapshot }[];
   leaves: ReportLeave[];
@@ -94,17 +152,11 @@ export function buildTodayWithShifts(input: {
   settings: ShiftSettings;
   timezone: string;
   now: number;
-  /** Employee ids with a work-from-home day today. A scan or approved leave still wins. */
-  wfhEmployeeIds?: readonly string[];
-  eventLimit?: number;
-  truncated?: boolean;
-}): TodaySummaryData {
+}): ShiftTodayEvaluation[] {
   const { timezone, now, roster, settings } = input;
-  const eventLimit = input.eventLimit ?? 20;
   const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
   const yesterday = addDays(today, -1);
   const holidaysSet = new Set(input.holidays ?? []);
-
   const rosterById = new Map(roster.map((r) => [r.uid, r]));
 
   // Index summaries by employeeId and dayKey (only for rostered members)
@@ -133,13 +185,7 @@ export function buildTodayWithShifts(input: {
     personMap.set(a.dayKey, a.shift);
   }
 
-  interface PersonEvaluation {
-    member: RosterMember;
-    status: ShiftDayStatus;
-    relevantSummary: DailySummary | null;
-  }
-
-  const evaluations: PersonEvaluation[] = [];
+  const evaluations: ShiftTodayEvaluation[] = [];
 
   for (const member of roster) {
     const personSummaries = summariesByPersonDay.get(member.uid);
@@ -189,8 +235,46 @@ export function buildTodayWithShifts(input: {
       member,
       status,
       relevantSummary,
+      relevantAssignment,
     });
   }
+
+  return evaluations;
+}
+
+export function buildTodayWithShifts(input: {
+  summaries: DailySummary[];
+  recentEvents: RawEvent[];
+  roster: RosterMember[];
+  assignments: { employeeId: string; dayKey: string; shift: ShiftSnapshot }[];
+  leaves: ReportLeave[];
+  holidays: string[];
+  settings: ShiftSettings;
+  timezone: string;
+  now: number;
+  /** Employee ids with a work-from-home day today. A scan or approved leave still wins. */
+  wfhEmployeeIds?: readonly string[];
+  eventLimit?: number;
+  truncated?: boolean;
+}): TodaySummaryData {
+  const { timezone, now, roster, settings } = input;
+  const eventLimit = input.eventLimit ?? 20;
+  const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
+  const yesterday = addDays(today, -1);
+  const holidaysSet = new Set(input.holidays ?? []);
+
+  const rosterById = new Map(roster.map((r) => [r.uid, r]));
+
+  const evaluations = evaluateShiftToday({
+    summaries: input.summaries,
+    roster,
+    assignments: input.assignments,
+    leaves: input.leaves,
+    holidays: input.holidays,
+    settings,
+    timezone,
+    now,
+  });
 
   let presentCount = 0;
   let onSiteCount = 0;

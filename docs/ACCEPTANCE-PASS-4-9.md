@@ -20,7 +20,7 @@ I can read and run the code, and render screens with sample data, but I have **n
 
 **Known gaps, recorded not fixed** (decisions needed):
 
-1. **Night shifts.** A night shift that began yesterday evening and is still running at 02:00 is "On site" in the Today tiles but "Expected later" in the roster, because the roster follows the calendar day and the Today tiles follow the shift window. Recorded as a `todo` test in `figures-agree.test.mjs` that becomes a normal test when fixed. Likely fix: build the roster rows from the same per-person evaluation the Today tiles use.
+1. **Night shifts.** *Resolved.* A night shift that began yesterday evening and is still running at 02:00 was "On site" in the Today tiles but "Expected later" in the roster, because the roster followed the calendar day and the tiles followed the shift window. The shift evaluation now lives in one function (`evaluateShiftToday`) that both the Today tiles and the roster read, so they cannot disagree. Covered by `figures-agree.test.mjs` (a running night shift, and a mix of day and night shifts at 02:00, 12:00 and 23:00). On the 1st of a month the roster reads yesterday too, so a night shift from the last day of the month is seen. The month's bars still come from the register.
 2. **Work from home on a day with no shift** (organizations that use shifts). The roster and the register show "Working from home" and count the day as attended; the Today tiles ignore it (they only count it for people who are rostered). Rare. Decide which rule is right, then make all three follow it.
 
 ### 2. Phone width (375 px)

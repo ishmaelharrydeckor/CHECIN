@@ -17,7 +17,8 @@ import { correlationId, logEvent } from "@/lib/log.server";
 import { loadHolidayDays, loadScopedLeave } from "@/lib/report-data.server";
 import { buildAttendanceRegister } from "@/lib/report-data";
 import type { ShiftSnapshot } from "@/lib/shift-engine";
-import { buildTeamRoster, type RosterData, type RosterShift } from "@/lib/team-roster";
+import { evaluateShiftToday, rosterTodayFrom } from "@/lib/shift-today";
+import { buildTeamRoster, type RosterData, type RosterShift, type RosterTodayOverride } from "@/lib/team-roster";
 
 // One answer per scope for 45 s, like the Today panel. The Refresh button asks for ?fresh=1.
 const loadRoster = createCachedLoader<RosterData>(45_000, 200, 5_000);
@@ -62,8 +63,12 @@ export const Route = createFileRoute("/api/attendance/roster")({
                 days: [] as { employeeId: string; dayKey: string }[],
                 truncated: true,
               }));
+              // On the 1st, a night shift that began yesterday belongs to last month: read from yesterday so the
+              // roster can still see it (the register only uses the days of this month).
+              const yesterday = addDays(today, -1);
+              const readFrom = yesterday < monthFrom ? yesterday : monthFrom;
               const [summaries, leave, holidays] = await Promise.all([
-                loadScopedSummaries(scope, monthFrom, today, WEEK_SUMMARY_CAP),
+                loadScopedSummaries(scope, readFrom, today, WEEK_SUMMARY_CAP),
                 loadScopedLeave(scope, "approved"),
                 loadHolidayDays(scope.orgId),
               ]);
@@ -74,7 +79,7 @@ export const Route = createFileRoute("/api/attendance/roster")({
               let assignmentsTruncated = false;
               if (shifts.shiftsEnabled && process.env.SHIFTS_DISABLED !== "1") {
                 try {
-                  const r = await loadShiftAssignments(scope, monthFrom, today, SHIFT_ASSIGNMENT_CAP_RANGE);
+                  const r = await loadShiftAssignments(scope, readFrom, today, SHIFT_ASSIGNMENT_CAP_RANGE);
                   assignments = r.assignments;
                   assignmentsTruncated = r.truncated;
                 } catch {
@@ -105,6 +110,24 @@ export const Route = createFileRoute("/api/attendance/roster")({
                 breaks: false,
               });
 
+              // With shifts, where each person is right now comes from the same evaluation the Today tiles use, so a
+              // night shift that began yesterday and is still running is "On site" here too.
+              let todayOverride: Map<string, RosterTodayOverride> | undefined;
+              if (assignments.length > 0) {
+                const evaluations = evaluateShiftToday({
+                  summaries: summaries.summaries,
+                  roster,
+                  assignments,
+                  leaves: leave.leaves,
+                  holidays,
+                  settings: shifts,
+                  timezone,
+                  now,
+                });
+                const wfhToday = new Set(wfh.days.filter((d) => d.dayKey === today).map((d) => d.employeeId));
+                todayOverride = new Map(evaluations.map((ev) => [ev.member.uid, rosterTodayFrom(ev, wfhToday.has(ev.member.uid), timezone)]));
+              }
+
               const todayStates = new Map<string, "in" | "out">();
               for (const s of summaries.summaries) {
                 if (s.dayKey === today) todayStates.set(s.employeeId, s.state === "out" ? "out" : "in");
@@ -119,6 +142,7 @@ export const Route = createFileRoute("/api/attendance/roster")({
                 today,
                 todayStates,
                 todayShifts,
+                todayOverride,
                 generatedAt: new Date(now).toISOString(),
               });
             },

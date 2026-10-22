@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { buildTodayFromSummaries } from "../../src/lib/attendance-today.ts";
 import { buildAttendanceRegister } from "../../src/lib/report-data.ts";
 import { buildTeamRoster } from "../../src/lib/team-roster.ts";
-import { buildTodayWithShifts } from "../../src/lib/shift-today.ts";
+import { buildTodayWithShifts, evaluateShiftToday, rosterTodayFrom } from "../../src/lib/shift-today.ts";
 import { readShiftSettings } from "../../src/lib/shift-requests.ts";
 
 // Acceptance pass 4.9: the numbers on the dashboard tiles ("Today") and the team roster must agree, because
@@ -141,6 +141,16 @@ test("on a public holiday nobody is absent either", () => {
 });
 
 // ---------------------------------------------------------------- organizations that use shifts
+
+/** What the roster route does with shifts: today's state comes from the same evaluation the Today tiles use. */
+function overrideFor({ summaries, assignments, leaves, holidays, nowMs, wfh, today }) {
+  const evaluations = evaluateShiftToday({
+    summaries, roster: people, assignments, leaves, holidays, settings: readShiftSettings({ shiftsEnabled: true }), timezone: TZ, now: nowMs,
+  });
+  const wfhToday = new Set(wfh.filter((w) => w.dayKey === today).map((w) => w.employeeId));
+  return new Map(evaluations.map((ev) => [ev.member.uid, rosterTodayFrom(ev, wfhToday.has(ev.member.uid), TZ)]));
+}
+
 const DAY_SHIFT = { shiftId: "day", name: "Day", type: "day", start: "08:00", end: "16:00", graceMinutes: 15, expectedMinutes: null };
 
 function shiftBoth(seed, today, hour) {
@@ -165,6 +175,7 @@ function shiftBoth(seed, today, hour) {
   const states = new Map(summaries.map((s) => [s.employeeId, s.state === "out" ? "out" : "in"]));
   const roster = buildTeamRoster({
     register, teamIds: new Set(people.map((p) => p.uid)), today, todayStates: states, todayShifts: new Map(),
+    todayOverride: overrideFor({ summaries, assignments, leaves, holidays: [], nowMs, wfh, today }),
     generatedAt: new Date(nowMs).toISOString(),
   });
   const count = (f) => roster.rows.filter(f).length;
@@ -193,13 +204,10 @@ for (const hour of [7, 12, 18]) {
   });
 }
 
-// ---------------------------------------------------------------- a known gap, recorded so it is not forgotten
-// A night shift that began yesterday evening and is still running at 02:00 today: the Today tiles follow the
-// shift (present, on site) but the roster is keyed by calendar day and shows the person as "Expected later"
-// for tonight's shift. Marked `todo`: it documents the disagreement without failing the build. When the roster
-// follows the shift window the way the Today tiles do, remove `todo` and this becomes a normal test.
-test("a night shift that began yesterday is shown as on site by both the Today tiles and the roster", { todo: "roster is keyed by calendar day, not by shift window" }, () => {
-  const NIGHT = { shiftId: "night", name: "Night", type: "night", start: "22:00", end: "06:00", graceMinutes: 15, expectedMinutes: null };
+// ---------------------------------------------------------------- night shifts
+const NIGHT = { shiftId: "night", name: "Night", type: "night", start: "22:00", end: "06:00", graceMinutes: 15, expectedMinutes: null };
+
+test("a night shift that began yesterday and is still running is on site in both the Today tiles and the roster", () => {
   const today = "2026-10-21";
   const yesterday = "2026-10-20";
   const nowMs = Date.parse(`${today}T02:00:00.000Z`);
@@ -212,9 +220,53 @@ test("a night shift that began yesterday is shown as on site by both the Today t
     days: ["2026-10-19", yesterday, today], people: one, summaries, leaves: [], holidays: [], timezone: TZ,
     generatedAt: new Date(nowMs).toISOString(), from: "2026-10-19", to: today, shifts: { assignments, nowMs },
   });
+  const evaluations = evaluateShiftToday({ summaries, roster: one, assignments, leaves: [], holidays: [], settings, timezone: TZ, now: nowMs });
   const roster = buildTeamRoster({
-    register, teamIds: new Set(["n1"]), today, todayStates: new Map(), todayShifts: new Map(), generatedAt: new Date(nowMs).toISOString(),
+    register, teamIds: new Set(["n1"]), today, todayStates: new Map(), todayShifts: new Map(),
+    todayOverride: new Map(evaluations.map((ev) => [ev.member.uid, rosterTodayFrom(ev, false, TZ)])),
+    generatedAt: new Date(nowMs).toISOString(),
   });
   assert.equal(t.counts.onSite, 1, "the Today tiles see them on site");
-  assert.equal(roster.rows[0].status, "in", "the roster should too");
+  assert.equal(roster.rows[0].status, "in", "and so does the roster");
+  assert.equal(roster.rows[0].firstIn, "21:55", "with the time they arrived, on last evening's clock");
+  assert.deepEqual(roster.rows[0].shift, { name: "Night", start: "22:00", end: "06:00" }, "and the shift that is running");
+});
+
+test("with a mix of day and night shifts, the Today tiles and the roster agree at 02:00, 12:00 and 23:00", () => {
+  const today = "2026-10-21";
+  const yesterday = "2026-10-20";
+  for (const hour of [2, 12, 23]) {
+    for (let seed = 1; seed <= 15; seed++) {
+      const r = rng(seed * 104729);
+      const nowMs = Date.parse(`${today}T${String(hour).padStart(2, "0")}:00:00.000Z`);
+      const days = ["2026-10-19", yesterday, today];
+      const kind = new Map(people.map((p) => [p.uid, r() < 0.5 ? NIGHT : r() < 0.7 ? DAY_SHIFT : null]));
+      const assignments = people.flatMap((p) => (kind.get(p.uid) ? days.map((d) => ({ employeeId: p.uid, dayKey: d, shift: kind.get(p.uid) })) : []));
+      const summaries = [];
+      for (const p of people) {
+        const shift = kind.get(p.uid);
+        if (!shift || r() < 0.3) continue;
+        // Night workers who arrived last evening are still in; day workers arrive this morning, if it is past it.
+        if (shift === NIGHT) summaries.push(summary(p.uid, yesterday, { firstIn: `${yesterday}T21:58:00.000Z`, state: hour < 6 ? "in" : "out", late: r() < 0.2 }));
+        else if (hour >= 8) summaries.push(summary(p.uid, today, { firstIn: `${today}T08:01:00.000Z`, state: hour >= 17 ? "out" : "in", late: r() < 0.2 }));
+      }
+      const settings = readShiftSettings({ shiftsEnabled: true });
+      const t = buildTodayWithShifts({ summaries, recentEvents: [], roster: people, assignments, leaves: [], holidays: [], settings, timezone: TZ, now: nowMs });
+      const register = buildAttendanceRegister({
+        days, people, summaries, leaves: [], holidays: [], timezone: TZ, generatedAt: new Date(nowMs).toISOString(),
+        from: days[0], to: today, shifts: { assignments, nowMs },
+      });
+      const roster = buildTeamRoster({
+        register, teamIds: new Set(people.map((p) => p.uid)), today, todayStates: new Map(), todayShifts: new Map(),
+        todayOverride: overrideFor({ summaries, assignments, leaves: [], holidays: [], nowMs, wfh: [], today }),
+        generatedAt: new Date(nowMs).toISOString(),
+      });
+      const count = (f) => roster.rows.filter(f).length;
+      const where = `hour ${hour}, seed ${seed}`;
+      assert.equal(t.counts.present, count((x) => x.status === "in" || x.status === "out"), `present (${where})`);
+      assert.equal(t.counts.onSite, count((x) => x.status === "in"), `on site (${where})`);
+      assert.equal(t.counts.late, count((x) => x.late), `late (${where})`);
+      assert.equal(t.counts.absent, count((x) => x.status === "absent"), `absent (${where})`);
+    }
+  }
 });
