@@ -5,6 +5,7 @@ import {
   sendNotificationToTeam,
   NotificationPayload,
 } from "@/lib/push-service.server";
+import { runInBackground } from "@/lib/background.server";
 
 export const Route = createFileRoute("/api/announcements/")({
   server: {
@@ -173,10 +174,15 @@ export const Route = createFileRoute("/api/announcements/")({
             entityType: "announcement",
           };
 
+          // Kept alive until it finishes: a plain "send and forget" can be cut off on Vercel the
+          // moment the reply goes out, and nobody would know the notices were never sent.
           if (isOrgWide) {
-            sendNotificationToOrg(orgId, pushPayload).catch(() => {});
+            runInBackground(sendNotificationToOrg(orgId, pushPayload), "announcement push (org)");
           } else if (targetManagerId) {
-            sendNotificationToTeam(targetManagerId, orgId, pushPayload).catch(() => {});
+            runInBackground(
+              sendNotificationToTeam(targetManagerId, orgId, pushPayload),
+              "announcement push (team)",
+            );
           }
 
           return Response.json({
