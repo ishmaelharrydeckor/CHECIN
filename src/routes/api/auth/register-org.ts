@@ -126,6 +126,8 @@ export const Route = createFileRoute("/api/auth/register-org")({
             // feature (src/lib/plans.ts). Nothing enforces it until PLAN_ENFORCEMENT is switched on.
             trialEndsAt: trialEndsAtFrom(Date.now()),
             timezone,
+            // A timezone chosen at sign-up was chosen on purpose; only the default UTC still needs confirming.
+            timezoneConfirmed: Boolean(String(body?.timezone || "").trim()),
             departments,
             region: "nam5", // where this org's data lives; every org has one value today
             schemaVersion: 1,

@@ -5,6 +5,7 @@ import { linkWithPopup } from "firebase/auth";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TimezoneNotice } from "@/components/TimezoneNotice";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,8 @@ function SettingsPage() {
     id: string;
     plan: string;
     timezone: string;
+    /** True until an admin confirms a missing or plain-UTC timezone (src/lib/timezone-check.ts). */
+    timezoneNeedsConfirmation?: boolean;
   }>({
     name: "Loading Organization...",
     id: orgId || "Loading...",
@@ -180,6 +183,31 @@ function SettingsPage() {
     fetchOrg();
   }, [user, orgId]);
 
+  // "Keep this timezone": saving the timezone as it is confirms it, so the warning goes away.
+  const [confirmingTimezone, setConfirmingTimezone] = useState(false);
+  const confirmTimezone = async () => {
+    setConfirmingTimezone(true);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      const res = await fetch("/api/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        body: JSON.stringify({ timezone: orgDetails.timezone }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setOrgDetails((prev) => ({ ...prev, timezoneNeedsConfirmation: false }));
+        toast.success(`Timezone confirmed: ${orgDetails.timezone}`);
+      } else {
+        toast.error(data.error || "Could not confirm the timezone");
+      }
+    } catch {
+      toast.error("Could not confirm the timezone");
+    } finally {
+      setConfirmingTimezone(false);
+    }
+  };
+
   const handleUpdateOrgName = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgNameInput.trim() || orgNameInput.trim().length < 2) {
@@ -203,6 +231,7 @@ function SettingsPage() {
           ...prev,
           name: orgNameInput.trim(),
           timezone: orgTimezoneInput.trim() || prev.timezone,
+          timezoneNeedsConfirmation: false,
         }));
         setEditingOrg(false);
         toast.success("Organization details updated successfully!");
@@ -598,6 +627,19 @@ function SettingsPage() {
               </div>
             </form>
           ) : (
+            <div className="space-y-4">
+            {isOrgAdmin && orgDetails.timezoneNeedsConfirmation && (
+              <TimezoneNotice
+                timezone={orgDetails.timezone}
+                confirming={confirmingTimezone}
+                onConfirm={() => void confirmTimezone()}
+                onChoose={() => {
+                  setOrgNameInput(orgDetails.name);
+                  setOrgTimezoneInput(orgDetails.timezone);
+                  setEditingOrg(true);
+                }}
+              />
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -623,6 +665,7 @@ function SettingsPage() {
                   <span>Your Role: <span className="font-medium text-slate-700">{isOrgAdmin ? "Organization Administrator" : "Team Manager"}</span></span>
                 </div>
               </div>
+            </div>
             </div>
           )}
         </CardContent>
