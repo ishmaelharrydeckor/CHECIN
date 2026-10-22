@@ -149,6 +149,39 @@ export const Route = createFileRoute("/api/admin/staff-invites")({
         const ctx = await requireStaffLead(request);
         if (ctx instanceof Response) return ctx;
 
+        // ?view=summary: only the numbers the dashboard shows (people, invitations made, invitations waiting),
+        // worked out by the database as counts instead of reading every person and invitation. Same scope as
+        // the full list: an admin counts the organization, a manager their own team.
+        if (url.searchParams.get("view") === "summary") {
+          try {
+            const scoped = (name: string) => {
+              let q: FirebaseFirestore.Query = firestoreAdmin.collection(name).where("orgId", "==", ctx.orgId);
+              if (ctx.role === "manager") q = q.where("managerId", "==", ctx.uid);
+              return q;
+            };
+            const [people, invited, waiting] = await Promise.all([
+              // bounded-ok: a count aggregation answers with one number, not documents
+              scoped("users").count().get(),
+              // bounded-ok: a count aggregation answers with one number, not documents
+              scoped("staff_invites").count().get(),
+              // bounded-ok: a count aggregation answers with one number, not documents
+              scoped("staff_invites").where("status", "==", "pending").count().get(),
+            ]);
+            return Response.json(
+              {
+                ok: true,
+                totalHeadcount: Math.max(1, people.data().count),
+                invitesSent: invited.data().count,
+                pendingInvites: waiting.data().count,
+              },
+              { headers: { "Cache-Control": "private, no-store" } },
+            );
+          } catch (err) {
+            console.error("Staff summary error:", err);
+            return Response.json({ error: "Could not load the team summary" }, { status: 500 });
+          }
+        }
+
         try {
           let query = firestoreAdmin.collection("staff_invites").where("orgId", "==", ctx.orgId);
           if (ctx.role === "manager") {

@@ -150,8 +150,8 @@ function shiftBoth(seed, today, hour) {
   const nowMs = Date.parse(`${today}T${String(hour).padStart(2, "0")}:00:00.000Z`);
   // About three in four people are rostered for the day shift on every day of the month so far.
   const rostered = people.filter(() => r() < 0.75).map((p) => p.uid);
-  // Work from home is declared by people who have a shift that day (the normal case; see the note below).
-  const wfh = base.wfh.filter((w) => rostered.includes(w.employeeId));
+  // Some of the people who declare work from home have no shift that day: neither the tiles nor the roster count them.
+  const wfh = base.wfh;
   const assignments = rostered.flatMap((uid) => days.map((d) => ({ employeeId: uid, dayKey: d, shift: DAY_SHIFT })));
   const settings = readShiftSettings({ shiftsEnabled: true });
   const todayData = buildTodayWithShifts({
