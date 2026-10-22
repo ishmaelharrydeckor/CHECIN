@@ -86,3 +86,15 @@ test("the phone drawer is always the full menu", () => {
   const sheet = shell.slice(shell.indexOf("<SheetContent"));
   assert.ok(!sheet.slice(0, sheet.indexOf("</SheetContent>")).includes("collapsed={collapsed}"));
 });
+
+test("the menu and the top bar stay put while the page scrolls: the page is never made a scroll box of its own", () => {
+  const css = readFileSync("src/styles.css", "utf8").replace(/\r\n/g, "\n");
+  const base = css.slice(css.indexOf("html,\n  body {"), css.indexOf("}", css.indexOf("html,\n  body {")));
+  // overflow-x: hidden on both html and body makes body a scroll container, and a sticky element then sticks
+  // to a box that never scrolls, so it scrolls away with the page. clip stops sideways scrolling without that.
+  assert.ok(/overflow-x:\s*clip/.test(base), "sideways scroll is stopped with clip");
+  assert.ok(!/overflow(-x|-y)?:\s*(hidden|auto|scroll)/.test(base), "html and body are not scroll boxes");
+  assert.ok(shell.includes("sticky top-0 h-screen"), "the desktop menu is pinned to the screen's height");
+  assert.ok(shell.includes("flex-1 overflow-y-auto"), "a long menu scrolls inside itself");
+  assert.ok(shell.includes('<header className="sticky top-0 z-30'), "the top bar stays at the top");
+});
