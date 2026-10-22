@@ -96,15 +96,27 @@ Everything here is part of the build. Each feature is gated by plan through `src
 
 ### AI assistant
 
-Design note first: `docs/AI-ASSISTANT-DESIGN.md` (5.12). Gated as feature `ai_assistant`; plan level (Growth, Enterprise or paid add-on) is an owner decision.
+Design note first: `docs/AI-ASSISTANT-DESIGN.md` (5.12). Gated as feature `ai_assistant`; plan level decided: Growth (Enterprise includes it); audience decided: org admins and managers only.
 
 | # | Task | Who | Size | Notes |
 |---|---|---|---|---|
 | 5.12 | **AI assistant design note** (audience, plan level, provider, privacy, cost limits, safety) | I | S | Rules already agreed: acts only as the verified caller with their existing permissions; reads summaries, not raw `clock_events`; never crosses organizations; user-typed text is untrusted; no location data; per-organization monthly limit; every question logged without secrets; privacy policy updated for the AI provider |
-| 5.13 | **Assistant, read-only questions** (a manager asks who was late; an employee asks their leave balance) | I | L | Tools are the existing server routes, called with the caller's own identity |
+| 5.13 | **Assistant, read-only questions** (an admin or manager asks who was late, who is off on Friday; employees do not get the assistant) | I | L | Tools are the existing server routes, called with the caller's own identity |
 | 5.14 | **Assistant, drafting** (announcements, report summaries, suggested rosters) | I | M | A person reads and approves every draft |
 | 5.15 | **Assistant, confirmed actions** (approve leave, assign a shift) | I | L | Preview and a Confirm click, then the existing route runs with its own checks. Never acts on its own |
 | 5.16 | **Assistant usage and cost controls** (per-organization limit, usage page, kill switch) | I | M | Built with 5.13, not after |
+
+## Phase 6: Website analytics (decided: Vercel Web Analytics)
+
+Cookieless visitor counts on the **public pages only** (landing, pricing, sign-up). Never inside the signed-in app, and never any advertising or cross-site tracker.
+
+| # | Task | Who | Size | Notes |
+|---|---|---|---|---|
+| 6.1 | **Add Vercel Web Analytics** to the public pages only | I | S | Enable it on both Vercel projects (`checin`, `checin-6982`). Add the `@vercel/analytics` package (approved by the owner) |
+| 6.2 | **Funnel events:** viewed pricing, started sign-up, completed sign-up, started trial | I | S | Event names only; no emails, names, ids or org details in any event |
+| 6.3 | **Cookie, privacy and terms wording** updated to match (what we use: sign-in session, preference settings, cookieless counter; adding ads or social pixels would require a consent banner) | I | S | Edits #158 and the privacy proposal; lawyer confirms the no-banner position |
+| 6.4 | **Guard test:** the build fails if a third-party tracker, advertising pixel or analytics script appears in the signed-in app, or any script from an unapproved host | I | S | Same pattern as the self-hosted-fonts test |
+| 6.5 | Owner view of the numbers | I | S | Vercel's own dashboard to start; an in-app "Visitors" view only if asked |
 
 ## Shared files — teammates do not edit these (integrator wires them in)
 
