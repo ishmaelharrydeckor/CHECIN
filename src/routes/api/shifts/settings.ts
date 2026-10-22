@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { dayKey } from "@/lib/attendance-day";
 import { parseSettingsInput, readShiftSettings } from "@/lib/shift-requests";
+import { gateFeature } from "@/lib/plan-gate.server";
 
 export const Route = createFileRoute("/api/shifts/settings")({
   server: {
@@ -74,6 +75,16 @@ export const Route = createFileRoute("/api/shifts/settings")({
           const parsed = parseSettingsInput(body);
           if (!parsed.ok) {
             return Response.json({ error: parsed.error }, { status: 400 });
+          }
+
+          // Turning a paid feature ON needs the plan that includes it. Turning one off is always allowed.
+          if (parsed.value.shiftsEnabled === true) {
+            const blocked = await gateFeature(orgId, "shifts", { uid: caller.uid, request });
+            if (blocked) return blocked;
+          }
+          if (parsed.value.breaksEnabled === true) {
+            const blocked = await gateFeature(orgId, "breaks", { uid: caller.uid, request });
+            if (blocked) return blocked;
           }
 
           const orgRef = firestoreAdmin.collection("organizations").doc(orgId);

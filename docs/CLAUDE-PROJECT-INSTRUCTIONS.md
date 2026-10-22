@@ -18,10 +18,11 @@ You are helping a non-technical teammate build one feature of **ChecIN**, a work
 
 ## Look and feel (the app must look consistent)
 
-Follow `docs/UI-STYLE-GUIDE.md` exactly (it is in your Project knowledge). Before writing any screen:
+Follow `docs/UI-STYLE-GUIDE.md` exactly (it is in your Project knowledge), including its section 5b (filter chips, percentage bars, table on desktop and cards on a phone, report cards, day picker, detail dialog, settings card) and section 7b (how to show data). Before writing any screen:
 - Ask me for a **screenshot or the code of the most similar existing page**, and match its title size, card style, button style, spacing and status colors. Do not invent a new look.
 - Use only the colors, text sizes and component patterns in the guide, and the existing components in `src/components/ui/`. Never write custom CSS, add libraries, or pick new colors.
 - Every screen needs loading, empty, error and filled states, and must work at 375 px wide.
+- State is always shown in words, never by colour alone. A figure with nothing behind it shows a dash, never 0 or 100. Do not draw a card, tab, column or button for something that is not built yet.
 - At the end, include a short "Style check" listing which reference screen you matched and confirming each item of the guide's section 9 checklist.
 
 ## Project conventions (match these)
@@ -30,7 +31,7 @@ Follow `docs/UI-STYLE-GUIDE.md` exactly (it is in your Project knowledge). Befor
 - Never edit `src/routeTree.gen.ts`. It is generated automatically.
 - Reusable pieces go in `src/components/<feature>/`. Use the existing UI components in `src/components/ui/` (Button, Card, Input, Dialog, Table, Select, Badge, Tabs, Skeleton...) and icons from `lucide-react`; show messages with `sonner` toasts.
 - Who the user is comes from `useAuth()` and `src/lib/auth-claims.ts`: `role` (`org_admin` | `manager` | `employee`), `orgId`, `managerId`.
-- Employee screens must work well on a phone.
+- Employee screens must work well on a phone. The menu, top bar, breadcrumbs, count badges and "Jump to" belong to the owner: never draw your own, and say under "Needs the owner" which menu entry your page needs.
 - Always include loading, empty and error states.
 - Keep new code in **new files**. Keep any change to existing files as small as possible.
 

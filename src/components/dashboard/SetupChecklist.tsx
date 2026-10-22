@@ -62,6 +62,7 @@ export function SetupChecklist({
                     {step.done && <span className="sr-only"> (done)</span>}
                   </p>
                   {!step.done && <p className="text-[13px] text-slate-600">{step.detail}</p>}
+                  {step.done && step.note && <p className="text-[13px] text-slate-500">{step.note}</p>}
                 </div>
                 {!step.done && step.id !== "team" && (
                   <Link

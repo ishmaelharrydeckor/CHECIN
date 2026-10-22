@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { authedFetch } from "@/components/shifts/shiftApi";
 import { MyWfhCard } from "@/components/wfh/MyWfhCard";
 import type { MyWfh } from "@/lib/wfh-types";
@@ -45,14 +46,23 @@ export function MyWfhSection() {
   }
 
   return (
-    <MyWfhCard
-      data={data}
-      loading={loading && data === null}
-      error={error}
-      onDeclare={declare}
-      onCancel={cancel}
-      onRetry={() => void load()}
-      today={data?.today}
-    />
+    <div className="space-y-2">
+      <MyWfhCard
+        data={data}
+        loading={loading && data === null}
+        error={error}
+        onDeclare={declare}
+        onCancel={cancel}
+        onRetry={() => void load()}
+        today={data?.today}
+      />
+      <p className="text-xs text-muted-foreground">
+        Working from home today? Open your{" "}
+        <Link to="/wfh-diary" className="font-medium text-[#0E2322] underline underline-offset-2">
+          work diary
+        </Link>{" "}
+        to start your session.
+      </p>
+    </div>
   );
 }

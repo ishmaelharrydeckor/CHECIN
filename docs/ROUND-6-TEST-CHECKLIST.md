@@ -1,6 +1,6 @@
 # Test checklist, round 6: what changed since round 5
 
-Round 5 ([ROUND-5-TEST-CHECKLIST.md](ROUND-5-TEST-CHECKLIST.md)) covers late excuses, repeating shifts, work from home, analytics, the rota and manager change. **Do round 5 first if it has not been done.** This round covers everything added after it: the landing page, sign-in, the new organization checklist, the reshuffled dashboard, the tablet change, shift swaps and the menu changes. It ends with a quick pass over the main journeys, to catch anything that broke.
+Round 5 ([ROUND-5-TEST-CHECKLIST.md](ROUND-5-TEST-CHECKLIST.md)) covers late excuses, repeating shifts, work from home, analytics, the rota and manager change. **Do round 5 first if it has not been done.** This round covers everything added after it: the landing page, sign-in, the new organization checklist, the reshuffled dashboard, the tablet change, shift swaps and the menu changes. Parts I and J cover Lenient mode and breaks, part K is for the owner (the nightly refill and the diary secret), and it ends with a quick pass over the main journeys, to catch anything that broke.
 
 **Tester:** ______________   **Date:** ____________   **Device and browser:** ______________
 
@@ -126,6 +126,53 @@ Use the brand new **TEST New Co** organization, signed in as its admin.
 | H6 | Admin: post an **announcement** | Employees see it. | | |
 | H7 | Admin: open **Reports** and export | A file downloads and opens. | | |
 | H8 | Admin or manager: open **Late arrivals** and excuse one late day with a reason | It is marked excused and no longer counts as late. | | |
+
+## I. A check-in outside the allowed time (Lenient mode)
+Needs shifts switched on, a **test employee with a shift that starts a few hours from now** (so that now is before the allowed time, which opens 120 minutes before the start by default), and the tablet from part E.
+| # | What to do | What should happen | Result | Notes |
+|---|---|---|---|---|
+| I1 | As the admin, open **Shifts**, then **Settings**. Under "A check-in outside the allowed time", choose **Strict** | "Strict is on. Check-ins outside the allowed time are refused." | | |
+| I2 | As the test employee, scan the tablet QR | The phone says it was **not recorded** and why (for example when scanning opens). The status stays "out". | | |
+| I3 | As the manager or admin, open **Shifts**, then **Refused check-ins** | A new line for that person, marked **Turned away**. | | |
+| I4 | As the admin, change the setting to **Lenient** | "Lenient is on. Check-ins outside the allowed time are recorded but not counted." The choice is still **Lenient** after a refresh. | | |
+| I5 | As the test employee, scan the tablet QR again (after the short wait between scans) | A yellow screen: **"Recorded outside your shift"**, with the time, the entrance and a sentence saying it does not count toward your hours. **No Undo button.** | | |
+| I6 | On the phone, look at your check-in status afterwards | Still **out** (checked out). The scan did not change it. | | |
+| I7 | Open **History** as the employee, and as the manager | The scan is listed, marked **"Outside shift, not counted"**. | | |
+| I8 | Open **Shifts**, then **Refused check-ins** | A line marked **Recorded, not counted**. | | |
+| I9 | Open the **dashboard** as the manager | The person is **not** counted as present, not late, and does not appear in "Today's check-ins". | | |
+| I10 | Open **Reports**, then the attendance register, for today | No hours for that person. | | |
+| I11 | Scan 7 or more times in a row outside the allowed time | After a few, a message asks you to wait a few minutes or speak to your manager. | | |
+| I12 | Change the setting back to **Strict** | The next outside scan is refused again, as in I2. | | |
+
+## J. Breaks (a fixed unpaid break per shift)
+Use short numbers so you can see the result in a few minutes. Needs shifts on, and a test employee with a shift **covering now** (so a scan is inside the allowed time).
+| # | What to do | What should happen | Result | Notes |
+|---|---|---|---|---|
+| J1 | As the admin, open **Shifts**, then **Settings**. Look for **Track breaks** | A switch, off by default. | | |
+| J2 | Create a new shift (**Shifts**, then **New shift**) | There is **no break box** yet, because breaks are off. | | |
+| J3 | Switch **Track breaks** on | "Breaks are on." | | |
+| J4 | Create or edit a shift | A box with **Unpaid break (minutes)** and **Take the break off only after (hours at work)**. The second box is greyed out while the break is 0. | | |
+| J5 | Make a test shift covering now with **Unpaid break 5** and **Take the break off only after 0** | It saves. The shift list says "5 minutes unpaid break". | | |
+| J6 | Try a break of **500** | A plain message that the break must be from 0 to 240 minutes. Nothing is saved. | | |
+| J7 | Assign the test employee to that shift for today. They check in, wait **at least 10 minutes**, then check out | Both scans work as normal. | | |
+| J8 | As the admin, open **Reports**, then the attendance register, for today | Extra columns **Break** and **Paid** next to Hours. For that person, about **0.17** hours at work, **0.08** break and **0.08** paid. Break plus paid equals the hours worked. | | |
+| J9 | Download the **CSV** and open it | Two extra columns, **Break hours** and **Paid hours**, with the same numbers. | | |
+| J10 | Download the **PDF** | It has Break and Paid columns, and nothing is cut off. | | |
+| J11 | Edit the shift and set **Take the break off only after 6** hours, then repeat a short day with another test person | Short days show a **break of 0**: it comes off only after more than 6 hours at work. | | |
+| J12 | Switch **Track breaks** off | The Break and Paid columns **disappear** from the register and the CSV. The hours at work are exactly the same. | | |
+| J13 | Switch it back on | The shift still has its break. Nothing had to be re-entered. | | |
+| J14 | Edit a shift that has a break **while breaks are off**, then switch breaks back on | The break is still there (editing never removes it). | | |
+
+## K. Owner only: the nightly refill and the diary secret
+Testers cannot do these. The owner does, on staging.
+| # | What to do | What should happen | Result | Notes |
+|---|---|---|---|---|
+| K1 | Create a repeating pattern for a test person (as in round 5, part B), with no end date | It appears on the Rota for the next days. | | |
+| K2 | Run the refill by hand with the secret (`curl.exe` line in `docs/OPERATIONS.md`) | An answer with `"ok":true`. If the pattern was behind, `written` is more than 0. | | |
+| K3 | Run it a second time | `"written":0`: it never duplicates. | | |
+| K4 | Run it with a wrong secret | `Not allowed`. (Do not try more than a few times: five wrong tries lock your address for 15 minutes.) | | |
+| K5 | Check `CRON_SECRET` is also set for **production**, with its own value | Set. Without it the nightly run on production does nothing. | | |
+| K6 | Check `WFH_DIARY_SIGNING_SECRET` is set (at least 32 characters) | Set. There are no diary screens yet, so there is nothing for testers to try. | | |
 
 ## Always include these
 | # | What to do | What should happen | Result | Notes |

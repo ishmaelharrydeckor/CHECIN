@@ -26,7 +26,7 @@ import {
 import { exportToExcel, exportToCSV, exportToPDF } from "@/lib/exporters";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/reports")({
+export const Route = createFileRoute("/_authenticated/reports/timesheets")({
   head: () => ({
     meta: [
       { title: "Timesheets & Attendance Reports — ChecIN" },
@@ -298,7 +298,7 @@ function ReportsPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button asChild variant="outline" size="sm" className="border-slate-200 text-xs font-medium">
-            <Link to="/attendance-reports">Register and leave ledger</Link>
+            <Link to="/reports">All reports</Link>
           </Button>
           <Button
             variant="outline"

@@ -74,6 +74,38 @@ Target look and structure: [DASHBOARD-DESIGN-REFERENCE.md](DASHBOARD-DESIGN-REFE
 
 **Exit criteria:** a manager can go organization, then team, then person in at most three clicks; numbers agree everywhere on a screen; nothing is drawn for the future; no screen reads raw events for a period view; the geo-fence screens and India's EPFO filing from the reference are **not** built (no GPS, ever).
 
+## Phase 5: Enterprise plan and AI assistant (all to be built)
+
+Everything here is part of the build. Each feature is gated by plan through `src/lib/plans.ts` (the `FEATURES` table; `built: false` until it ships, so it can never be offered early). Each gets a short design note before UI work.
+
+### Enterprise plan features
+
+| # | Task | Who | Size | Notes |
+|---|---|---|---|---|
+| 5.1 | **SSO** (company sign-in: Microsoft, Google Workspace, Okta via SAML/OIDC) | I | L | Firebase Auth identity-platform providers. Claims are still set only by the server. Per-organization setup and domain verification |
+| 5.2 | **SCIM provisioning** (the company's login system adds and removes people automatically) | I | L | After 5.1. Leavers lose access at once. Token per organization, hashed, Admin-SDK-only, rate limited |
+| 5.3 | **Audit trail** (who did what: role changes, approvals, shift edits, settings) | I | L | Append-only `audit_log`, written by the server only, never editable; viewer and export for org admins. Builds on the existing `logEvent` call sites |
+| 5.4 | **Full data export** (everything the organization owns, on request) | I | M | Admin only, rate limited, logged in the audit trail. Also serves data-protection requests |
+| 5.5 | **Leave types and balances** (this is task 2.2, gated as Enterprise) | I | L | See 2.2 |
+| 5.6 | **Scheduled report emails** (this is task 3.3, gated as Enterprise) | I | L | Needs email sending set up (also needed by 1.4) |
+| 5.7 | **Overtime and payroll export** (tasks 3.2 and 3.5, gated as Enterprise) | I | L | Design #83. Pay rules are configurable per organization |
+| 5.8 | **Live payroll / HRIS integrations** (Workday, BambooHR, Sage and similar) | I | L | After 5.7. One integration at a time, built to a real customer's system |
+| 5.9 | **Regional compliance packs** (overtime thresholds, leave entitlements, break rules, public holidays per country/region) | I | L | Design note first: rules are data per region, not code per customer. Start with Ghana |
+| 5.10 | **Enterprise contact flow** (a "talk to us" form instead of a price, and the owner's tool to grant features to one company: `featureGrants`) | I | S | Needs the real support address (domain) |
+| 5.11 | **Service-level readiness** (backups, alerts, load test, status page) so a written uptime promise can be made | I | M | Issues #24, #25, #26 plus an error tracker. The promise itself is a contract matter |
+
+### AI assistant
+
+Design note first: `docs/AI-ASSISTANT-DESIGN.md` (5.12). Gated as feature `ai_assistant`; plan level decided: Growth (Enterprise includes it); audience decided: org admins and managers only.
+
+| # | Task | Who | Size | Notes |
+|---|---|---|---|---|
+| 5.12 | **AI assistant design note** (audience, plan level, provider, privacy, cost limits, safety) | I | S | Rules already agreed: acts only as the verified caller with their existing permissions; reads summaries, not raw `clock_events`; never crosses organizations; user-typed text is untrusted; no location data; per-organization monthly limit; every question logged without secrets; privacy policy updated for the AI provider |
+| 5.13 | **Assistant, read-only questions** (an admin or manager asks who was late, who is off on Friday; employees do not get the assistant) | I | L | Tools are the existing server routes, called with the caller's own identity |
+| 5.14 | **Assistant, drafting** (announcements, report summaries, suggested rosters) | I | M | A person reads and approves every draft |
+| 5.15 | **Assistant, confirmed actions** (approve leave, assign a shift) | I | L | Preview and a Confirm click, then the existing route runs with its own checks. Never acts on its own |
+| 5.16 | **Assistant usage and cost controls** (per-organization limit, usage page, kill switch) | I | M | Built with 5.13, not after |
+
 ## Phase 6: Website analytics (decided: Vercel Web Analytics)
 
 Cookieless visitor counts on the **public pages only** (landing, pricing, sign-up). Never inside the signed-in app, and never any advertising or cross-site tracker.
@@ -103,5 +135,7 @@ New features go in **new files**; the integrator adds menu entries and rules.
 ## Suggested order of execution
 
 Phase 0 (tomorrow) → 1.3, 1.5 (quick wins, good first tasks for teammates) → 1.1 → 1.2 / 1.6 / 2.1 in parallel → 2.2 / 2.3 / 2.4 → Phase 3 after the lab's answers.
+
+Phase 5 (Enterprise plan features and the AI assistant) is part of the build and is scheduled alongside Phase 3, starting with the design notes. Billing (1.7) and plan gating (0.5) come with it, because plans must exist for features to be sold.
 
 **Last of all:** Phase 4 (dashboard redesign) once every feature above is built and live. See `DASHBOARD-DESIGN-REFERENCE.md`.

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { gateFeature } from "@/lib/plan-gate.server";
 import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { dayKey } from "@/lib/attendance-day";
@@ -75,6 +76,9 @@ export const Route = createFileRoute("/api/wfh")({
           if (caller.role !== "org_admin" && caller.role !== "manager" && caller.role !== "employee") {
             return Response.json({ error: "You do not have access to this." }, { status: 403 });
           }
+
+          const blocked = await gateFeature(orgId, "wfh", { uid: caller.uid, request });
+          if (blocked) return blocked;
 
           const rate = await checkRateLimit(`wfh_declare_${caller.uid}`, {
             limit: 30,
@@ -156,6 +160,9 @@ export const Route = createFileRoute("/api/wfh")({
           if (caller.role !== "org_admin" && caller.role !== "manager" && caller.role !== "employee") {
             return Response.json({ error: "You do not have access to this." }, { status: 403 });
           }
+
+          const blocked = await gateFeature(orgId, "wfh", { uid: caller.uid, request });
+          if (blocked) return blocked;
 
           const rate = await checkRateLimit(`wfh_remove_${caller.uid}`, {
             limit: 60,

@@ -14,6 +14,10 @@ export const Route = createFileRoute("/_authenticated/attendance-reports")({
       { name: "description", content: "Attendance register and leave ledger for a date range, with CSV and PDF downloads." },
     ],
   }),
+  // The reports hub opens the right tab with ?tab=leave; anything else shows the register.
+  validateSearch: (search: Record<string, unknown>): { tab?: "register" | "leave" } => ({
+    tab: search.tab === "leave" ? "leave" : search.tab === "register" ? "register" : undefined,
+  }),
   component: AttendanceReportsPage,
 });
 
@@ -61,7 +65,8 @@ function LeaveTab({ range, onRangeChange }: { range: DateRange; onRangeChange: (
 
 function AttendanceReportsPage() {
   const { isOrgAdmin, isManager, loading } = useAuth();
-  const [tab, setTab] = useState<"register" | "leave">("register");
+  const search = Route.useSearch();
+  const [tab, setTab] = useState<"register" | "leave">(search.tab ?? "register");
   const [range, setRange] = useState<DateRange>(defaultRange);
 
   if (!loading && !isOrgAdmin && !isManager) {

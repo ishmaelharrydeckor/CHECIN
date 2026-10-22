@@ -226,5 +226,5 @@ test("the register screen and the PDF show the extra columns only when tracked",
   const screen = read("src/components/reports/AttendanceRegisterReport.tsx");
   assert.ok(screen.includes("data?.breaksTracked") && screen.includes('["Break", "Paid"]'));
   const exp = read("src/lib/report-export.ts");
-  assert.ok(exp.includes("reg.breaksTracked ? 7 : 5") && exp.includes('...(reg.breaksTracked ? ["Break", "Paid"] : [])'));
+  assert.ok(exp.includes("5 + (reg.breaksTracked ? 2 : 0)") && exp.includes('...(reg.breaksTracked ? ["Break", "Paid"] : [])'));
 });
