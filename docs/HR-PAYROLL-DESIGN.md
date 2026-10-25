@@ -1,6 +1,6 @@
 # HR and payroll: design note (proposal for the owner's decisions)
 
-Status: **proposal.** Nothing here is built. It becomes tasks 7.1 to 7.13 in [V2-TASK-PLAN.md](V2-TASK-PLAN.md), Phase 7. It follows attendance, shifts, leave balances, overtime and the Enterprise features, because payroll is only as good as the hours and leave it is built on. The security rules in [AGENTS.md](../AGENTS.md) apply in full, and this note adds stricter ones for money and personal records.
+Status: **proposal.** Nothing here is built. It becomes tasks 7.1 to 7.18 in [V2-TASK-PLAN.md](V2-TASK-PLAN.md), Phase 7. It follows attendance, shifts, leave balances, overtime and the Enterprise features, because payroll is only as good as the hours and leave it is built on. The security rules in [AGENTS.md](../AGENTS.md) apply in full, and this note adds stricter ones for money and personal records.
 
 ## 1. What it is, in plain words
 
@@ -8,9 +8,13 @@ ChecIN already knows **who was at work, when, and on what shift**. HR and payrol
 
 **It is a second flagship product, not a feature.** HR and Payroll is sold on its own as well as together with attendance, with its own landing page and pricing, and every page of every product links to the other products (section 13).
 
-Two parts, built in this order, each useful on its own:
-1. **HR core:** one record per person (job, contract, emergency contact, documents), joining and leaving checklists, and an organization chart.
-2. **Payroll:** a pay run for a period that takes approved hours, leave and overtime, works out gross pay, deductions and net pay by the company's own rules and the country's statutory rules, produces payslips, and produces the files the company's bank or mobile-money provider accepts.
+It is **one shared people record with two modules on top, sold separately or together** (the way most small-business suites do it, and the way a buyer who already owns one half thinks):
+
+- **The people record (the core, shared by everything).** One record per person: name, job title, employment type, start and end date, department, manager, contact and emergency contact. Attendance, HR and payroll all read the same record, so a company never types a person in twice. The pay-sensitive parts (bank, tax and pension numbers) live apart, in locked collections (section 3).
+- **The HR module** adds what a people team needs beyond the record: documents (contracts, IDs, expiry reminders), joining and leaving checklists, the organization chart, and employee self-service changes.
+- **The Payroll module** adds the pay run for a period: it takes approved hours, leave and overtime, works out gross pay, deductions and net pay by the company's own rules and the country's statutory rules, produces payslips, and produces the files the company's bank or mobile-money provider accepts. **It includes the people record it needs, so a company can buy payroll without buying the HR module** (and HR without payroll).
+
+Build order, each part useful on its own: **the people record, then HR, then payroll** (sections 8 and 13).
 
 ## 2. What we will not do (decided up front)
 
@@ -66,8 +70,8 @@ Each country has income tax, pension or social-security contributions, and somet
 
 ## 7. Plan level and price
 
-- **HR core** could be included in Growth (it is a record, low risk) or a paid add-on.
-- **Payroll** is an add-on or Enterprise, priced **per person per month** on top of the plan, because it costs more to support and carries more liability. Gated with new features (for example `hr_core`, `payroll`) in the single feature table, `built: false` until shipped.
+- **The people record** comes with any product (attendance, HR or payroll), because all of them need it.
+- **HR** and **Payroll** are two modules, each priced **per person per month**, with a **bundle price** for both. Payroll costs more because it costs more to support and carries more liability. Gated with new features (for example `hr`, `payroll`) in the single feature table, `built: false` until shipped. The people record is a shared feature, not a module a company can switch off.
 - Decision D5.
 
 ## 8. Build order (Phase 7)
@@ -99,7 +103,7 @@ Recruitment and applicant tracking, performance reviews, training records, benef
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | Build both, or HR core first and payroll later? | **HR core first.** Payroll only after overtime, leave balances and the audit trail are live |
+| D1 | Build both, or the people record and HR first and payroll later? | **The people record first, then HR, then payroll.** Payroll only after overtime, leave balances and the audit trail are live |
 | D2 | Payment: files only, or integrate with a bank or mobile-money API later? | **Files only.** Integrations later, one provider for the first customer who asks |
 | D3 | How to give someone pay access without making them an admin | **Add `hr` and `payroll` roles through the server**, reviewed as a security design before code |
 | D4 | Which countries | **Ghana first.** Add a country when a customer there signs |
@@ -121,7 +125,7 @@ The idea: ChecIN becomes a family of products. **Attendance** is the first. **HR
 3. **A separate landing page for each product**, with its own headline, features, pricing and FAQ, written for its own buyer (HR and finance, not just operations). **Every page of every product carries links to the others**: the top bar of each landing page, the footer, and the signed-in menu. Each landing page also has a "Works with ChecIN Attendance" section: hours flow into payroll with no retyping, which is the strong reason to buy both.
 4. **Same app, same codebase, same login, at first.** Separate **landing pages under the same domain** (for example `/` for attendance and `/payroll` for the second product). Separate domains or a separate brand name can come later if the brand needs it; splitting later is easy, merging is not.
 5. **It must work alone.** A company without our attendance can still run payroll. Hours come from a typed or imported timesheet, or the person is on a fixed salary. When the company also has attendance, approved hours flow in automatically.
-6. **Plans have two axes.** The plan (Starter, Growth, Enterprise) says how much of a product a company gets; the **products** say which products it has. The single feature table in `src/lib/plans.ts` grows a "product" field, and a feature is allowed when the company has the product **and** its plan includes the feature. Billing, the trial and the pricing page handle each product, and a bundle price for both.
+6. **Plans have two axes, and the modules sit on the products axis.** The plan (Starter, Growth, Enterprise) says how much of a product a company gets; the **products** say which products it has. The single feature table in `src/lib/plans.ts` grows a "product" field (`attendance`, `hr`, `payroll`), and a feature is allowed when the company has the product **and** its plan includes the feature. The people record is allowed when the company has **any** product. Billing, the trial and the pricing page handle each product, and a bundle price for both.
 7. **The Enterprise "payroll and HRIS integration" line shrinks.** With our own system it only matters for a company that keeps someone else's payroll or HR software; that connector stays in the plan (5.8, 7.13), later and smaller.
 8. **The safety rules do not change**: we never move money, rates are data checked by an accountant, pay data is locked down (sections 2 and 3).
 
@@ -132,7 +136,7 @@ The idea: ChecIN becomes a family of products. **Attendance** is the first. **HR
 | D8 | The second product's **name and brand** | A name that sits with ChecIN (for example "ChecIN Pay" or "ChecIN People"). Choose before the landing page; the domain depends on it |
 | D9 | Domain: one domain with a page per product, or a separate domain per product | **One domain, a page per product**, to start (the domain is not bought yet; this keeps it to one purchase) |
 | D10 | Can a company buy HR and Payroll **without** attendance | **Yes.** It is the point of a second flagship |
-| D11 | Are HR and Payroll sold separately | **Together at first**, with a smaller HR-only tier later |
+| D11 | Are HR and Payroll sold separately or together | **Separately from the start, built on one shared people record, with a bundle price.** Payroll includes the people record, so it can be bought without the HR module. One flagship page shows the two modules inside it |
 | D12 | When the second landing page goes up | **Only when the product exists** (the plan's rule: nothing is drawn for what is not built). A "coming soon" waiting-list page is fine and useful earlier |
 
 **What it needs from the app (tasks 7.14 to 7.17):** the product switcher and shared account, the products axis in the plan table and billing, the second landing page with its own pricing and cross-links on every page, and standalone mode for payroll.
