@@ -137,6 +137,10 @@ Design note: [HR-PAYROLL-DESIGN.md](HR-PAYROLL-DESIGN.md), a proposal with seven
 | 7.11 | **Payment files and reports:** bank and mobile-money file formats, a journal for accounting software, statutory filing sheets | I | M | Formats come from the first customer's bank. Never moves money |
 | 7.12 | **Access, privacy and plan:** every read of pay data logged, masked numbers, the data export and privacy policy cover it, the plan and price (D5) | I | M | Lawyer reviews the wording |
 | 7.13 | **Live integrations** with accounting or payroll software | I | L | Only for the first customer who needs one (same rule as 5.8) |
+| 7.14 | **Products and entitlements:** one account, many products; a company has attendance, HR and payroll, or both; the menu shows only what it bought | I | L | A second axis in `src/lib/plans.ts` (plan x product); billing handles each product and a bundle (1.7) |
+| 7.15 | **Product switcher and cross-links:** a "products" menu in the app and on every public page, a footer on each product linking to the others, "Learn more" instead of a dead end for a product the company does not have | I | M | Shared shell (`AppShell`) |
+| 7.16 | **Second flagship landing page and pricing page** for HR and Payroll, with its own FAQ and a "works with ChecIN Attendance" section; a waiting-list page earlier is fine | I | L | Needs the name and domain (decisions D8, D9) and the copy for its own buyer. Only goes live when the product exists |
+| 7.17 | **Standalone payroll:** hours from a typed or imported timesheet or a fixed salary when the company has no attendance, and automatic hours when it has | I | M | Part of the pay run engine (7.7) |
 
 ## Shared files — teammates do not edit these (integrator wires them in)
 

@@ -6,7 +6,9 @@ Status: **proposal.** Nothing here is built. It becomes tasks 7.1 to 7.13 in [V2
 
 ChecIN already knows **who was at work, when, and on what shift**. HR and payroll use that to answer the two questions a company asks every month: **who are our people** (records, documents, joining and leaving) and **what do we owe them** (hours, leave, overtime, tax and pension, payslips).
 
-Two products, built in this order, each useful on its own:
+**It is a second flagship product, not a feature.** HR and Payroll is sold on its own as well as together with attendance, with its own landing page and pricing, and every page of every product links to the other products (section 13).
+
+Two parts, built in this order, each useful on its own:
 1. **HR core:** one record per person (job, contract, emergency contact, documents), joining and leaving checklists, and an organization chart.
 2. **Payroll:** a pay run for a period that takes approved hours, leave and overtime, works out gross pay, deductions and net pay by the company's own rules and the country's statutory rules, produces payslips, and produces the files the company's bank or mobile-money provider accepts.
 
@@ -107,3 +109,30 @@ Recruitment and applicant tracking, performance reviews, training records, benef
 
 ## 12. Dependencies
 Leave types and balances (2.2), overtime (3.2, design #83), the audit trail (5.3), regional compliance packs (5.9), email sending (for payslip delivery, 1.4), file storage for documents (needs the Blaze plan), and the privacy policy update with a lawyer's review. SSO and SCIM (5.1, 5.2) make leaver handling automatic but are not required.
+
+## 13. A second flagship product: one family, linked everywhere
+
+The idea: ChecIN becomes a family of products. **Attendance** is the first. **HR and Payroll** is the second. A company can buy either, or both, and every page shows the other.
+
+**What we recommend (all proposals, decisions D8 to D12):**
+
+1. **One account, many products.** A person signs in once. The company's account holds which products it has (**entitlements**: attendance, HR and payroll, or both). The menu shows only what the company bought. People, the organization and roles are shared, so a company with both never types a person in twice.
+2. **A product switcher**, in the app's top bar and on the public pages, like a "grid" menu in other software: ChecIN Attendance, ChecIN HR and Payroll (and later anything else). A company that has not bought a product sees it with a "Learn more" link instead of a dead end.
+3. **A separate landing page for each product**, with its own headline, features, pricing and FAQ, written for its own buyer (HR and finance, not just operations). **Every page of every product carries links to the others**: the top bar of each landing page, the footer, and the signed-in menu. Each landing page also has a "Works with ChecIN Attendance" section: hours flow into payroll with no retyping, which is the strong reason to buy both.
+4. **Same app, same codebase, same login, at first.** Separate **landing pages under the same domain** (for example `/` for attendance and `/payroll` for the second product). Separate domains or a separate brand name can come later if the brand needs it; splitting later is easy, merging is not.
+5. **It must work alone.** A company without our attendance can still run payroll. Hours come from a typed or imported timesheet, or the person is on a fixed salary. When the company also has attendance, approved hours flow in automatically.
+6. **Plans have two axes.** The plan (Starter, Growth, Enterprise) says how much of a product a company gets; the **products** say which products it has. The single feature table in `src/lib/plans.ts` grows a "product" field, and a feature is allowed when the company has the product **and** its plan includes the feature. Billing, the trial and the pricing page handle each product, and a bundle price for both.
+7. **The Enterprise "payroll and HRIS integration" line shrinks.** With our own system it only matters for a company that keeps someone else's payroll or HR software; that connector stays in the plan (5.8, 7.13), later and smaller.
+8. **The safety rules do not change**: we never move money, rates are data checked by an accountant, pay data is locked down (sections 2 and 3).
+
+**What needs a decision before building (D8 to D12):**
+
+| # | Decision | Recommendation |
+|---|---|---|
+| D8 | The second product's **name and brand** | A name that sits with ChecIN (for example "ChecIN Pay" or "ChecIN People"). Choose before the landing page; the domain depends on it |
+| D9 | Domain: one domain with a page per product, or a separate domain per product | **One domain, a page per product**, to start (the domain is not bought yet; this keeps it to one purchase) |
+| D10 | Can a company buy HR and Payroll **without** attendance | **Yes.** It is the point of a second flagship |
+| D11 | Are HR and Payroll sold separately | **Together at first**, with a smaller HR-only tier later |
+| D12 | When the second landing page goes up | **Only when the product exists** (the plan's rule: nothing is drawn for what is not built). A "coming soon" waiting-list page is fine and useful earlier |
+
+**What it needs from the app (tasks 7.14 to 7.17):** the product switcher and shared account, the products axis in the plan table and billing, the second landing page with its own pricing and cross-links on every page, and standalone mode for payroll.
