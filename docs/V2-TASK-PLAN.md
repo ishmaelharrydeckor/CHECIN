@@ -118,6 +118,26 @@ Cookieless visitor counts on the **public pages only** (landing, pricing, sign-u
 | 6.4 | **Guard test:** the build fails if a third-party tracker, advertising pixel or analytics script appears in the signed-in app, or any script from an unapproved host | I | S | Same pattern as the self-hosted-fonts test |
 | 6.5 | Owner view of the numbers | I | S | Vercel's own dashboard to start; an in-app "Visitors" view only if asked |
 
+## Phase 7: HR and payroll (after everything above; design first)
+
+Design note: [HR-PAYROLL-DESIGN.md](HR-PAYROLL-DESIGN.md), a proposal with seven owner decisions (D1 to D7). **ChecIN never moves money**: it produces payment files for the company to upload. Tax and pension rules are **data with effective dates**, confirmed by an accountant, never constants in code. Pay data lives in Admin-SDK-only collections behind new roles. Gated as new features in `src/lib/plans.ts` (`built: false` until shipped).
+
+| # | Task | Who | Size | Notes |
+|---|---|---|---|---|
+| 7.1 | **Design sign-off:** owner decisions D1 to D7, the accountant's brief, the **roles design** (`hr` and `payroll` through the server, a security review before any code) | I | S | Needs an accountant (D6) |
+| 7.2 | **HR core: employee records** (profile, private fields in an Admin-SDK-only collection, emergency contact, contract details) | I | L | After 5.3 audit trail |
+| 7.3 | **Employee documents** (contracts, IDs, expiry reminders) with access control | I | L | Needs file storage (Blaze plan) |
+| 7.4 | **Joining and leaving checklists**; a leaver loses access automatically | I | M | Ties to invites and SCIM (5.2) |
+| 7.5 | **Organization chart** and employee self-service edits (approved changes) | I | M | Builds on manager change |
+| 7.6 | **Pay setup:** effective-dated pay per person (salary or hourly, allowances, fixed deductions), history, an audit entry per change | I | L | Pay data never on a manager-readable document |
+| 7.7 | **Pay run engine** as pure, tested code: gather approved hours, leave and overtime; gross to net; rounding; corrections and back pay | I | L | After 2.2 leave balances and 3.2 overtime (design #83). Property tests |
+| 7.8 | **Statutory rules for Ghana as data** (income tax withheld, pension and social-security contributions), versioned and dated, with the accountant's golden tests | I | L | Feeds 5.9 regional packs. Rules switched on only after the golden tests pass |
+| 7.9 | **Pay run screens:** prepare, review (with things to look at), approve by a second person, lock, correct | I | L | Maker and checker |
+| 7.10 | **Payslips:** a file per person, the employee's own self-view | I | M | Emailing needs 1.4 email |
+| 7.11 | **Payment files and reports:** bank and mobile-money file formats, a journal for accounting software, statutory filing sheets | I | M | Formats come from the first customer's bank. Never moves money |
+| 7.12 | **Access, privacy and plan:** every read of pay data logged, masked numbers, the data export and privacy policy cover it, the plan and price (D5) | I | M | Lawyer reviews the wording |
+| 7.13 | **Live integrations** with accounting or payroll software | I | L | Only for the first customer who needs one (same rule as 5.8) |
+
 ## Shared files — teammates do not edit these (integrator wires them in)
 
 `src/components/AppShell.tsx`, `src/routes/auth.tsx`, `src/integrations/firebase/admin.server.ts`,
@@ -136,6 +156,6 @@ New features go in **new files**; the integrator adds menu entries and rules.
 
 Phase 0 (tomorrow) → 1.3, 1.5 (quick wins, good first tasks for teammates) → 1.1 → 1.2 / 1.6 / 2.1 in parallel → 2.2 / 2.3 / 2.4 → Phase 3 after the lab's answers.
 
-Phase 5 (Enterprise plan features and the AI assistant) is part of the build and is scheduled alongside Phase 3, starting with the design notes. Billing (1.7) and plan gating (0.5) come with it, because plans must exist for features to be sold.
+Phase 7 (HR and payroll) comes last, after the Enterprise features it depends on (leave balances, overtime, the audit trail). Phase 5 (Enterprise plan features and the AI assistant) is part of the build and is scheduled alongside Phase 3, starting with the design notes. Billing (1.7) and plan gating (0.5) come with it, because plans must exist for features to be sold.
 
 **Last of all:** Phase 4 (dashboard redesign) once every feature above is built and live. See `DASHBOARD-DESIGN-REFERENCE.md`.
