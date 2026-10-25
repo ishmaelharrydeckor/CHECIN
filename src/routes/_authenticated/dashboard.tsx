@@ -8,6 +8,7 @@ import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/
 import { formatClock, type TodaySummaryData } from "@/lib/attendance-today";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
+import { useShortcutActions } from "@/components/shortcuts/useShortcutAction";
 import { TeamRosterSection } from "@/components/dashboard/TeamRosterSection";
 import { buildSetupSteps, setupHiddenKey, setupProgress, type SetupLocation } from "@/lib/setup-checklist";
 import { AnalyticsSection } from "@/components/analytics/AnalyticsSection";
@@ -227,6 +228,17 @@ function DashboardPage() {
       setRefreshing(false);
     }
   };
+
+  // Keyboard: "r" refreshes the numbers, "i" opens Invite staff (managers and admins; see src/lib/shortcuts.ts).
+  useShortcutActions({
+    refresh: () => void handleManualRefresh(),
+    invite: () => {
+      if (isOrgAdmin || isManager) {
+        handleResetForAnotherInvite();
+        setInviteModalOpen(true);
+      }
+    },
+  });
 
   // Lifecycle: load everything once, then refresh today's numbers every 2 minutes, but ONLY while
   // the tab is visible AND the person has touched the page in the last 10 minutes. A tab left
@@ -517,6 +529,7 @@ function DashboardPage() {
               <input
                 type="text"
                 placeholder="Search staff, email, team..."
+                data-shortcut-search
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 pr-3 py-1.5 text-[13px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0E2322] w-52"

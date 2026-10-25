@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useShortcutActions } from "@/components/shortcuts/useShortcutAction";
 import {
   FILTER_LABEL,
   STATUS_CLASS,
@@ -43,6 +44,19 @@ export function TeamRoster({
   const [department, setDepartment] = useState("");
   const [query, setQuery] = useState("");
   const [visible, setVisible] = useState(PAGE_SIZE);
+
+  // Keyboard: 1 to 5 choose Everyone, Here today, Late, Away, Not here yet.
+  const choose = (f: RosterFilter) => () => {
+    setFilter(f);
+    setVisible(PAGE_SIZE);
+  };
+  useShortcutActions({
+    "filter-1": choose("all"),
+    "filter-2": choose("here"),
+    "filter-3": choose("late"),
+    "filter-4": choose("away"),
+    "filter-5": choose("missing"),
+  });
 
   const rows = data?.rows ?? [];
   const counts = useMemo(() => filterCounts(rows), [rows]);
@@ -121,6 +135,7 @@ export function TeamRoster({
                     }}
                     placeholder="Find a person"
                     aria-label="Find a person"
+                    data-shortcut-search
                     className="h-10 pl-8 sm:w-52"
                   />
                 </div>
