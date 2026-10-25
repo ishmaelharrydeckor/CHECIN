@@ -71,6 +71,7 @@ Target look and structure: [DASHBOARD-DESIGN-REFERENCE.md](DASHBOARD-DESIGN-REFE
 | 4.7 | **Reports hub:** report cards with Preview and Generate, plus a scheduled reports table | T + I review | M | 2.1, 3.3 |
 | 4.8 | **Update `UI-STYLE-GUIDE.md`** and the teammate Claude Project instructions to the new pattern; migrate the remaining old screens | I | M | 4.2 to 4.7 |
 | 4.9 | **Acceptance pass:** every figure on every screen traces to one server calculation (no tile and chart can disagree), phone check at 375 px, accessibility check (no colour-only status), read-cost check with the load-test harness (#26) | I | M | 4.2 to 4.8 |
+| 4.12 | **Keyboard shortcuts** in three tiers: everyone (`?` list, `/` search, `g` then a letter to go to a page, Ctrl or Cmd with B for the menu), managers' daily work (`r`, `1` to `5`, `[` and `]`, `i`), and reviewing the work diary (`j`, `k`, Enter, `a`, `f`, each deciding only after a confirm). Switch in My account. See [KEYBOARD-SHORTCUTS.md](KEYBOARD-SHORTCUTS.md) | I | M | Built. Never while typing or in a dialog; never a browser-owned key; only pages in the person's own menu |
 
 **Exit criteria:** a manager can go organization, then team, then person in at most three clicks; numbers agree everywhere on a screen; nothing is drawn for the future; no screen reads raw events for a period view; the geo-fence screens and India's EPFO filing from the reference are **not** built (no GPS, ever).
 

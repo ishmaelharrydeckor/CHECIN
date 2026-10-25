@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { authedFetch } from "@/components/shifts/shiftApi";
 import { TeamRoster } from "@/components/dashboard/TeamRoster";
+import { useShortcutAction } from "@/components/shortcuts/useShortcutAction";
 import type { RosterData } from "@/lib/team-roster";
 
 /**
@@ -24,6 +25,9 @@ export function TeamRosterSection() {
   useEffect(() => {
     void load(false);
   }, [load]);
+
+  // "r" refreshes the roster together with the Today numbers.
+  useShortcutAction("refresh", () => void load(true));
 
   return <TeamRoster data={data} loading={loading} error={error} onRefresh={() => void load(true)} />;
 }

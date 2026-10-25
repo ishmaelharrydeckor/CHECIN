@@ -60,7 +60,8 @@ export function DiaryDayDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      {/* data-allow-shortcuts: a and f approve or flag from here (each asks to confirm); the other keys stay quiet */}
+      <DialogContent data-allow-shortcuts className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{data?.employeeName || name || "Work day"}</DialogTitle>
           <DialogDescription>
