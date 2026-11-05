@@ -1,6 +1,6 @@
 # ChecIN: Timesheet Design (replaces the Timesheets report)
 
-Status: **draft for the integrator's approval. No code until agreed.** This is a design note because it is about hours, and hours become pay ([REVIEW-CHECKLIST.md](REVIEW-CHECKLIST.md), section 2b). It follows the approved principle in the overtime and payroll note (PR #83, `PAYROLL-OVERTIME-DESIGN.md`): **ChecIN measures time and never calculates pay.** This note builds the live review screen. The overtime note later freezes the same numbers into pay periods; it does not need a second calculation.
+Status: **decisions 1 to 6 approved by the integrator on 2026-11-05 (section 10); building in the order of section 9.** This is a design note because it is about hours, and hours become pay ([REVIEW-CHECKLIST.md](REVIEW-CHECKLIST.md), section 2b). It follows the approved principle in the overtime and payroll note (PR #83, `PAYROLL-OVERTIME-DESIGN.md`): **ChecIN measures time and never calculates pay.** This note builds the live review screen. The overtime note later freezes the same numbers into pay periods; it does not need a second calculation.
 
 ## 1. The goal in one sentence
 
@@ -120,14 +120,14 @@ Reports, Timesheets (same address, so bookmarks keep working). Standard page tit
 | **T3** | The screen, the daily detail panel, phone layout, CSV, Excel, PDF and daily detail CSV | Test 7; checked by hand on staging as admin, manager and employee |
 | **T4** | Delete the old page logic, point the hub at the new page, update the Round checklist | Test 8 |
 
-## 10. Decisions needed from the integrator
+## 10. Decisions (integrator, 2026-11-05: all six recommendations accepted)
 
-1. **Expected hours for someone with no shift.** Recommended: **show no "Expected" or "Difference" for them** in this version (hours at work and paid hours only). Then add an organization setting, **"Standard workday" (hours, and which weekdays)**, when you switch overtime on; the overtime note already plans exactly that setting. The alternative is to add the setting now.
-2. **Wording:** "Extra" and "Short" (recommended) rather than "Overtime", until a manager has approved it.
-3. **Daily detail download:** include it (recommended), since payroll people always ask for the per-day lines.
-4. **Employees:** keep their own seven-day timesheet on My page and add a longer range later (recommended), or build it now.
-5. **Excel:** keep it (recommended; the old page had it).
-6. **T0 now?** Hide the old page this week, before the replacement is built (recommended).
+1. **No shift, no "Expected".** People with no shift show hours at work and paid hours only, with no Expected or Difference. A "Standard workday" organization setting (hours and weekdays) comes later, together with overtime.
+2. **Wording:** "Extra" and "Short", not "Overtime", until a manager has approved it.
+3. **Daily detail download:** included.
+4. **Employees:** keep their own seven-day timesheet on My page; a longer range later.
+5. **Excel:** kept.
+6. **T0 now:** hide the old page's estimates this week, before the replacement is built.
 
 ## 11. Not in this version
 
