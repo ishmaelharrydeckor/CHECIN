@@ -4,7 +4,7 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 
 **Before any task:** read [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md). Branch off `staging`, PR into `staging`. No GPS, ever.
 
-**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P7, 3.1-P8, 3.1-P3b, 2.3b). Don't start the others.
+**Not teammate work (integrator only):** 0.x foundation, 0.5 plan gating, 1.4 email verification (the server side; the screens are task 1.4a), the notification engine (the screens are task 2.6), email and SMS sending, 1.7 billing, 2.2 leave types and balances, 3.x everything, except the tasks below that name you (3.1-P6, 3.1-P7, 3.1-P8, 3.1-P3b, 2.3b). Don't start the others.
 
 **Augustine works with Claude Code** (he can run and test the code locally). His tasks below include server routes and tests, so they follow a stricter bar than screens-only tasks: write the tests first, run `npm run check`, and list in the PR every file you touched and every shared-file change you need (rules, indexes) for the integrator to make.
 
@@ -26,8 +26,10 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 3.1-P7 | Shifts phase 7: shift swaps | L | Augustine | todo. Starts after 3.1-P6 is merged. Brief below | 3.1-P6 |
 | 3.1-P8 | Shifts phase 8: breaks | M | Cobberson (the calculation, #128); integrator (wiring) | done: wired into shifts, assignments, summaries, the setting and the register report (see `docs/SHIFTS-DESIGN.md`, build plan 8) | shifts phases 1 to 5b (done) |
 | 3.1-P3b | Shifts phase 3b: Lenient mode | M | Cobberson (rules, #129); integrator (wiring) | done: wired into the scan route, History, the refused list and the settings screen (see `docs/SHIFTS-DESIGN.md`, 3b) | shifts phases 1 to 5b (done) |
+| 2.6 | Notification screens: bell, inbox page, preferences, this-device card (screens, sample data) | M | Augustine | todo. Brief below. Design is a draft (`docs/NOTIFICATIONS-DESIGN.md`); the integrator builds the routes | none |
+| 1.4a | Email verification screens: check-your-email, finish setup, Account banner (screens, sample data) | S | Augustine | todo. Brief below. Design is a draft (`docs/EMAIL-VERIFICATION-DESIGN.md`); the integrator builds the routes | none |
 
-Next: nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
+Next: **2.6** and **1.4a** (Augustine) are screens only, with sample data; the integrator builds the routes behind them. Otherwise nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
 
 Update the Status column in your PR (`todo` > `in progress` > `in review` > `on staging` > `done`).
 
@@ -209,6 +211,51 @@ Take `orgId` and `managerId` from the signed-in user's token claims (see `src/li
 **Not in this task (the integrator does these):** the scan route, the database field that marks an event, the summary builder, the Settings switch, anything on screen.
 
 **Done when:** CI is green and the PR lists the cases covered. Because you cannot run the tests yourself, read them twice.
+
+## 2.6 Notification screens (M, Augustine, screens only, sample data)
+
+**What:** The screens people use to see and control notifications. No server work, no database calls: every screen reads sample data through one hook, and the integrator swaps in the real data after merge.
+
+**Read first:** `docs/NOTIFICATIONS-DESIGN.md` sections 4.5, 4.6 and 5 (what the bell, inbox and device card show). Look at `src/components/PushNotificationManager.tsx` and `src/lib/push-client.ts` to see what exists. Read them; don't edit `push-client.ts`.
+
+**Files (all new):**
+- `src/lib/notifications.ts`: types only. `NotificationItem { id, type, title, body, url, createdAt, isRead }`, `NotificationType` (`ANNOUNCEMENT`, `LEAVE`, `REPORT`, `SHIFT`, `ACCOUNT`), `NotificationPrefs { pushEnabled, announcements, leave, shifts, account }`.
+- `src/lib/notifications-sample.ts`: sample items (a mix of read and unread, short and long text) and sample prefs.
+- `src/components/notifications/useNotifications.ts`: the **only** place data comes from. Returns `{ items, unreadCount, loading, error, markRead(id), markAllRead(), refresh() }` from the sample file for now. **No timers, no polling.** `refresh()` is called when the bell opens and when the tab regains focus.
+- `src/components/notifications/NotificationBell.tsx`: bell icon with an unread badge; opens a short list of the latest 5 with "Mark all read" and "See all".
+- `src/components/notifications/NotificationItem.tsx` and `NotificationList.tsx`.
+- `src/routes/_authenticated/notifications.tsx`: the full inbox page (list, mark read, mark all read, "Load more" button).
+- `src/components/notifications/NotificationPreferencesCard.tsx`: a master "Push notifications" switch and a switch each for announcements, leave, shifts and account. Show "Email" and "SMS" rows as greyed out with "Coming later".
+- `src/components/notifications/DevicePushCard.tsx`: shows this device's state and a **Send me a test** button (does nothing yet; calls a prop). States to build: `on`, `off`, `blocked` (browser blocked it, explain how to re-enable), `ios_needs_home_screen`, `unsupported`.
+
+**Do not:** edit `AppShell.tsx` (the integrator mounts the bell and adds the menu entry), `firestore.rules`, anything in `src/routes/api/`, or `push-client.ts`. No fetch calls, no Firebase imports, no timers.
+
+**Done when:**
+- Every list and card has loading, empty, error and normal states
+- Unread items look different from read ones; badge shows 9+ when over 9
+- Works at phone width; buttons are easy to tap
+- Matches `docs/UI-STYLE-GUIDE.md`; the PR has a "Style check" naming the reference screen
+- The PR description lists "Shared-file changes needed" (bell in the header, menu entry for `/notifications`, preferences card on the Account page)
+
+## 1.4a Email verification screens (S, Augustine, screens only, sample data)
+
+**What:** The screens for confirming an email address. No server work: each component takes its data and actions as props, and the integrator connects them.
+
+**Read first:** `docs/EMAIL-VERIFICATION-DESIGN.md` sections 3 and 4 (the flow and what each screen says).
+
+**Files (all new):**
+- `src/components/verify/CheckYourEmailCard.tsx`: "Check your email". Shows the address, a **Resend** button with a 60-second countdown, a hint to check the spam folder, and **Wrong address? Start over**. Props: `email`, `onResend`, `onStartOver`, `status` (`idle`, `sending`, `sent`, `error`), `cooldownSeconds`, `errorMessage`.
+- `src/components/verify/FinishSetupScreen.tsx`: "Finishing setting up your organization". States: `working` (spinner), `error` (message plus a **Try again** button), `expired` (the sign-up expired after 24 hours, with a **Start again** button). Props: `state`, `onRetry`, `onStartAgain`.
+- `src/components/verify/VerifyEmailBanner.tsx`: a small banner for the Account page: "Verify your email to receive email notifications" with a **Send verification email** button. States: `idle`, `sending`, `sent` (with cooldown), `error`. Hidden when a prop `verified` is true.
+- `src/routes/verify-preview.tsx`: a **temporary** preview route that shows every state of the three components side by side with sample props, so the integrator can look at them without the real flow. Mark it clearly; the integrator deletes it after wiring.
+
+**Do not:** edit `src/routes/auth.tsx`, `register-org`, or anything in `src/routes/api/`. No fetch calls, no Firebase imports, no passwords handled anywhere in these components.
+
+**Done when:**
+- Every state above is visible on the preview route
+- Plain-language wording, no jargon; works at phone width; buttons disabled while sending or during cooldown
+- Matches `docs/UI-STYLE-GUIDE.md` with a "Style check" in the PR
+- The PR description lists "Shared-file changes needed" (mount the banner on the Account page, use the cards in the sign-up flow)
 
 ## Definition of done (every task)
 
