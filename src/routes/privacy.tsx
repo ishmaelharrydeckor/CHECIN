@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChecInLogo } from "@/components/ChecInLogo";
+import { PublicHeader } from "@/components/PublicHeader";
 import { PublicFooter } from "@/components/PublicFooter";
 
 export const Route = createFileRoute("/privacy")({
@@ -15,23 +16,9 @@ export const Route = createFileRoute("/privacy")({
 function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#0E2322] flex flex-col font-sans">
-      <header className="border-b border-[#EBEBEB] bg-white/90 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center no-underline">
-            <ChecInLogo size={26} />
-          </Link>
-          <div className="flex gap-4 text-sm font-medium">
-            <Link to="/terms" className="hover:text-emerald-700 transition-colors">
-              Terms of Service
-            </Link>
-            <Link to="/auth" className="hover:text-emerald-700 transition-colors">
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
-      <main className="flex-1 max-w-3xl w-full mx-auto px-6 py-12 prose prose-stone">
+      <main className="flex-1 max-w-3xl w-full mx-auto px-6 pt-32 sm:pt-36 pb-12 prose prose-stone">
         <div className="flex items-center gap-4 pb-6 border-b border-[#EBEBEB] not-prose mb-8">
           <ChecInLogo size={42} showText={false} />
           <div>

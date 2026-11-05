@@ -59,13 +59,13 @@ service cloud.firestore {
         request.auth.uid == userId ||
         (inOrg(resource.data) && (isOrgAdmin() || (isManager() && resource.data.managerId == request.auth.uid)))
       );
-      // Create: display fields only. Tenancy/team fields (orgId, managerId) and anything
-      // role-like are set exclusively by the server (Admin SDK).
+      // Create: display fields only. Tenancy/team fields (orgId, managerId), the department and
+      // anything role-like are set exclusively by the server (Admin SDK).
       allow create: if isSignedIn() && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(["id", "email", "displayName", "photoURL", "department", "createdAt", "updatedAt"]);
+        && request.resource.data.keys().hasOnly(["id", "email", "displayName", "photoURL", "createdAt", "updatedAt"]);
       // Update: only the same display fields may change
       allow update: if isSignedIn() && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["id", "email", "displayName", "photoURL", "department", "createdAt", "updatedAt"]);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["id", "email", "displayName", "photoURL", "createdAt", "updatedAt"]);
       allow delete: if false;
     }
 
@@ -94,6 +94,18 @@ service cloud.firestore {
     // Written ONLY by the verified-scan server route (and the backfill script) with the
     // Admin SDK. Same read scope as clock_events; no client may write.
     match /daily_summaries/{summaryId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ---- Late excuses (docs/LATE-EXCUSE-DESIGN.md) ----
+    // One document per person per day: the employee's note and a manager's excuse with its reason.
+    // Written by the server only; the person, their manager and org admins can read.
+    match /late_excuses/{excuseId} {
       allow read: if inOrg(resource.data) && (
         isOrgAdmin() ||
         (isManager() && resource.data.managerId == request.auth.uid) ||
@@ -236,8 +248,103 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Recent Scans: Ephemeral scan notifications read exclusively by Admin SDK in /api/kiosk/token
+    // Recent Scans: the old greeting note (carried a name). No longer written; kept locked.
     match /recent_scans/{locationId} {
+      allow read, write: if false;
+    }
+
+    // Kiosk channels: the live greeting. ONE deliberate exception to default-deny.
+    // Anyone who knows a channel's address (32 random bytes, known only to the server and that
+    // tablet) may READ that single document. They can never list the collection or write to it
+    // (the scan route writes with the Admin SDK). The document holds only { type, at, expireAt }: no name,
+    // no employee, no organization, no location. A test fails the build if its fields change.
+    match /kiosk_channels/{channelId} {
+      allow get: if true;
+      allow list, create, update, delete: if false;
+    }
+
+    // ---- Team changes (who moved from which manager to which, and when) ----
+    // Written by the server only (docs/MANAGER-CHANGE-DESIGN.md). The org admin can read the history.
+    match /team_changes/{changeId} {
+      allow read: if isOrgAdmin() && inOrg(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    // ---- Shifts (templates) and shift assignments ----
+    // Written by the server only (docs/SHIFTS-DESIGN.md). Everyone in the organization can read the
+    // shift templates; an assignment is readable by the person, their manager and org admins.
+    match /shifts/{shiftId} {
+      allow read: if inOrg(resource.data);
+      allow create, update, delete: if false;
+    }
+    match /shift_assignments/{assignmentId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ---- Work from home (docs/WFH-DESIGN.md) ----
+    // One self-declared day per person. Written by the server only; clients can only read.
+    match /wfh_days/{dayId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ---- Shift patterns (repeating shifts, docs/SHIFTS-DESIGN.md) ----
+    // A saved rule that the server turns into ordinary shift_assignments ahead of time.
+    // Written by the server only; the person, their manager and org admins can read.
+    match /shift_patterns/{patternId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ---- Shift swaps (docs/SHIFTS-DESIGN.md) ----
+    // Written by the server only. The two people, either person's manager and org admins can read.
+    match /shift_swaps/{swapId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        resource.data.proposerId == request.auth.uid ||
+        resource.data.colleagueId == request.auth.uid ||
+        (isManager() && request.auth.uid in resource.data.managerIds)
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ---- Refused scans (a short note when a check-in was turned away) ----
+    // Written by the server only (docs/SHIFTS-DESIGN.md). Not an attendance record.
+    match /refused_scans/{noteId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid)
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ---- Work-from-home diary (docs/WFH-DIARY-DESIGN.md) ----
+    // No client access at all, by design: every read and write goes through /api/wfh-diary, which checks who is
+    // asking and applies the rules. The sessions hold each session's key hash and the interval counts; the
+    // consents hold the signed notice text. None of it may ever be read or written from a browser.
+    match /wfh_diary_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+    match /wfh_diary_intervals/{intervalId} {
+      allow read, write: if false;
+    }
+    match /wfh_diary_days/{dayId} {
+      allow read, write: if false;
+    }
+    match /diary_consents/{consentId} {
       allow read, write: if false;
     }
 

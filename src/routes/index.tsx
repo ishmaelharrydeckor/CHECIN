@@ -1,7 +1,30 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
+import { BarChart3, Briefcase, CalendarClock, FileBarChart, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
+import { PublicHeader } from "@/components/PublicHeader";
+import { CountUp, FocusText, useScrollReveal } from "@/components/landing/Motion";
+import {
+  ActivityPanel,
+  CountdownRing,
+  DoorPairing,
+  TabletScreen,
+  LeavePanel,
+  NoticePanel,
+  QrTablet,
+  RecordsPanel,
+} from "@/components/landing/ProductVisuals";
+
+// What each kind of person gets. Every line describes something the product does today.
+const ROLE_CARDS: { role: string; line: string; Icon: LucideIcon }[] = [
+  { role: "Owners & HR", line: "One live view of who is in, late or away, across the whole organization.", Icon: Briefcase },
+  { role: "Team Managers", line: "Their own team only, with leave and shift swaps to approve.", Icon: Users },
+  { role: "Employees", line: "One tap to check in and out, and their own record to look back on.", Icon: Smartphone },
+  { role: "Operations", line: "Shifts, rotas and who is covering, planned in one place.", Icon: CalendarClock },
+  { role: "Finance", line: "Attendance and leave reports you can export to Excel or PDF.", Icon: FileBarChart },
+  { role: "Leadership", line: "Attendance trends across teams, without asking anyone for a spreadsheet.", Icon: BarChart3 },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -12,7 +35,7 @@ export const Route = createFileRoute("/")({
         content:
           "ChecIN puts a rotating 15-second QR code on a tablet at your entrance. Employees scan with their mobile browser to check in and out. No GPS spoofing, no screenshot sharing.",
       },
-      { property: "og:title", content: "ChecIN — Modern Workforce Check-In & Timesheet SaaS" },
+      { property: "og:title", content: "ChecIN — Attendance That Proves People Were There" },
       {
         property: "og:description",
         content:
@@ -20,7 +43,7 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "ChecIN — Modern Attendance SaaS" },
+      { name: "twitter:title", content: "ChecIN — Attendance That Proves People Were There" },
       {
         name: "twitter:description",
         content:
@@ -35,31 +58,31 @@ type CapabilityKey = "attendance" | "leave" | "announcements" | "records";
 
 const CAPABILITY_DATA: Record<
   CapabilityKey,
-  { title: string; image: string; alt: string; description: string }
+  { title: string; Visual: () => ReactElement; alt: string; description: string }
 > = {
   attendance: {
     title: "Real-Time Attendance",
-    image: "https://framerusercontent.com/images/PdCbUkepQPMwsqLNqnMFOhMlk.jpg",
-    alt: "Workforce Visibility Interface",
-    description: "Live live attendance tracking showing clock-ins, verified doors, and real-time status.",
+    Visual: ActivityPanel,
+    alt: "A live list of check-ins and check-outs with who arrived late",
+    description: "See check-ins and check-outs as they happen, with who arrived late and who has not arrived yet.",
   },
   leave: {
     title: "Leave & Absence Management",
-    image: "https://framerusercontent.com/images/rDrThS7T8gy6JcC143xhaX5D5w4.png",
-    alt: "Leave requests and approvals view",
-    description: "Streamlined leave requests, balance tracking, and team manager approvals.",
+    Visual: LeavePanel,
+    alt: "A list of leave requests with approved and pending status",
+    description: "Employees ask for leave, their manager approves or declines, and approved leave shows up in attendance.",
   },
   announcements: {
     title: "Announcements & Team Updates",
-    image: "https://framerusercontent.com/images/JhkDQnOZHJUfSwC2jfLzLjxrjI.jpg",
-    alt: "Team updates and notifications",
-    description: "Keep whole teams informed with broadcast company updates and push notifications.",
+    Visual: NoticePanel,
+    alt: "A company notice and the phone notification that goes with it",
+    description: "Post a notice to everyone or to one team, and send it to their phones.",
   },
   records: {
     title: "Tamper-Resistant Records",
-    image: "https://framerusercontent.com/images/PZhh8usK41VfjRZFlBmcldnrNo.jpg",
-    alt: "Audit logs and verified records",
-    description: "Cryptographically verified presence logs, automated timesheets, and exportable reports.",
+    Visual: RecordsPanel,
+    alt: "An attendance register with a letter and colour for each day, and an export button",
+    description: "Every check-in is verified on the server before it is recorded. Export registers and reports to Excel or PDF.",
   },
 };
 
@@ -74,7 +97,7 @@ const FAQ_ITEMS = [
     id: 2,
     question: "Can someone check in for a colleague with a screenshot?",
     answer:
-      "The code changes every 15 seconds, so a photo or screenshot goes stale almost immediately. The tablet is also the only device with the physical device secret capable of generating valid tokens for your entrance.",
+      "No. The code changes every 15 seconds, so a photo or screenshot goes stale almost immediately. And only your paired tablet can produce a valid code for your entrance, so there is nothing to copy from anywhere else.",
   },
   {
     id: 3,
@@ -90,9 +113,27 @@ const FAQ_ITEMS = [
   },
   {
     id: 5,
+    question: "Does ChecIN track where my people are?",
+    answer:
+      "No. ChecIN never asks for anyone's location. Presence is proven by scanning the code at your entrance, not by GPS.",
+  },
+  {
+    id: 6,
+    question: "What if the internet goes down?",
+    answer:
+      "Checking in needs a connection, because the server has to confirm the code is fresh. If a phone is offline, the check-in fails and says so. Nothing is saved for later. The tablet keeps trying to reconnect, and it hides a code that has gone stale.",
+  },
+  {
+    id: 7,
+    question: "What about people who work from home?",
+    answer:
+      "Employees can mark a day as work from home ahead of time. Managers see it, and it counts as present without a scan.",
+  },
+  {
+    id: 8,
     question: "Is our data kept separate from other companies?",
     answer:
-      "Yes. ChecIN enforces a strict multi-tenant boundary with Firebase custom claims and default-deny database rules. Every company's people and records are completely isolated.",
+      "Yes. Each company's people and records are kept completely apart. A manager sees only their own team, and nobody can see another company's data.",
   },
 ];
 
@@ -101,6 +142,16 @@ function LandingPage() {
   const [activeCap, setActiveCap] = useState<CapabilityKey>("attendance");
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  // The capability tabs move on by themselves until the person chooses one, and wait while they look.
+  const [autoCap, setAutoCap] = useState(true);
+  const [capPaused, setCapPaused] = useState(false);
+  useScrollReveal();
+
+  const advanceCap = () =>
+    setActiveCap((current) => {
+      const order: CapabilityKey[] = ["attendance", "leave", "announcements", "records"];
+      return order[(order.indexOf(current) + 1) % order.length];
+    });
 
   useEffect(() => {
     // If already signed in, provide convenient navigation
@@ -117,73 +168,33 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#0E2322] font-sans antialiased selection:bg-[#C0FD9B] selection:text-[#0E2322]">
-      {/* FLOATING HEADER (Exact 1:1 from preview.html) */}
-      <header className="fixed top-3 sm:top-5 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[1140px] h-[64px] sm:h-[68px] bg-white/95 backdrop-blur-md rounded-[20px] px-4 sm:px-6 flex items-center justify-between shadow-[0_4px_25px_rgba(0,0,0,0.06)] border border-[#EBEBEB]">
-        <a href="#hero" className="flex items-center no-underline">
-          <ChecInLogo size={28} textColor="#0E2322" markColor="#0E2322" />
-        </a>
+      <PublicHeader />
 
-        {/* Center Nav Links */}
-        <nav className="hidden md:flex items-center space-x-7 text-[15px] font-medium text-[#0E2322]">
-          <a href="#benefits" className="hover:opacity-70 transition">
-            Benefits
-          </a>
-          <a href="#why" className="hover:opacity-70 transition">
-            Why ChecIN
-          </a>
-          <a href="#capabilities" className="hover:opacity-70 transition">
-            Capabilities
-          </a>
-          <a href="#pricing" className="hover:opacity-70 transition">
-            Pricing
-          </a>
-          <a href="#faq" className="hover:opacity-70 transition">
-            FAQ
-          </a>
-        </nav>
-
-        {/* Right Action Buttons */}
-        <div className="flex items-center space-x-2.5">
-          <Link
-            to="/auth"
-            className="h-[43px] px-4 sm:px-5 rounded-[14px] border border-[#0E2322] text-[#0E2322] text-[13.5px] font-medium hover:bg-black/5 active:scale-95 transition inline-flex items-center justify-center no-underline"
-          >
-            Sign in
-          </Link>
-          <Link
-            to="/auth"
-            className="h-[43px] px-5 sm:px-6 rounded-[14px] bg-[#0E2322] text-white text-[13.5px] font-medium hover:bg-[#163331] active:scale-95 transition shadow-sm inline-flex items-center justify-center no-underline"
-          >
-            Get Started
-          </Link>
-        </div>
-      </header>
-
-      {/* HERO SECTION (Exact 1:1 Dark Forest Background & Typography) */}
+      {/* HERO SECTION */}
       <section
         id="hero"
         className="relative bg-[#0E2322] text-white pt-36 sm:pt-44 pb-0 px-4 sm:px-6 overflow-hidden text-center"
       >
         <div className="max-w-[1040px] mx-auto relative z-10">
           {/* Mint Pill Badge */}
-          <div className="inline-flex items-center px-4 py-1.5 rounded-[10px] border border-[#263F37] backdrop-blur-[2px] bg-transparent text-[#C0FD9B] text-[14px] mb-8 font-medium">
+          <div className="landing-rise landing-rise-1 inline-flex items-center px-4 py-1.5 rounded-[10px] border border-[#263F37] backdrop-blur-[2px] bg-transparent text-[#C0FD9B] text-[14px] mb-8 font-medium">
             Attendance you can trust
           </div>
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-6xl md:text-[76px] lg:text-[80px] font-medium tracking-[-0.04em] text-white leading-[1.0] text-center mb-6">
-            Attendance that proves people were actually there.
+            <FocusText text="Attendance that proves people were actually there." />
           </h1>
 
           {/* Subheading */}
-          <p className="text-base sm:text-[18px] text-[#ADC4BD] max-w-[680px] mx-auto mb-10 leading-relaxed font-normal">
+          <p className="landing-rise landing-rise-3 text-base sm:text-[18px] text-[#ADC4BD] max-w-[680px] mx-auto mb-10 leading-relaxed font-normal">
             ChecIN puts a QR code on a tablet at your entrance that changes every 15 seconds. Your team
             scans it with their phone to check in and out. No GPS to spoof, no screenshot to pass around,
             no timesheets to chase.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-14">
+          <div className="landing-rise landing-rise-4 flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-14">
             <Link
               to="/auth"
               className="w-full sm:w-auto h-[48px] px-7 rounded-[14px] bg-[#FFD153] text-[#122300] font-medium text-[15px] hover:brightness-105 active:scale-95 transition shadow-lg inline-flex items-center justify-center no-underline"
@@ -198,27 +209,26 @@ function LandingPage() {
             </Link>
           </div>
 
-          {/* Framer Hero Dashboard Mockup */}
-          <div className="relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden">
-            <img
-              src="https://framerusercontent.com/images/7EKiDY1Dnw1gb2S7E1Mej2ws.svg"
-              alt="ChecIN entrance tablet showing a rotating QR code, with an employee's phone scanning it"
-              className="w-full rounded-t-[20px] object-cover"
-              loading="eager"
-            />
+          {/* The manager dashboard, drawn from the real components with sample numbers */}
+          <div
+            role="img"
+            aria-label="The ChecIN manager dashboard: how many people are in, late, away or absent today"
+            className="landing-rise landing-rise-5 relative mx-auto max-w-[1126px] rounded-t-[20px] shadow-[0_-10px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+          >
+            <img src="/images/product/dashboard.webp" alt="The ChecIN manager dashboard: people present, late, away and absent today, with who is late and who has not arrived" width={1600} height={875} loading="lazy" decoding="async" className="w-full h-auto block" />
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0E2322] to-transparent pointer-events-none" />
           </div>
         </div>
       </section>
 
-      {/* BENEFITS SECTION: Less Chasing. More Clarity. */}
+      {/* BENEFITS SECTION */}
       <section id="benefits" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Benefits
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-            Less Chasing. More Clarity.
+            Stop chasing timesheets.
           </h2>
           <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
             Stop reconciling timesheets at the end of the month. See who's in, right now.
@@ -228,16 +238,15 @@ function LandingPage() {
         {/* 3 Full-Bleed Photograph Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
           {/* Card 1: 15 sec */}
-          <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
-            <img
-              src="https://framerusercontent.com/images/VU1SuO5yfzG9ySp7MMgBg8MFlbY.jpg"
-              alt="Every code expires in 15 seconds"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+          <div data-reveal="1" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2322] to-[#1F4A3F]" />
+            <div className="absolute inset-x-0 top-[128px] flex justify-center px-4">
+              <QrTablet compact onDark />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div>
                 <div className="text-[54px] font-medium text-[#C0FD9B] tracking-tight leading-none mb-2">
-                  15 sec
+                  <CountUp to={15} /> sec
                 </div>
                 <div className="text-[18px] text-white/90 font-normal">code expiration</div>
               </div>
@@ -253,13 +262,24 @@ function LandingPage() {
           </div>
 
           {/* Card 2: One-tap check-in */}
-          <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+          <div data-reveal="2" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
             <img
-              src="https://framerusercontent.com/images/ao2qDHyGSusoHRHkHOoT4ADGOVs.jpg"
-              alt="One-tap check-in"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              src="/images/landing/checkin-phone.webp"
+              alt="A woman in a white shirt checks her phone beside a large window"
+              width={900}
+              height={1350}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div
+              aria-hidden
+              className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-full bg-[#CBEED3] px-3.5 py-1.5 text-sm font-semibold text-[#0E2322] shadow-lg"
+            >
+              <span className="size-2 rounded-full bg-emerald-600" />
+              Checked in 08:12
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -274,13 +294,24 @@ function LandingPage() {
           </div>
 
           {/* Card 3: Live team view */}
-          <div className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
+          <div data-reveal="3" className="relative h-[530px] rounded-[24px] overflow-hidden shadow-lg group">
             <img
-              src="https://framerusercontent.com/images/98puRycJIIGDcH3mYEiwoeSPqk8.jpg"
-              alt="Live team view"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              src="/images/landing/team-lagos-office.webp"
+              alt="A group of colleagues talking together in an office in Lagos"
+              width={1400}
+              height={934}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/25 p-8 flex flex-col justify-between text-white">
+            <div
+              aria-hidden
+              className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-1.5 text-sm font-semibold text-[#0E2322] shadow-lg"
+            >
+              <span className="size-2 rounded-full bg-emerald-600 animate-pulse" />
+              34 of 38 in
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5 p-8 flex flex-col justify-between text-white">
               <div />
               <div>
                 <h3 className="text-[28px] font-normal tracking-[-0.02em] text-white mb-2 leading-tight">
@@ -298,7 +329,7 @@ function LandingPage() {
       {/* WHY CHECIN (Dual Tinted Bento Cards: Butter #FCF2CB & Soft Mint #CBEED3) */}
       <section id="why" className="py-24 bg-[#FAFAFA] border-y border-slate-100 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
               Why ChecIN
             </div>
@@ -312,13 +343,12 @@ function LandingPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Bento 1: Butter Card */}
-            <div className="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
+            <div data-reveal="1" className="bg-[#FCF2CB] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#F5E6B0] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-amber-200/60 bg-white">
-                <img
-                  src="https://framerusercontent.com/images/rDrThS7T8gy6JcC143xhaX5D5w4.png"
-                  alt="A code that expires UI"
-                  className="w-full object-cover"
-                />
+                <div role="img" aria-label="The ChecIN entrance tablet showing its check-in code, with a fifteen second countdown" className="h-[280px] bg-gradient-to-br from-amber-50 to-white flex items-center justify-center gap-5 px-4">
+                  <TabletScreen src="/images/product/kiosk-code.webp" imgWidth={640} imgHeight={640} className="w-[170px] sm:w-[220px]" />
+                  <CountdownRing compact />
+                </div>
               </div>
               <div>
                 <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0A0A0A] mb-3 leading-tight">
@@ -332,13 +362,11 @@ function LandingPage() {
             </div>
 
             {/* Bento 2: Soft Mint Card */}
-            <div className="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
+            <div data-reveal="2" className="bg-[#CBEED3] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between border border-[#B2E2BD] shadow-sm">
               <div className="mb-8 rounded-2xl overflow-hidden shadow-lg border border-emerald-200/60 bg-white">
-                <img
-                  src="https://framerusercontent.com/images/JhkDQnOZHJUfSwC2jfLzLjxrjI.jpg"
-                  alt="A tablet with a secret handshake UI"
-                  className="w-full object-cover"
-                />
+                <div role="img" aria-label="The ChecIN tablet setup screen taking a one-time pairing code, linking the tablet to one entrance and to your account" className="h-[280px] bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center">
+                  <DoorPairing />
+                </div>
               </div>
               <div>
                 <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0A0A0A] mb-3 leading-tight">
@@ -354,11 +382,11 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* CORE CAPABILITIES: Interactive Vertical Tabs + Embedded Dashboard Screen */}
+      {/* CAPABILITIES: Interactive Vertical Tabs + Preview Panel */}
       <section id="capabilities" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
-            Core Capabilities
+            What's included
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
             Everything a growing team needs at the door.
@@ -369,7 +397,15 @@ function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div
+          data-reveal
+          data-paused={capPaused}
+          onMouseEnter={() => setCapPaused(true)}
+          onMouseLeave={() => setCapPaused(false)}
+          onFocus={() => setCapPaused(true)}
+          onBlur={() => setCapPaused(false)}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+        >
           {/* Left Vertical Tabs */}
           <div className="lg:col-span-5 space-y-3">
             {(
@@ -384,8 +420,11 @@ function LandingPage() {
               return (
                 <button
                   key={key}
-                  onClick={() => setActiveCap(key)}
-                  className={`w-full text-left p-6 sm:p-7 rounded-[14px] text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition cursor-pointer ${
+                  onClick={() => {
+                    setActiveCap(key);
+                    setAutoCap(false);
+                  }}
+                  className={`relative overflow-hidden w-full text-left p-6 sm:p-7 rounded-[14px] text-xl sm:text-[24px] leading-[1.2] tracking-[-0.02em] flex items-center justify-between transition cursor-pointer ${
                     isActive
                       ? "bg-[#C0FD9B] text-[#0E2322] font-medium shadow-sm"
                       : "bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#0E2322] font-normal"
@@ -395,6 +434,14 @@ function LandingPage() {
                   <span className={`text-xl sm:text-[24px] ${isActive ? "text-[#0E2322]" : "text-[#0E2322]/60"}`}>
                     →
                   </span>
+                  {isActive && autoCap && (
+                    <span
+                      key={key}
+                      aria-hidden
+                      onAnimationEnd={advanceCap}
+                      className="landing-progress absolute left-0 bottom-0 h-1 bg-[#0E2322]/60"
+                    />
+                  )}
                 </button>
               );
             })}
@@ -402,12 +449,15 @@ function LandingPage() {
 
           {/* Right Large Preview Card */}
           <div className="lg:col-span-7 bg-[#FFFDF5] border border-amber-200/50 rounded-[32px] p-6 sm:p-8 shadow-md">
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200/80">
-              <img
-                src={CAPABILITY_DATA[activeCap].image}
-                alt={CAPABILITY_DATA[activeCap].alt}
-                className="w-full object-cover transition-opacity duration-300"
-              />
+            <div
+              role="img"
+              aria-label={CAPABILITY_DATA[activeCap].alt}
+              className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200/80 h-[360px] sm:h-[455px]"
+            >
+              {(() => {
+                const Visual = CAPABILITY_DATA[activeCap].Visual;
+                return <Visual />;
+              })()}
             </div>
             <p className="mt-4 text-sm sm:text-base text-[#6D6D6D] font-medium">
               {CAPABILITY_DATA[activeCap].description}
@@ -416,46 +466,79 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* BUILT FOR EVERY TEAM: Laptop Ecosystem Frame */}
+      {/* WHO IT IS FOR: photo strip and role cards */}
       <section id="teams" className="py-24 bg-[#FAFAFA] border-y border-slate-100 px-4 sm:px-6 text-center">
         <div className="max-w-4xl mx-auto mb-16">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
-            Built For Every Team
+            Who it's for
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-            One Platform For Everyone<br className="hidden sm:inline" /> Behind Attendance.
+            Everyone sees their part,<br className="hidden sm:inline" /> and only their part.
           </h2>
           <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
-            Whether you run one office or a handful, ChecIN fits the way your team already works.
+            Owners see the whole organization, managers see their own team, and employees see their own record.
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto relative px-4 py-8">
-          <div className="rounded-3xl border border-slate-200 shadow-2xl overflow-hidden bg-white p-2">
-            <img
-              src="https://framerusercontent.com/images/PZhh8usK41VfjRZFlBmcldnrNo.jpg"
-              alt="ChecIN Desktop Mockup"
-              className="w-full rounded-2xl"
-            />
-          </div>
+        <div data-reveal className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          {[
+            {
+              src: "/images/landing/team-laptop.webp",
+              alt: "Four women in colourful outfits gathered around a laptop",
+              label: "Office teams",
+              width: 1400,
+              height: 934,
+              position: "object-center",
+            },
+            {
+              src: "/images/landing/health-nurses.webp",
+              alt: "Four nurses in matching blue uniforms and white headscarves",
+              label: "Clinics and hospitals",
+              width: 900,
+              height: 1164,
+              position: "object-[50%_25%]",
+            },
+            {
+              src: "/images/landing/manager-tablet.webp",
+              alt: "A smiling man holds a tablet in one hand and a phone to his ear",
+              label: "Managers on the move",
+              width: 1400,
+              height: 934,
+              position: "object-center",
+            },
+          ].map((tile) => (
+            <figure key={tile.label} className="relative h-[260px] sm:h-[300px] rounded-3xl overflow-hidden shadow-lg">
+              <img
+                src={tile.src}
+                alt={tile.alt}
+                width={tile.width}
+                height={tile.height}
+                loading="lazy"
+                decoding="async"
+                className={`absolute inset-0 w-full h-full object-cover ${tile.position}`}
+              />
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-5 pb-4 pt-12 text-left text-white text-lg font-medium tracking-[-0.01em]">
+                {tile.label}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
 
-          {/* Floating Team Chips */}
-          <div className="flex flex-wrap items-center justify-center gap-3.5 mt-8">
-            {[
-              { label: "Owners & HR", color: "bg-emerald-500" },
-              { label: "Team Managers", color: "bg-amber-500" },
-              { label: "Employees", color: "bg-blue-500" },
-              { label: "Operations", color: "bg-purple-500" },
-              { label: "Finance", color: "bg-teal-500" },
-              { label: "Leadership", color: "bg-indigo-500" },
-            ].map((chip) => (
-              <span
-                key={chip.label}
-                className="bg-white border border-slate-200 shadow-sm px-5 py-2 rounded-full text-[16px] font-normal tracking-[-0.02em] text-[#0A0A0A] flex items-center"
+        <div className="max-w-4xl mx-auto relative px-4 py-8">
+          {/* Who it is for: one card per role, saying what that role gets */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+            {ROLE_CARDS.map(({ role, line, Icon }, i) => (
+              <div
+                key={role}
+                data-reveal={String((i % 3) + 1)}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
               >
-                <span className={`w-2.5 h-2.5 rounded-full ${chip.color} mr-2.5`} />
-                {chip.label}
-              </span>
+                <span className="inline-flex size-11 items-center justify-center rounded-full bg-[#CBEED3] text-[#0E2322]">
+                  <Icon className="size-5" aria-hidden />
+                </span>
+                <h3 className="mt-4 text-xl font-medium tracking-[-0.02em] text-[#0E2322]">{role}</h3>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-[#6D6D6D]">{line}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -463,7 +546,7 @@ function LandingPage() {
 
       {/* PRICING SECTION: Monthly / Yearly Toggle & 3 Cards */}
       <section id="pricing" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-14">
+        <div data-reveal className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Pricing
           </div>
@@ -637,19 +720,19 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* CUSTOMER STORIES (Exact 1:1 Layout) */}
+      {/* CUSTOMER STORIES */}
       <section id="stories" className="py-24 bg-[#FAFAFA] border-t border-slate-100 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div data-reveal className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
               Customer stories
             </div>
             <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-              Real Teams. Verified Attendance.
+              Be one of our first teams.
             </h2>
             <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal">
-              Coming soon. We're onboarding our first cohort of corporate pilot teams, and their stories
-              will appear here.
+              We're onboarding a first group of pilot teams. Their stories will appear here once they have
+              something real to say.
             </p>
           </div>
 
@@ -668,13 +751,16 @@ function LandingPage() {
               Pilot Cohort In Progress
             </p>
             <p className="text-sm sm:text-[16px] text-[#6D6D6D] leading-[1.4] font-normal">
-              Want to pilot ChecIN with your workforce? Get in touch to join our launch program.
+              Want to pilot ChecIN with your workforce?{" "}
+              <Link to="/auth" className="font-medium text-[#0E2322] underline underline-offset-4">
+                Create an account to join the pilot.
+              </Link>
             </p>
           </div>
         </div>
       </section>
 
-      {/* FAQ ACCORDION (Exact 1:1 Layout & Transitions) */}
+      {/* FAQ ACCORDION */}
       <section id="faq" className="py-24 px-4 sm:px-6 max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322]">
@@ -714,7 +800,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* DARK FOOTER (Exact 1:1 from preview.html) */}
+      {/* DARK FOOTER */}
       <footer className="bg-[#0E2322] text-white py-20 px-4 sm:px-6 border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
           <div>
@@ -769,11 +855,6 @@ function LandingPage() {
                     Terms of Service
                   </Link>
                 </li>
-                <li>
-                  <a href="#faq" className="hover:text-white transition">
-                    Security Architecture
-                  </a>
-                </li>
               </ul>
             </div>
             <div>
@@ -802,7 +883,7 @@ function LandingPage() {
         </div>
         <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between text-[14px] text-white/40">
           <div>© {new Date().getFullYear()} ChecIN Technologies Inc. All rights reserved.</div>
-          <div className="mt-2 sm:mt-0">Modern Attendance For Modern Teams</div>
+          <div className="mt-2 sm:mt-0">No GPS. No app store. Just the door.</div>
         </div>
       </footer>
     </div>

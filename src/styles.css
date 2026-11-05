@@ -34,7 +34,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* ChecIN Exact Brand Tokens from preview.html */
+  /* ChecIN brand tokens */
   --color-f-bg-dark: var(--f-bg-dark);
   --color-f-bg-forest: var(--f-bg-forest);
   --color-f-lime: var(--f-lime);
@@ -52,7 +52,7 @@
 :root {
   --radius: 0.75rem;
 
-  /* Exact Figma / preview.html Color Tokens */
+  /* ChecIN colour tokens */
   --f-bg-dark: #0A1612;
   --f-bg-forest: #0E2322;
   --f-lime: #C0FD9B;
@@ -125,7 +125,9 @@
     color: var(--color-foreground);
     font-family: "Inter", system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
-    overflow-x: hidden;
+    /* clip, not hidden: it still stops sideways scrolling, but does not turn the page into a scroll box of its
+       own, which would make every sticky element (the menu and the top bar) scroll away with the page. */
+    overflow-x: clip;
     width: 100%;
     max-width: 100vw;
   }
@@ -178,4 +180,160 @@
 
 .animate-beacon {
   animation: beacon-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ---- Landing page motion ------------------------------------------------------------------
+   Sections fade up as they scroll into view (useScrollReveal in components/landing/Motion.tsx).
+   The hidden starting state only applies once the page's script has run (.reveal-ready), so the
+   page is fully visible without JavaScript, in print and before it loads. */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s ease-out;
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+/* A row of cards appears one after another: data-reveal="1", "2", "3". */
+.reveal-ready [data-reveal="1"] { --reveal-delay: 90ms; }
+.reveal-ready [data-reveal="2"] { --reveal-delay: 180ms; }
+.reveal-ready [data-reveal="3"] { --reveal-delay: 270ms; }
+
+/* The hero text and picture rise into place once when the page opens (pure CSS, no script). */
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.landing-rise {
+  animation: landing-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+.landing-rise-1 { --rise-delay: 0ms; }
+.landing-rise-2 { --rise-delay: 90ms; }
+.landing-rise-3 { --rise-delay: 180ms; }
+.landing-rise-4 { --rise-delay: 270ms; }
+/* The dashboard picture comes in last, after the headline has landed, rising a long way from below. */
+@keyframes landing-rise-far {
+  from {
+    opacity: 0;
+    transform: translateY(150px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.landing-rise-5 {
+  animation-name: landing-rise-far;
+  animation-duration: 1.3s;
+  --rise-delay: 1100ms;
+}
+
+/* The progress bar under the active capability tab. When it finishes, the next tab opens. */
+@keyframes landing-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.landing-progress {
+  animation: landing-progress 5s linear forwards;
+}
+[data-paused="true"] .landing-progress {
+  animation-play-state: paused;
+}
+
+/* The headline sharpens into focus letter by letter (FocusText). */
+@keyframes landing-focus {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(0.18em);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+.focus-letter {
+  animation: landing-focus 0.75s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--focus-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-letter {
+    animation: none;
+  }
+  .reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .landing-rise {
+    animation: none;
+  }
+  /* A bar that never animates never finishes, so the tabs also stop advancing by themselves. */
+  .landing-progress {
+    animation: none;
+    width: 100%;
+  }
+}
+
+/* The landing page's floating header is fixed, so a section reached from its menu would land underneath it. */
+#benefits,
+#why,
+#capabilities,
+#teams,
+#pricing,
+#stories,
+#faq {
+  scroll-margin-top: 6.5rem;
+}
+
+/* ---- Fonts, served from our own address (public/fonts) ----------------------------------------
+   Inter and Geist, as variable fonts, so no page ever contacts another company to draw its text.
+   Latin covers English; latin-ext covers letters used in Ghanaian names such as the open e and open o.
+   Licence: SIL Open Font License 1.1 (docs/FONT-LICENCES.md). ---------------------------------- */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/geist-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/geist-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url("/fonts/inter-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }

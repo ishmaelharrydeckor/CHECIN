@@ -40,6 +40,13 @@ function parseChecinPayload(raw: string): { token: string; locationId: string } 
   }
 }
 
+// 1x / 2x / 3x style presets, limited to what this camera can actually do.
+function zoomPresets(range: { min: number; max: number }): number[] {
+  const levels = [1, 2, 3].filter((l) => l >= range.min && l <= range.max);
+  if (levels.length === 0 || levels[0] > range.min + 0.01) levels.unshift(range.min);
+  return levels.slice(0, 4);
+}
+
 function describeCameraError(err: any): string {
   switch (err?.name) {
     case "NotAllowedError":
@@ -68,6 +75,10 @@ function ScanPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [processingScan, setProcessingScan] = useState(false);
+  // The scan just made can be undone for a short while (the server decides how long).
+  const [undoState, setUndoState] = useState<{ eventId: string; type: "in" | "out"; until: number } | null>(null);
+  const [undoLeft, setUndoLeft] = useState(0);
+  const [undoing, setUndoing] = useState(false);
 
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -137,7 +148,16 @@ function ScanPage() {
         { facingMode: "environment" },
         {
           // No qrbox: decode the entire camera frame, not a small centre square.
-          fps: 20,
+          fps: 25,
+          // Like the phone's own scanner: ask for a sharp, high-resolution picture and
+          // continuous autofocus, so a small or distant code still has enough pixels to read.
+          // These are preferences, not requirements, so a basic camera still starts.
+          videoConstraints: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+          },
         },
         (decodedText) => {
           void onDecoded(decodedText);
@@ -301,7 +321,56 @@ function ScanPage() {
       return;
     }
 
+    // Instant "got it" buzz the moment the code is read, so they can keep walking while the
+    // check-in is sent.
+    navigator.vibrate?.(30);
     await handleScanDecoded(payload);
+  };
+
+  // Count the undo button down once a second; it disappears when the time is up.
+  useEffect(() => {
+    if (!undoState) return;
+    const tick = () => {
+      const left = Math.ceil((undoState.until - Date.now()) / 1000);
+      if (left <= 0) {
+        setUndoState(null);
+        setUndoLeft(0);
+      } else {
+        setUndoLeft(left);
+      }
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [undoState]);
+
+  const handleUndo = async () => {
+    if (!undoState || undoing) return;
+    setUndoing(true);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Please sign in again.");
+      const res = await fetch("/api/check-in/undo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ eventId: undoState.eventId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Could not undo that scan.");
+      // The day is back to how it was: if the scan was an "in", you are out again, and vice versa.
+      setStatus(undoState.type === "in" ? "out" : "in");
+      setLastScanTime(null);
+      setUndoState(null);
+      setOverlay(null);
+      lastScanSucceededRef.current = false;
+      userPausedRef.current = false;
+      cooldownRef.current = false;
+      toast.success("Scan undone. Nothing was recorded.");
+      startCamera();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not undo that scan.");
+    } finally {
+      setUndoing(false);
+    }
   };
 
   // Process a scanned ChecIN payload
@@ -358,6 +427,22 @@ function ScanPage() {
 
       // SUCCESS: this response comes from the transaction that recorded the scan.
       pendingScanRef.current = null;
+
+      // Lenient mode: recorded, but outside the allowed time, so it counts for nothing. Say so, and leave
+      // the in or out status and the last scan time exactly as they were.
+      if (data.outsideWindow === true) {
+        setOverlay({
+          kind: "outside",
+          time: data.timeDisplay || "",
+          location: data.locationName || "",
+          detail: typeof data.message === "string" ? data.message : "",
+        });
+        scanFeedback(true);
+        lastScanSucceededRef.current = true;
+        setJustScanned(true);
+        stopCamera();
+        return;
+      }
       const isCheckIn = data.type === "in";
       setStatus(isCheckIn ? "in" : "out");
       setLastScanTime(data.timeDisplay || null);
@@ -366,10 +451,12 @@ function ScanPage() {
         type: isCheckIn ? "in" : "out",
         time: data.timeDisplay || "",
         location: data.locationName || "",
-        late: data.late === true,
-        earlyDeparture: data.earlyDeparture === true,
       });
       scanFeedback(true);
+      if (typeof data.eventId === "string" && Number(data.undoSeconds) > 0) {
+        setUndoState({ eventId: data.eventId, type: isCheckIn ? "in" : "out", until: Date.now() + Number(data.undoSeconds) * 1000 });
+        setUndoLeft(Number(data.undoSeconds));
+      }
 
       // One scan is the whole job: release the camera until they ask for another.
       lastScanSucceededRef.current = true;
@@ -537,42 +624,61 @@ function ScanPage() {
             </div>
           )}
 
-          {/* Torch and zoom, only where the camera supports them */}
-          {cameraActive && (torchSupported || zoomRange) && (
-            <div className="absolute right-3 top-14 z-20 flex flex-col items-center gap-2">
+          {/* Torch and zoom, only where the camera supports them: zoom presets above the
+              prompt, flash bottom-right, like a normal camera app */}
+          {cameraActive && !overlay && !processingScan && (torchSupported || zoomRange) && (
+            <>
+              {zoomRange && (
+                <div className="absolute bottom-14 left-0 right-0 z-20 flex justify-center">
+                  <div className="flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full p-1 border border-white/15">
+                    {zoomPresets(zoomRange).map((level) => {
+                      const active = Math.abs(zoom - level) < 0.25;
+                      return (
+                        <button
+                          key={level}
+                          onClick={() => changeZoom(level)}
+                          aria-label={`Zoom ${level} times`}
+                          className={`min-w-9 h-8 px-2 rounded-full text-[11px] font-bold transition ${
+                            active ? "bg-[#C0FD9B] text-[#122300]" : "text-white/80"
+                          }`}
+                        >
+                          {Number.isInteger(level) ? level : level.toFixed(1)}×
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {torchSupported && (
                 <button
                   onClick={toggleTorch}
                   aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
-                  className={`w-9 h-9 rounded-full text-sm border ${
-                    torchOn ? "bg-[#C0FD9B] text-[#122300] border-[#C0FD9B]" : "bg-black/60 text-white border-white/30"
+                  aria-pressed={torchOn}
+                  className={`absolute bottom-3 right-3 z-20 w-11 h-11 rounded-full flex items-center justify-center border backdrop-blur-sm transition ${
+                    torchOn
+                      ? "bg-[#C0FD9B] text-[#122300] border-[#C0FD9B]"
+                      : "bg-black/60 text-white border-white/20"
                   }`}
                 >
-                  ⚡
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill={torchOn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+                    <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+                  </svg>
                 </button>
               )}
-              {zoomRange && (
-                <input
-                  type="range"
-                  aria-label="Zoom"
-                  min={zoomRange.min}
-                  max={zoomRange.max}
-                  step={zoomRange.step}
-                  value={zoom}
-                  onChange={(e) => changeZoom(Number(e.target.value))}
-                  className="w-24 accent-[#C0FD9B]"
-                />
-              )}
-            </div>
+            </>
           )}
 
           {/* The result of the scan: this is the employee's confirmation (or the reason there is none) */}
           {overlay && (
             <ScanResultOverlay
               state={overlay}
+              onUndo={handleUndo}
+              undoSecondsLeft={undoLeft}
+              undoing={undoing}
               onPrimary={() => {
                 const wasSuccess = overlay.kind === "success";
                 setOverlay(null);
+                setUndoState(null);
                 cooldownRef.current = false;
                 if (wasSuccess) {
                   lastScanSucceededRef.current = false;

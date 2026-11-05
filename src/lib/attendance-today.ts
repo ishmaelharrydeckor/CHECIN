@@ -35,6 +35,8 @@ export interface RosterMember {
   displayName?: string;
   email?: string;
   department?: string;
+  /** When they joined this manager's team (ISO). Only set for people who were moved. */
+  managerChangedAt?: string;
 }
 
 export interface TodayEventRow {
@@ -47,6 +49,8 @@ export interface TodayEventRow {
   location: string;
   type: "in" | "out";
   late: boolean;
+  /** The late mark on this check-in was excused by a manager; `late` is then false. */
+  lateExcused?: boolean;
   earlyDeparture: boolean;
   /** "HH:MM", 24-hour, in the organization's timezone. */
   time: string;
@@ -75,6 +79,8 @@ export interface TodaySummaryData {
     /** Of those, people whose LAST event today is "in" (on site right now). */
     onSite: number;
     late: number;
+    /** Late marks a manager excused (not counted in `late`). */
+    lateExcused?: number;
     onLeave: number;
     wfh: number;
     absent: number;
@@ -86,6 +92,8 @@ export interface TodaySummaryData {
   eventsTotal: number;
   late: TodayLate[];
   notArrived: TodayPerson[];
+  /** Self-declared work from home today: nobody scanned and not on leave. Counted in `counts.wfh`. */
+  wfhPeople?: TodayPerson[];
   /** True if the underlying query hit its safety cap (numbers may be undercounted). */
   truncated: boolean;
 }
@@ -395,7 +403,41 @@ export function buildWeekTrend(input: {
 // (it used to average each separate in-to-out session).
 // ---------------------------------------------------------------------------
 
+/** The few fields of a leave request the Today panel needs. Only approved leave counts. */
+export interface TodayLeave {
+  employeeId?: unknown;
+  startDate?: unknown;
+  endDate?: unknown;
+  status?: unknown;
+}
+
+/**
+ * People who declared work from home today (docs/WFH-DESIGN.md). A scan wins (they are present) and
+ * approved leave wins (they are on leave), so neither is listed here. Only people on this team count.
+ */
+export function wfhPeopleToday(
+  roster: readonly RosterMember[],
+  declaredIds: readonly string[] | undefined,
+  ...excluded: ReadonlySet<string>[]
+): TodayPerson[] {
+  if (!declaredIds || declaredIds.length === 0) return [];
+  const declared = new Set(declaredIds);
+  return roster
+    .filter((r) => declared.has(r.uid) && !excluded.some((s) => s.has(r.uid)))
+    .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export interface BuildTodayFromSummariesInput {
+  /** Employee ids with a work-from-home day today (from wfh_days). Without it nobody is working from home. */
+  wfhEmployeeIds?: readonly string[];
+  /** Approved leave that has not ended yet (any dates; only those covering today count). Without it nobody is on leave. */
+  leaves?: readonly TodayLeave[];
+  /**
+   * The organization's holidays (YYYY-MM-DD). With no shifts, nobody is expected on a holiday or a weekend,
+   * exactly as the attendance register and the team roster count it. Without it only weekends are non-working.
+   */
+  holidays?: readonly string[];
   /** Today's summaries for the caller's scope (any other day is ignored). */
   summaries: DailySummary[];
   /** The newest events today, for the activity list only. */
@@ -412,9 +454,21 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
   const eventLimit = input.eventLimit ?? 20;
   const today = dayKey(now, timezone) ?? new Date(now).toISOString().slice(0, 10);
 
-  const todays = input.summaries.filter((s) => s.dayKey === today);
   const rosterById = new Map(roster.map((r) => [r.uid, r]));
+  // Only people on the team now are counted: someone who moved away today was filed under this
+  // manager for their first scan, but they are no longer part of this team's day.
+  const todays = input.summaries.filter((s) => s.dayKey === today && rosterById.has(s.employeeId));
   const presentIds = new Set(todays.map((s) => s.employeeId));
+
+  // People on approved leave today are not expected and not absent. Someone who scanned anyway counts
+  // as present, not on leave.
+  const onLeaveIds = new Set<string>();
+  for (const l of input.leaves ?? []) {
+    if (!l || l.status !== "approved") continue;
+    if (typeof l.employeeId !== "string" || !rosterById.has(l.employeeId) || presentIds.has(l.employeeId)) continue;
+    if (typeof l.startDate !== "string" || typeof l.endDate !== "string") continue;
+    if (l.startDate <= today && today <= l.endDate) onLeaveIds.add(l.employeeId);
+  }
 
   const describe = (s: DailySummary): TodayPerson => {
     const member = rosterById.get(s.employeeId);
@@ -427,27 +481,36 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
 
   const onSite = todays.filter((s) => s.state === "in").length;
   const withFirstIn = todays.filter((s) => s.firstIn).length;
-  const lateSummaries = todays.filter((s) => s.firstIn && s.late === true);
+  // An excused late mark is not late (the stored flag is untouched; docs/LATE-EXCUSE-DESIGN.md).
+  const lateSummaries = todays.filter((s) => s.firstIn && s.late === true && s.lateExcused !== true);
+  const lateExcusedCount = todays.filter((s) => s.firstIn && s.late === true && s.lateExcused === true).length;
+  const excusedIds = new Set(todays.filter((s) => s.lateExcused === true).map((s) => s.employeeId));
   const late: TodayLate[] = lateSummaries
     .map((s) => ({ ...describe(s), arrivedAt: formatClock(s.firstIn as string, timezone) }))
     .sort((a, b) => a.arrivedAt.localeCompare(b.arrivedAt));
 
   const worked = todays.map((s) => s.minutesWorked).filter((m) => m > 0);
+  const wfhPeople = wfhPeopleToday(roster, input.wfhEmployeeIds, presentIds, onLeaveIds);
+  const wfhIds = new Set(wfhPeople.map((p) => p.employeeId));
+  // Nobody is expected at a weekend or on a holiday (without shifts), so nobody is "not arrived" or absent.
+  // A scan on such a day still counts as present. This is the same rule the register and the roster use.
+  const nonWorkingDay = weekdayIndex(today) >= 5 || (input.holidays ?? []).includes(today);
   const notArrived: TodayPerson[] = roster
-    .filter((r) => !presentIds.has(r.uid))
+    .filter((r) => !nonWorkingDay && !presentIds.has(r.uid) && !onLeaveIds.has(r.uid) && !wfhIds.has(r.uid))
     .map((r) => ({ employeeId: r.uid, name: r.displayName || r.email || "Employee", department: r.department || "" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const expected = roster.length;
   const present = presentIds.size;
-  const onLeave = 0; // wired up when leave requests land (task 1.1)
-  const wfh = 0; // wired up with work-from-home (task 2.3)
+  const expected = nonWorkingDay ? present : roster.length - onLeaveIds.size;
+  const onLeave = onLeaveIds.size;
+  const wfh = wfhPeople.length;
 
   const events = input.recentEvents
     .filter((e) => dayKey(e.timestamp, timezone) === today)
     .sort((a, b) => byTime(b, a))
     .slice(0, eventLimit)
-    .map((e) => toEventRow(e, rosterById, timezone));
+    .map((e) => toEventRow(e, rosterById, timezone))
+    .map((row) => (row.late && excusedIds.has(row.employeeId) ? { ...row, late: false, lateExcused: true } : row));
 
   return {
     dayKey: today,
@@ -458,9 +521,11 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
       present,
       onSite,
       late: lateSummaries.length,
+      // Only present when something was excused, so organizations that never excuse see no change.
+      ...(lateExcusedCount > 0 ? { lateExcused: lateExcusedCount } : {}),
       onLeave,
       wfh,
-      absent: Math.max(0, expected - present - onLeave - wfh),
+      absent: Math.max(0, expected - present - wfh), // people on leave are already outside `expected`
     },
     onTimeRate: {
       percent: withFirstIn > 0 ? Math.round(((withFirstIn - lateSummaries.length) / withFirstIn) * 100) : null,
@@ -476,6 +541,7 @@ export function buildTodayFromSummaries(input: BuildTodayFromSummariesInput): To
     eventsTotal: todays.reduce((n, s) => n + s.eventCount, 0),
     late,
     notArrived,
+    wfhPeople,
     truncated: input.truncated === true,
   };
 }
@@ -500,7 +566,7 @@ export function buildWeekTrendFromSummaries(input: {
       isToday: key === today,
       future,
       present: future ? 0 : arrivals.length,
-      late: future ? 0 : arrivals.filter((s) => s.late === true).length,
+      late: future ? 0 : arrivals.filter((s) => s.late === true && s.lateExcused !== true).length,
     };
   });
 }

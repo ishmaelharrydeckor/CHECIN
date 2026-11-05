@@ -14,6 +14,7 @@ export type FailureKind =
   | "offline"
   | "cooldown"
   | "expired"
+  | "outside_shift"
   | "session"
   | "wrong_org"
   | "not_paired"
@@ -94,6 +95,14 @@ export function describeScanFailure(status: number, serverMessage: string | unde
       kind: "conflict",
       title: "Could not record that scan",
       detail: `${NOT_RECORDED} Scan the code again.`,
+    };
+  }
+
+  if (status === 400 && /^Your (?:flexible )?shift /.test(msg)) {
+    return {
+      kind: "outside_shift",
+      title: "Outside your shift hours",
+      detail: `${NOT_RECORDED} ${msg}`,
     };
   }
 

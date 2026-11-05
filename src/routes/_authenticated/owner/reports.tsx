@@ -115,6 +115,16 @@ function ReportsInboxPage() {
     );
   };
 
+  const remove = async (id: string) => {
+    const res = await fetch(`/api/reports?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: await authHeaders(),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "Could not delete the report.");
+    setReports((prev) => prev.filter((r) => r.id !== id));
+  };
+
   if (forbidden) {
     return (
       <div className="py-16 text-center space-y-2">
@@ -182,7 +192,7 @@ function ReportsInboxPage() {
       ) : (
         <div className="space-y-3">
           {visible.map((r) => (
-            <ReportCard key={r.id} report={r} onUpdate={update} />
+            <ReportCard key={r.id} report={r} onUpdate={update} onDelete={remove} />
           ))}
         </div>
       )}
@@ -193,8 +203,10 @@ function ReportsInboxPage() {
 function ReportCard({
   report,
   onUpdate,
+  onDelete,
 }: {
   report: StoredReport;
+  onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, changes: { status?: ReportStatus; note?: string }) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -295,6 +307,22 @@ function ReportCard({
             )}
             <Button type="button" size="sm" variant="ghost" disabled={busy || note === (report.ownerNote ?? "")} onClick={() => run(async () => { await onUpdate(report.id, { note }); toast.success("Note saved."); })} className="text-xs">
               Save note
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                if (!confirm("Delete this report and its screenshot for good? This cannot be undone.")) return;
+                void run(async () => {
+                  await onDelete(report.id);
+                  toast.success("Report deleted.");
+                });
+              }}
+              className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 sm:ml-auto"
+            >
+              Delete
             </Button>
           </div>
         </div>

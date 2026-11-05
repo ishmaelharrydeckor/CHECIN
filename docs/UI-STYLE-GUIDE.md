@@ -2,6 +2,8 @@
 
 Every screen must look like it belongs to the same app. This guide is taken from the real code (`src/styles.css`, `dashboard.tsx`, `settings.tsx`, `announcements.tsx`, `holidays.tsx`), so the class names below are exact and safe to copy. **When in doubt, copy an existing screen's markup rather than inventing a new look.**
 
+Updated for the Phase 4 screens (shell, roster, review screens, reports hub): see section 5b.
+
 Teammates: add this file to your Claude Project's knowledge, and when you start a task, also paste a screenshot of the most similar existing page and say "match this".
 
 ## 1. Principles
@@ -36,6 +38,21 @@ The brand colors live in `src/styles.css`. Prefer the named tokens when a Tailwi
 - Late / early departure / needs attention: `bg-amber-100 text-amber-900`.
 - Pending: amber as above. Rejected or failed: `text-destructive`, not a big red block.
 Do not invent new status colors.
+
+**Day status (roster, register and reports; always the same everywhere).** A person's state for a day uses these and nothing else. The wording is always shown as words, never colour alone:
+
+| State | Words | Classes |
+|---|---|---|
+| Here | On site | `bg-[#CBEED3] text-[#0E2322]` with an `emerald-600` dot |
+| Left | Left for the day | `bg-slate-100 text-slate-700` |
+| Working from home / on leave | Working from home, On leave | `bg-slate-100 text-slate-700` |
+| Holiday | Holiday | `bg-slate-100 text-slate-500` |
+| Not arrived / absent | Not arrived, Absent | `bg-amber-100 text-amber-900` |
+| Not yet due / day off | Expected later, Not working today | `bg-slate-50 text-slate-600` / `text-slate-500` |
+| Late, left early | Late, Left early (a tag beside the state) | `bg-amber-100 text-amber-900` |
+| Late but excused | Late, excused (a tag) | `bg-slate-100 text-slate-700` |
+
+**Counts waiting for someone** (a number on a menu item): `rounded-full bg-amber-100 text-amber-900 text-[11px] font-semibold`. It is a number, spoken as "N waiting", never a red dot.
 
 ## 3. Typography
 - Font: **Inter** (already global). Never set a font family.
@@ -99,10 +116,31 @@ Do not add your own outer padding or max width. Set `<title>` and description in
 
 **Icons:** only from `lucide-react`, `size-4` in buttons and rows, `size-8` in empty states.
 
+## 5b. Patterns added in Phase 4 (copy these; do not invent variants)
+
+**The app shell** (the menu, top bar, breadcrumbs, "Jump to"). The integrator owns it (`AppShell.tsx`); a page never draws its own menu or breadcrumb. Pages need only a title and, if the page is in the menu, an entry the integrator adds. The top bar shows the trail "Group > Page" automatically. "Jump to" (Ctrl or Cmd + K) lists the pages in the person's own menu, so a new page appears in it as soon as it is in the menu.
+
+**Filter chips** (choose one view of a list). A row of `button`s in a `div role="group" aria-label="..."`, each `h-9 rounded-full px-3 text-[13px] font-medium`, with the count after the name. Selected: `bg-[#0E2322] text-[#C0FD9B]` and `aria-pressed="true"`. Not selected: `border border-slate-200 bg-white text-slate-700 hover:bg-slate-50`. The counts always come from the same list that the chip filters.
+
+**Percentage bar** (attendance, on time). The number in words beside the bar, then a thin bar: a `role="meter"` with `aria-valuenow`, `aria-valuetext`, track `h-1.5 rounded-full bg-slate-100`, fill `bg-emerald-600`. **No data is a dash `–` and an empty bar, never 0% or 100%**, and the screen reader hears "No data yet". One bar colour only; never red/green by value.
+
+**Table on a desktop, cards on a phone.** Render both and switch with CSS: the table in `hidden lg:block overflow-x-auto rounded-2xl border border-slate-200`, the cards in `<ul className="space-y-2 lg:hidden">` with `rounded-2xl border border-slate-200 bg-white p-3`. A phone card shows the name and the most important fact first, then the state pill, then the secondary figures (two per row at most). Use `min-w-0` and `break-words`; never let a label collide with a number on a 375 px screen (put labels on their own line).
+
+**Report card** (the reports hub). A `Card` with `CardTitle`, a `CardDescription` of what it contains, one small line saying who it covers, then, if it can be made as a file, a "Period" select and CSV / PDF buttons (`h-10`), and a quiet text link "Preview and choose dates". The hub shows only reports that exist. **Do not draw a table, card or button for something that is not built** (for example scheduled reports); leave it out until it ships.
+
+**Day picker** (review screens). Previous (`size-10` icon button, `aria-label="Previous day"`), a date `Input type="date"` (`h-10 w-40`), Next. "Today" comes from the server in the organization's timezone, not the device. Only real days are accepted.
+
+**Detail dialog** (one person's day). `Dialog` with `max-h-[90vh] overflow-y-auto sm:max-w-2xl`. Order: figures in a small grid (`Figure`: `text-xs font-semibold uppercase tracking-wider text-slate-500` over a `text-base font-bold` value), the status, "Worth a look" (flags are prompts, not findings, and the dialog says so), then the rows, then the decision buttons at the bottom with the reason if they are disabled.
+
+**Settings card with a switch.** `Card` with a `Switch` row (`flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4`): a bold line "The thing is on/off" with a `text-xs text-muted-foreground` line saying what that means now. Loading is a `Skeleton`, an error has "Try again", and a save shows a toast. The card says plainly what is not decided here.
+
+**Times.** Show a clock time only when the server has formatted it in the organization's timezone. Where a time could be read in the wrong zone, show time into the session ("1:10 to 1:20") instead. Never call `toLocaleTimeString` or read the device clock to decide what "today" is.
+
 ## 6. Responsive rules
 - Test at **375 px wide**. Nothing may scroll sideways; stack columns with `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`.
 - Buttons and tap targets at least 40 px high on employee screens (`h-10`).
-- Hide secondary table columns on phones (`hidden sm:table-cell`) rather than squeezing.
+- Hide secondary table columns on phones (`hidden sm:table-cell`) rather than squeezing. A table with more than four columns becomes a list of cards on a phone (section 5b).
+- Anything with a number and its label side by side must still read at 375 px: put the label on its own line rather than letting two labels meet.
 
 ## 7. Don'ts
 - No new colors, fonts, shadows heavier than `shadow-sm`, or border radii other than `rounded-xl` / `rounded-2xl` / `rounded-3xl` / `rounded-full`.
@@ -116,13 +154,19 @@ Do not add your own outer padding or max width. Set `<title>` and description in
 A screen can follow every colour rule and still be unhelpful. These keep data screens useful:
 
 1. **Lead with the answer.** Start with the numbers and lists a manager opens the page for (who is in, who is late, who has not arrived), not a raw log.
-2. **Bound every list.** Show at most **20 rows**, say "Showing the latest 20 of N", and link to the full page ("View full history"). Never render a list that can grow without limit.
+2. **Bound every list.** Either show at most **20 rows**, say "Showing the latest 20 of N" and link to the full page ("View full history"), or, for a roster or a register people filter and scan, show **50 at a time** with "Showing 50 of N" and a "Show more" button, on top of a server limit (500 people). Never render a list that can grow without limit.
 3. **Always show which day.** Times without a date are ambiguous. Put the date in the section subtitle or group rows by day, and show times in the organization's timezone exactly as the server sends them.
 4. **Never calculate in the screen.** Counts, percentages, "late", "today" and totals come from the server. The screen only displays them. If a number looks wrong, fix the server, not the screen.
 5. **Don't show columns that never change.** If every row has the same value (one entrance, "verified" on every row), hide the column. Don't show internal or technical terms such as "HMAC", "token" or "telemetry" to managers.
 6. **Don't show placeholders as data.** If a value is missing, leave it out or write a plain label. Do not fill in a default like "General" and present it as real.
 7. **Charts must be honest.** Only draw days or points that have happened and have data. Never draw the future as zero. With little or no data, say so in a sentence instead of an empty or misleading curve. Prefer bars for counts per day; avoid smooth area lines for a handful of points.
 8. **Say what loading, empty and error mean.** "Loading today's check-ins…", "No check-ins yet today", and "Couldn't load, try again" are three different messages. Never show the empty message while still loading.
+
+9. **Words, never colour alone.** A state is always written ("On site", "Late", "Flagged"); colour only supports it. Bars and meters carry the number and a spoken value.
+10. **No data is a dash.** A percentage, average or total with nothing behind it shows `–` and says why if it helps. It is never 0, never 100, never a guess.
+11. **Draw only what is built.** If a feature does not exist yet, its card, tab, column or table is left out. Do not show a disabled placeholder, a sample row or a "coming soon" tile on a real screen.
+12. **Things waiting for the person go on the menu, not on every page.** A count belongs on the menu item that holds the work (Leave, Work diary), and a page shows its own list; do not repeat the count in a banner.
+13. **Keep money, hours and decisions apart.** A figure that is approved, flagged or waiting is shown with that status. Approved diary time is a separate column from scanned hours and is never added to it.
 
 ## 8. Reference screens (match these)
 | If you are building... | Look at |
@@ -133,6 +177,11 @@ A screen can follow every colour rule and still be unhelpful. These keep data sc
 | A list of events or people | the list in `src/routes/_authenticated/holidays.tsx` (compact rows), **not** the wide table at the bottom of `dashboard.tsx` |
 | A feed of posts | `src/routes/_authenticated/announcements.tsx` |
 | A profile / account card | `src/routes/_authenticated/account.tsx`, `src/components/ChangePasswordCard.tsx` |
+| A roster or list people filter and scan (chips, bars, phone cards) | `src/components/dashboard/TeamRoster.tsx` |
+| A hub of reports with preview and generate | `src/components/reports/ReportsHub.tsx` |
+| A manager's day-by-day review with a detail dialog | `src/routes/_authenticated/wfh-review.tsx`, `src/components/wfh/diary/DiaryDayDialog.tsx` |
+| A settings card with a switch | `src/components/shifts/ShiftSwapSettingsCard.tsx`, `src/components/wfh/diary/DiarySettingsCard.tsx` |
+| The menu badge, breadcrumb and "Jump to" (integrator only) | `src/components/AppShell.tsx`, `src/components/nav/JumpTo.tsx` |
 
 ## 9. Quick check before opening a PR
 - [ ] Looks like the reference screen next to it (same title size, card style, button style, spacing)
@@ -141,4 +190,5 @@ A screen can follow every colour rule and still be unhelpful. These keep data sc
 - [ ] Looks right at 375 px and at desktop width
 - [ ] No sideways scroll; long text truncates
 - [ ] Plain-language text, no jargon
+- [ ] Patterns from section 5b used where they apply (chips, bars, table and phone cards, report card, day picker, detail dialog, settings card)
 - [ ] Data screens follow section 7b: bounded lists with a date and a link to the full page, nothing calculated in the screen, no constant columns, honest charts, correct loading/empty/error wording

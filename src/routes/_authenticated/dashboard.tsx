@@ -1,12 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { firestoreDb, firebaseAuth } from "@/integrations/firebase/config";
+import { firebaseAuth } from "@/integrations/firebase/config";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { dayKey } from "@/lib/attendance-day";
 import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/idle-refresh";
-import { formatClock, type TodaySummaryData, type WeekTrendDay } from "@/lib/attendance-today";
+import { formatClock, type TodaySummaryData } from "@/lib/attendance-today";
+import { TodayPanel } from "@/components/dashboard/TodayPanel";
+import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
+import { TeamRosterSection } from "@/components/dashboard/TeamRosterSection";
+import { buildSetupSteps, setupHiddenKey, setupProgress, type SetupLocation } from "@/lib/setup-checklist";
+import { AnalyticsSection } from "@/components/analytics/AnalyticsSection";
+import { DEFAULT_DEPARTMENT } from "@/lib/departments";
 import {
   Users,
   Clock,
@@ -25,17 +30,6 @@ import {
   Check,
   RefreshCw,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Organization Overview — ChecIN Dashboard" }] }),
@@ -71,10 +65,14 @@ interface AttendanceRecord {
 
 function DashboardPage() {
   const { user, orgId, isOrgAdmin, isManager, refreshClaims } = useAuth();
+  // Setup checklist (organization admins of a new organization): what exists so far, and whether it was hidden.
+  const [setupLocations, setSetupLocations] = useState<SetupLocation[] | null>(null);
+  const [setupHidden, setSetupHidden] = useState(false);
   const [orgName, setOrgName] = useState<string>("My Organization");
   const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
-  const [activeStaff, setActiveStaff] = useState<any[]>([]);
+  // Every invitation the admin has made, in any state: it is what ticks the "Invite your team" step.
+  const [invitesSentCount, setInvitesSentCount] = useState<number>(0);
   // Numbers and feed come from the server, computed for TODAY in the organization's timezone.
   const [today, setToday] = useState<TodaySummaryData | null>(null);
   const [todayError, setTodayError] = useState<string | null>(null);
@@ -83,11 +81,9 @@ function DashboardPage() {
   const pausedRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
   const lastFetchRef = useRef(0);
-  const [weekDays, setWeekDays] = useState<WeekTrendDay[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "in" | "out">("all");
   const [deptFilter, setDeptFilter] = useState("all");
-  const [timeRange, setTimeRange] = useState("today");
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -97,6 +93,29 @@ function DashboardPage() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [orgDepartments, setOrgDepartments] = useState<string[]>([DEFAULT_DEPARTMENT]);
+  const [inviteDepartment, setInviteDepartment] = useState(DEFAULT_DEPARTMENT);
+
+  // The department list is only needed while the invite form is open.
+  useEffect(() => {
+    if (!inviteModalOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await firebaseAuth.currentUser?.getIdToken();
+        const res = await fetch("/api/organization/departments", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && Array.isArray(data?.departments)) setOrgDepartments(data.departments);
+      } catch {
+        // The form still works with just "General".
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteModalOpen]);
 
   // Today's numbers and feed, computed on the server (see /api/attendance/today)
   const fetchToday = async (fresh = false) => {
@@ -120,21 +139,41 @@ function DashboardPage() {
     }
   };
 
-  // Mon-Fri trend for the chart. Reads the whole week, so it is fetched on load and on Refresh only.
-  const fetchWeek = async () => {
+  // A manager or admin removes a team member's work-from-home day for today; then the panel is recomputed.
+  const removeWfhDay = async (employeeId: string) => {
+    if (!today) return;
+    const token = await firebaseAuth.currentUser?.getIdToken();
+    const res = await fetch("/api/wfh", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ dayKey: today.dayKey, employeeId }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || data?.ok === false) throw new Error(data?.error || "Could not remove that day.");
+    await fetchToday(true);
+  };
+
+  useEffect(() => {
+    if (!orgId) return;
     try {
-      const token = await firebaseAuth.currentUser?.getIdToken();
-      const res = await fetch("/api/attendance/week", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.ok && Array.isArray(data.days)) setWeekDays(data.days as WeekTrendDay[]);
-    } catch (e) {
-      console.warn("Could not load the weekly trend:", e);
+      setSetupHidden(localStorage.getItem(setupHiddenKey(orgId)) === "1");
+    } catch {
+      // Private window or blocked storage: the card just shows.
+    }
+  }, [orgId]);
+
+  const hideSetup = () => {
+    setSetupHidden(true);
+    try {
+      if (orgId) localStorage.setItem(setupHiddenKey(orgId), "1");
+    } catch {
+      // Not saved, so it comes back next visit. Harmless.
     }
   };
 
-  // Fetch real organization details, registered staff members, and attendance history
+  const setupSteps = setupLocations ? buildSetupSteps({ locations: setupLocations, headcount: totalHeadcount, invitesSent: invitesSentCount }) : null;
+  const showSetup = Boolean(isOrgAdmin && setupSteps && !setupHidden && !setupProgress(setupSteps).complete);
+
   const fetchOrgAndStaff = async () => {
     try {
       const token = await firebaseAuth.currentUser?.getIdToken();
@@ -150,14 +189,27 @@ function DashboardPage() {
       }
 
       // 2. Fetch staff invites and members
-      const staffRes = await fetch("/api/admin/staff-invites", { headers });
+      // Only the numbers this page shows (people, invitations made, invitations waiting), as counts: the full
+      // list of people and invitations is for the pages that list them.
+      const staffRes = await fetch("/api/admin/staff-invites?view=summary", { headers });
       if (staffRes.ok) {
         const staffData = await staffRes.json();
         if (staffData.ok) {
           setTotalHeadcount(staffData.totalHeadcount ?? 1);
-          const pending = (staffData.invites || []).filter((i: any) => i.status === "pending").length;
-          setPendingInvitesCount(pending);
-          setActiveStaff(staffData.members || []);
+          // Every invitation made, in any state: it is what ticks the "Invite your team" step.
+          setInvitesSentCount(Number.isInteger(staffData.invitesSent) && staffData.invitesSent > 0 ? staffData.invitesSent : 0);
+          setPendingInvitesCount(Number.isInteger(staffData.pendingInvites) && staffData.pendingInvites > 0 ? staffData.pendingInvites : 0);
+        }
+      }
+
+      // 3. Entrances and their tablets, for the setup checklist. Only admins can act on it, so only they ask.
+      if (isOrgAdmin) {
+        const locRes = await fetch("/api/locations", { headers });
+        if (locRes.ok) {
+          const locData = await locRes.json();
+          if (locData.ok && Array.isArray(locData.locations)) {
+            setSetupLocations(locData.locations.map((l: { isPaired?: boolean }) => ({ isPaired: l.isPaired === true })));
+          }
         }
       }
 
@@ -169,7 +221,7 @@ function DashboardPage() {
   const handleManualRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchToday(true), fetchWeek(), fetchOrgAndStaff()]);
+      await Promise.all([fetchToday(true), fetchOrgAndStaff()]);
       toast.success("Workforce feed refreshed");
     } finally {
       setRefreshing(false);
@@ -183,7 +235,6 @@ function DashboardPage() {
     if (!user) return;
 
     fetchToday();
-    fetchWeek();
     fetchOrgAndStaff();
     lastActivityRef.current = Date.now();
 
@@ -225,75 +276,7 @@ function DashboardPage() {
     };
   }, [user, orgId]);
 
-  // Department Distribution Data dynamically grouped from real active staff & events
-  const deptData = useMemo(() => {
-    const counts: Record<string, number> = {};
-
-    if (activeStaff && activeStaff.length > 0) {
-      for (const member of activeStaff) {
-        const dept =
-          member.department ||
-          (member.role === "org_admin" ? "Leadership" : member.role === "manager" ? "Management" : "Operations");
-        counts[dept] = (counts[dept] || 0) + 1;
-      }
-    } else {
-      counts["Operations"] = Math.max(1, totalHeadcount);
-    }
-
-    const PALETTE = ["#0E2322", "#C0FD9B", "#FFD153", "#38BDF8", "#A78BFA", "#F472B6", "#FB923C"];
-
-    return Object.entries(counts).map(([name, value], idx) => ({
-      name,
-      value,
-      color: PALETTE[idx % PALETTE.length],
-    }));
-  }, [activeStaff, totalHeadcount]);
-
   // ---- Numbers below come from the server (today), not from browser-side math ----
-
-  const presentCount = today?.counts.present ?? 0;
-  const expectedCount = today?.counts.expected ?? totalHeadcount;
-
-  const onTimeMetrics = useMemo(() => {
-    if (!today) return { rateDisplay: "—", subtext: "Loading…", textColor: "text-slate-500" };
-    const { percent, onTime, total } = today.onTimeRate;
-    if (percent === null) {
-      return { rateDisplay: "—", subtext: "Awaiting today's first check-in", textColor: "text-[#166534]" };
-    }
-    return {
-      rateDisplay: `${percent}%`,
-      subtext: `${onTime} of ${total} arrived on time`,
-      textColor: percent >= 80 ? "text-[#166534]" : "text-amber-800",
-    };
-  }, [today]);
-
-  const avgShiftMetrics = useMemo(() => {
-    if (!today) return { display: "—", subtext: "Loading…" };
-    const { completed, inProgress, avgMinutes } = today.avgShift;
-    if (avgMinutes === null) {
-      return inProgress > 0
-        ? {
-            display: "In progress",
-            subtext: `${inProgress} active shift${inProgress === 1 ? "" : "s"} (calculates after check-out)`,
-          }
-        : { display: "—", subtext: "Calculates after check-out" };
-    }
-    return {
-      display: `${(avgMinutes / 60).toFixed(1)} hrs`,
-      subtext: `Based on ${completed} completed shift${completed === 1 ? "" : "s"} today`,
-    };
-  }, [today]);
-
-  // Weekly trend: only days that have happened; future days are not drawn as zero
-  const weeklyTrend = useMemo(
-    () =>
-      (weekDays ?? [])
-        .filter((d) => !d.future)
-        .map((d) => ({ day: d.isToday ? `${d.day} (Today)` : d.day, present: d.present, late: d.late })),
-    [weekDays],
-  );
-  const trendHasData = weeklyTrend.some((d) => d.present > 0);
-  const yAxisMax = Math.max(3, ...weeklyTrend.map((d) => d.present));
 
   const todayLabel = today
     ? new Date(`${today.dayKey}T12:00:00Z`).toLocaleDateString(undefined, {
@@ -396,6 +379,7 @@ function DashboardPage() {
         body: JSON.stringify({
           email: inviteEmail.trim(),
           role: inviteRole,
+          department: inviteDepartment,
         }),
       });
 
@@ -449,272 +433,72 @@ function DashboardPage() {
     setInviteError(null);
   };
 
-  const displayHeadcount = totalHeadcount;
-
   return (
     <div className="space-y-6 font-sans max-w-7xl mx-auto">
-      {/* 1. Header Banner & Action Center */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E8FCE4] text-[#122300] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              {isOrgAdmin ? "Corporate Admin" : isManager ? "Team Manager" : "Workforce Member"}
-            </span>
-            <span>•</span>
-            <span className="text-[#0E2322] font-semibold">
-              {isManager
-                ? `${orgName} — Your Team (${totalHeadcount} Member${totalHeadcount === 1 ? "" : "s"})`
-                : `${orgName} (${totalHeadcount} Registered Staff)`}
-            </span>
-          </div>
+      {/* Header: where you are and the one action that belongs here. Refresh sits with the numbers it
+          refreshes, and Export sits with the table it exports. */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0E2322]">
-            {isManager ? "Team Presence Roster" : "Organization Overview"}
+            {isManager ? "Team overview" : "Organization overview"}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
+            {isOrgAdmin ? "Administrator" : isManager ? "Manager" : "Staff"} ·{" "}
             {isManager
-              ? "Live attendance and entrance activity for your direct reports."
-              : "Real-time workforce presence intelligence, entrance activity, and compliance telemetry."}
+              ? `${orgName} · your team of ${totalHeadcount}`
+              : `${orgName} · ${totalHeadcount} ${totalHeadcount === 1 ? "person" : "people"}`}
           </p>
         </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleManualRefresh}
-            disabled={refreshing}
-            className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs cursor-pointer disabled:opacity-50"
-            title="Refresh attendance records from database"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
-            <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
-
-          <button
-            onClick={handleExportCsv}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold transition text-slate-700 flex items-center space-x-1.5 shadow-xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
-
           {(isOrgAdmin || isManager) && (
             <button
               onClick={() => {
                 handleResetForAnotherInvite();
                 setInviteModalOpen(true);
               }}
-              className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-[13px] font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Invite Staff Member</span>
+              <span>Invite staff member</span>
             </button>
           )}
-        </div>
       </div>
 
-      {/* 2. Top 4 Figma Bento Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Workforce */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Headcount</span>
-            <span className="p-2 rounded-xl bg-slate-50 text-slate-700">
-              <Users className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">{displayHeadcount}</div>
-            <div className="flex items-center space-x-1 text-xs text-emerald-600 mt-2 font-medium">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>
-                {pendingInvitesCount > 0
-                  ? `${pendingInvitesCount} pending invitation(s)`
-                  : `${totalHeadcount} active team member(s)`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Present Today */}
-        <div className="bg-[#FCF2CB] p-6 rounded-3xl border border-[#F5E6B0] shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#854D0E] mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Present Today</span>
-            <span className="p-2 rounded-xl bg-white/70 text-[#854D0E]">
-              <CheckCircle2 className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">
-              {today ? presentCount : "—"} <span className="text-sm font-normal text-slate-700">/ {expectedCount}</span>
-            </div>
-            <div className="text-xs text-[#854D0E] mt-2 font-semibold">
-              {today
-                ? `${today.counts.onSite} on site now · ${today.counts.late} late`
-                : todayError || "Loading…"}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: On-Time Rate */}
-        <div className="bg-[#CBEED3] p-6 rounded-3xl border border-[#B2E2BD] shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#0E2322] mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">On-Time Rate</span>
-            <span className="p-2 rounded-xl bg-white/70 text-emerald-900">
-              <Clock className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">
-              {onTimeMetrics.rateDisplay}
-            </div>
-            <div className={`text-xs ${onTimeMetrics.textColor} mt-2 font-medium`}>
-              {onTimeMetrics.subtext}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Avg Shift Length */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Avg Shift Length</span>
-            <span className="p-2 rounded-xl bg-slate-50 text-slate-700">
-              <Building2 className="w-4 h-4" />
-            </span>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold text-[#0E2322]">
-              {avgShiftMetrics.display}
-            </div>
-            <div className="text-xs text-slate-500 mt-2 font-medium">
-              {avgShiftMetrics.subtext}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Interactive Charts or Onboarding Telemetry Card */}
-      {trendHasData || (today?.eventsTotal ?? 0) > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Chart: Weekly Attendance Trends (Area Chart) */}
-          <div className="lg:col-span-8 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-              <div>
-                <h2 className="text-base font-bold text-[#0E2322]">Weekly Attendance Trends</h2>
-                <p className="text-xs text-slate-500">Mon – Fri on-site attendance vs. late arrivals</p>
-              </div>
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0E2322]"></span> Present
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FFD153]"></span> Late
-                </span>
-              </div>
-            </div>
-
-            <div className="h-64 w-full">
-              {trendHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barGap={4}>
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} tickLine={false} axisLine={false} domain={[0, yAxisMax]} allowDecimals={false} />
-                  <RechartsTooltip cursor={{ fill: "#F1F5F9" }} />
-                  <Bar dataKey="present" name="Present" fill="#0E2322" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="late" name="Late" fill="#FFD153" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-center text-xs text-slate-500">
-                  No check-ins recorded yet this week. Days appear here as people check in.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Chart: Department Attendance Donut */}
-          <div className="lg:col-span-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-            <div>
-              <h2 className="text-base font-bold text-[#0E2322]">Department Distribution</h2>
-              <p className="text-xs text-slate-500 mb-4">Workforce allocation by team</p>
-
-              <div className="h-44 w-full relative flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={deptData}
-                      innerRadius={50}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {deptData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-extrabold text-[#0E2322]">{displayHeadcount}</span>
-                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Staff</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 pt-2 border-t border-slate-100">
-              {deptData.map((d) => (
-                <div key={d.name} className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>
-                    <span>{d.name}</span>
-                  </span>
-                  <span className="font-semibold text-slate-800">{d.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-xs text-center flex flex-col items-center justify-center">
-          <div className="w-12 h-12 rounded-2xl bg-[#E8FCE4] text-[#0E2322] flex items-center justify-center mb-3">
-            <Building2 className="w-6 h-6 text-[#122300]" />
-          </div>
-          <h3 className="text-base font-bold text-[#0E2322]">Awaiting Live Entrance Telemetry</h3>
-          <p className="text-xs text-slate-500 max-w-md mt-1 mb-4">
-            Your organization <strong className="text-slate-800 font-semibold">{orgName}</strong> is active. Once your team members check in via the entrance kiosk tablet, 5-day attendance trends and department distribution will render here automatically.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={() => {
-                handleResetForAnotherInvite();
-                setInviteModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Invite Team Member</span>
-            </button>
-            <Link
-              to="/kiosk"
-              target="_blank"
-              className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition shadow-xs flex items-center space-x-1.5"
-            >
-              <span>📺 Open Entrance Kiosk</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
+      {/* New organizations: what is left to set up. Gone for good once all three steps are done. */}
+      {showSetup && setupSteps && (
+        <SetupChecklist
+          steps={setupSteps}
+          onInvite={() => {
+            handleResetForAnotherInvite();
+            setInviteModalOpen(true);
+          }}
+          onHide={hideSetup}
+        />
       )}
 
-      {/* 4. Real-Time Scan Activity Table & Search Filter */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* Today: counts, live activity, and the late and not-arrived lists. Every figure comes from
+          /api/attendance/today (the same answer as the tiles above), so nothing here can disagree. */}
+      <TodayPanel
+        data={today}
+        loading={refreshing || (!today && !todayError)}
+        error={todayError}
+        onRefresh={handleManualRefresh}
+        onRemoveWfh={removeWfhDay}
+        showActivity={false}
+        canReviewLate={isOrgAdmin || isManager}
+      />
+
+      {/* Team roster: one row per person, where they are today and how they have done this month. */}
+      {(isOrgAdmin || isManager) && <TeamRosterSection />}
+
+      {/* Activity: today's check-ins, with search and filters. The Today panel above no longer repeats this list. */}
+      <div id="todays-checkins" className="scroll-mt-20 bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Table Header Controls */}
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-[#0E2322]">
               Today's check-ins
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-[13px] text-slate-500 mt-0.5">
               {today
                 ? `${todayLabel} · times in your organization's timezone · updated ${formatClock(today.generatedAt, today.timezone)}`
                 : "Loading today's activity…"}
@@ -735,11 +519,11 @@ function DashboardPage() {
                 placeholder="Search staff, email, team..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0E2322] w-52"
+                className="pl-8 pr-3 py-1.5 text-[13px] bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0E2322] w-52"
               />
             </div>
 
-            <div className="flex rounded-xl bg-slate-100 p-0.5 text-xs">
+            <div className="flex rounded-xl bg-slate-100 p-0.5 text-[13px]">
               <button
                 onClick={() => setStatusFilter("all")}
                 className={`px-3 py-1 rounded-lg font-medium transition ${
@@ -765,13 +549,22 @@ function DashboardPage() {
                 Clocked OUT
               </button>
             </div>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-semibold transition text-slate-700 flex items-center gap-1.5 cursor-pointer"
+              title="Download today's check-ins as a spreadsheet file"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
 
         {/* Table Body */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50/70 text-slate-500 uppercase text-[11px] font-semibold border-b border-slate-200">
+          <table className="w-full text-left text-[13px] sm:text-sm">
+            <thead className="bg-slate-50/70 text-slate-500 uppercase text-xs font-semibold border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3.5">Employee</th>
                 <th className="px-6 py-3.5">Department</th>
@@ -795,14 +588,14 @@ function DashboardPage() {
                             ? "Couldn't load today's check-ins"
                             : searchQuery || statusFilter !== "all" || deptFilter !== "all"
                               ? "No Matching Attendance Records"
-                              : "No Check-Ins Recorded Today"}
+                              : "No check-ins yet today"}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 text-center">
+                      <p className="text-[13px] text-slate-400 mt-1 text-center">
                         {!today
                           ? todayError || "One moment."
                           : searchQuery || statusFilter !== "all"
                           ? "Try adjusting your search query or filter."
-                          : `No attendance events recorded today for ${orgName}. When staff scan the rotating QR code on your entrance kiosk, their punch events will appear here in real time.`}
+                          : "When staff scan the code on the entrance tablet, their check-ins will appear here."}
                       </p>
                       {today && !searchQuery && (
                         <button
@@ -810,10 +603,10 @@ function DashboardPage() {
                             handleResetForAnotherInvite();
                             setInviteModalOpen(true);
                           }}
-                          className="mt-3.5 px-3.5 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition shadow-xs cursor-pointer flex items-center space-x-1.5"
+                          className="mt-3.5 px-3.5 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-[13px] font-bold hover:bg-[#163331] transition shadow-xs cursor-pointer flex items-center space-x-1.5"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
-                          <span>+ Invite First Staff Member</span>
+                          <span>Invite your first staff member</span>
                         </button>
                       )}
                     </div>
@@ -823,23 +616,23 @@ function DashboardPage() {
                 filteredActivities.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/80 transition">
                     <td className="px-6 py-3.5 flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-xs shadow-xs">
+                      <div className="w-9 h-9 rounded-full bg-[#0E2322] text-[#C0FD9B] font-extrabold flex items-center justify-center text-[13px] shadow-xs">
                         {item.initials}
                       </div>
                       <div>
                         <div className="font-bold text-slate-900">{item.name}</div>
-                        <div className="text-[11px] text-slate-400">{item.email}</div>
+                        <div className="text-[13px] text-slate-400">{item.email}</div>
                       </div>
                     </td>
                     <td className="px-6 py-3.5 text-slate-600">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[13px]">
                         {item.department}
                       </span>
                     </td>
                     {showLocationColumn && <td className="px-6 py-3.5 text-slate-600">{item.location}</td>}
                     <td className="px-6 py-3.5">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[13px] font-semibold ${
                           item.type === "in"
                             ? "bg-[#CBEED3] text-[#0E2322]"
                             : "bg-slate-100 text-slate-700"
@@ -853,12 +646,17 @@ function DashboardPage() {
                         {item.type === "in" ? "Clocked IN" : "Clocked OUT"}
                       </span>
                       {item.late && (
-                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
                           Late
                         </span>
                       )}
+                      {item.lateExcused && (
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-[#CBEED3] text-[#0E2322]">
+                          Late, excused
+                        </span>
+                      )}
                       {item.earlyDeparture && (
-                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">
+                        <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
                           Early departure
                         </span>
                       )}
@@ -872,7 +670,7 @@ function DashboardPage() {
         </div>
 
         {today && today.eventsTotal > 0 && (
-          <div className="px-6 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <div className="px-6 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[13px] text-slate-500">
             <span>
               {today.eventsTotal > feedRows.length
                 ? `Showing the latest ${feedRows.length} of ${today.eventsTotal} events today.`
@@ -886,7 +684,11 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* 5. Upgraded Single-Use Staff Invite Modal */}
+      {/* Attendance analytics: rates, punctuality, hours and the trend, worked out on the server
+          (/api/analytics) from daily summaries. */}
+      <AnalyticsSection />
+
+      {/* Single-use staff invite */}
       {inviteModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95">
@@ -898,19 +700,19 @@ function DashboardPage() {
                     14-Day Expiry
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-[13px] text-slate-500 mb-4">
                   Generates an email-bound, single-use invitation token per AGENTS.md security spec.
                 </p>
 
                 {inviteError && (
-                  <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                  <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-[13px] text-rose-700">
                     {inviteError}
                   </div>
                 )}
 
                 <form onSubmit={handleGenerateInvite} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       Staff Email Address
                     </label>
                     <input
@@ -924,7 +726,7 @@ function DashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
                       Assigned Role
                     </label>
                     <select
@@ -939,18 +741,35 @@ function DashboardPage() {
                     </select>
                   </div>
 
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">
+                      Department
+                    </label>
+                    <select
+                      value={inviteDepartment}
+                      onChange={(e) => setInviteDepartment(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#C0FD9B]"
+                    >
+                      {orgDepartments.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="flex gap-2 pt-2">
                     <button
                       type="button"
                       onClick={handleCloseInviteModal}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={generatingInvite || !inviteEmail.trim()}
-                      className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-xs font-bold hover:bg-[#163331] transition cursor-pointer disabled:opacity-50"
+                      className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-[#C0FD9B] text-[13px] font-bold hover:bg-[#163331] transition cursor-pointer disabled:opacity-50"
                     >
                       {generatingInvite ? "Generating Link..." : "Create Single-Use Invite"}
                     </button>
@@ -961,13 +780,13 @@ function DashboardPage() {
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 text-emerald-700 bg-emerald-50 p-3 rounded-2xl border border-emerald-200">
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-                  <div className="text-xs font-semibold">
+                  <div className="text-[13px] font-semibold">
                     Single-use invite link created for <strong className="text-emerald-950 font-bold">{inviteEmail}</strong>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">
                     Invitation URL (Single-Use, Bound to Email)
                   </label>
                   <div className="flex items-center gap-2">
@@ -975,12 +794,12 @@ function DashboardPage() {
                       type="text"
                       readOnly
                       value={generatedInviteUrl}
-                      className="flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none select-all text-slate-800"
+                      className="flex-1 px-3 py-2 text-[13px] font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none select-all text-slate-800"
                     />
                     <button
                       type="button"
                       onClick={handleCopyGeneratedUrl}
-                      className="px-3 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-xs font-bold transition flex items-center space-x-1 cursor-pointer shrink-0"
+                      className="px-3 py-2 rounded-xl bg-[#0E2322] text-[#C0FD9B] hover:bg-[#163331] text-[13px] font-bold transition flex items-center space-x-1 cursor-pointer shrink-0"
                     >
                       {inviteCopied ? (
                         <>
@@ -997,7 +816,7 @@ function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 leading-relaxed">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[13px] text-slate-600 leading-relaxed">
                   <strong className="text-slate-900 font-semibold">How it works:</strong> Share this URL with your colleague. When they click it, they will sign in with Google or their email address to activate their {inviteRole} account and bind to <strong className="text-slate-900 font-semibold">{orgName}</strong>.
                 </div>
 
@@ -1005,14 +824,14 @@ function DashboardPage() {
                   <button
                     type="button"
                     onClick={handleResetForAnotherInvite}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     + Invite Another Member
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseInviteModal}
-                    className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-white text-xs font-bold hover:bg-[#163331] transition cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl bg-[#0E2322] text-white text-[13px] font-bold hover:bg-[#163331] transition cursor-pointer"
                   >
                     Done
                   </button>

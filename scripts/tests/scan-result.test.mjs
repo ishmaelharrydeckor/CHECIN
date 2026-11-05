@@ -49,6 +49,53 @@ test("an expired code is explained as expired", () => {
   assert.equal(f.kind, "expired");
 });
 
+test("a scan refused for being outside shift hours returns outside_shift with the exact title and detail", () => {
+  const early = describeScanFailure(
+    400,
+    "Your shift starts at 22:00. Scanning opens at 20:00.",
+    true,
+  );
+  assert.equal(early.kind, "outside_shift");
+  assert.equal(early.title, "Outside your shift hours");
+  assert.equal(
+    early.detail,
+    "Your check-in was not recorded. Your shift starts at 22:00. Scanning opens at 20:00.",
+  );
+
+  const late = describeScanFailure(
+    400,
+    "Your shift ended at 06:00 and scanning closed at 08:00. Please speak to your manager.",
+    true,
+  );
+  assert.equal(late.kind, "outside_shift");
+  assert.equal(late.title, "Outside your shift hours");
+  assert.equal(
+    late.detail,
+    "Your check-in was not recorded. Your shift ended at 06:00 and scanning closed at 08:00. Please speak to your manager.",
+  );
+
+  const flex = describeScanFailure(
+    400,
+    "Your flexible shift for 2026-10-12 has closed. Please speak to your manager.",
+    true,
+  );
+  assert.equal(flex.kind, "outside_shift");
+  assert.equal(flex.title, "Outside your shift hours");
+  assert.equal(
+    flex.detail,
+    "Your check-in was not recorded. Your flexible shift for 2026-10-12 has closed. Please speak to your manager.",
+  );
+
+  // Even if a shift message contained a word from the expired regex, outside_shift wins because it is checked first
+  const withExpiredWord = describeScanFailure(
+    400,
+    "Your shift expired at 06:00 and scanning closed at 08:00.",
+    true,
+  );
+  assert.equal(withExpiredWord.kind, "outside_shift");
+  assert.equal(isRetrySafeFailure(400), false);
+});
+
 test("a 400 that is not about the code falls through to a generic failure", () => {
   assert.equal(describeScanFailure(400, "Missing required token or locationId", true).kind, "other");
   assert.equal(describeScanFailure(400, "Invalid scanId", true).kind, "other");
@@ -59,6 +106,8 @@ test("messages never use exclamation marks", () => {
     const f = describeScanFailure(status, "Token expired", false);
     assert.doesNotMatch(f.title + f.detail, /!/);
   }
+  const shiftFail = describeScanFailure(400, "Your shift starts at 09:00. Scanning opens at 07:00.", true);
+  assert.doesNotMatch(shiftFail.title + shiftFail.detail, /!/);
 });
 
 test("only a network failure or a 5xx is safe to retry with the same scanId", () => {

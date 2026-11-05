@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/shift-patterns",
+      "schedule": "30 1 * * *"
+    }
+  ]
+}

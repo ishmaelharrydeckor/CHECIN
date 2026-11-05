@@ -7,6 +7,9 @@ import {
 } from "@/integrations/firebase/admin.server";
 import { checkRateLimit, clientIpFrom } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
+import { isValidZone } from "@/lib/timezone-options";
+import { buildDepartmentList, DEFAULT_DEPARTMENT } from "@/lib/departments";
+import { trialEndsAtFrom } from "@/lib/plans";
 
 export const Route = createFileRoute("/api/auth/register-org")({
   server: {
@@ -28,11 +31,22 @@ export const Route = createFileRoute("/api/auth/register-org")({
 
           const body = await request.json();
           const orgName = (body?.orgName || "").trim();
-          let timezone = String(body?.timezone || "UTC").trim();
-          try {
-            new Intl.DateTimeFormat("en-US", { timeZone: timezone });
-          } catch {
-            timezone = "UTC"; // unknown zone names fall back to UTC; admins can change it in Settings
+          // No timezone sent means UTC. One that is sent but not recognised is refused, not quietly
+          // replaced: a wrong timezone makes late flags and daily totals wrong without anyone noticing.
+          const timezone = String(body?.timezone || "UTC").trim();
+          if (!isValidZone(timezone)) {
+            return Response.json(
+              { error: "Please choose your timezone from the list." },
+              { status: 400 },
+            );
+          }
+          // Departments are optional at sign-up. Sent but invalid (too long, too many) is refused,
+          // not cut. Not sent means just "General"; the admin can add more later.
+          let departments: string[] = [DEFAULT_DEPARTMENT];
+          if (body?.departments !== undefined && body?.departments !== null) {
+            const built = buildDepartmentList(body.departments);
+            if (!built.ok) return Response.json({ error: built.error }, { status: 400 });
+            departments = built.list;
           }
           const email = (body?.email || "").trim().toLowerCase();
           const password = body?.password || "";
@@ -107,8 +121,12 @@ export const Route = createFileRoute("/api/auth/register-org")({
 
           await orgRef.set({
             name: orgName,
-            plan: "growth", // Default 14-day trial
+            plan: "growth", // the plan the trial is a trial of
+            // When the free trial ends. Organizations created before this field have no end date and keep every
+            // feature (src/lib/plans.ts). Nothing enforces it until PLAN_ENFORCEMENT is switched on.
+            trialEndsAt: trialEndsAtFrom(Date.now()),
             timezone,
+            departments,
             region: "nam5", // where this org's data lives; every org has one value today
             schemaVersion: 1,
             createdAt: new Date().toISOString(),

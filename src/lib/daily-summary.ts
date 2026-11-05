@@ -22,6 +22,13 @@ export interface SummaryIdentity {
   department: string;
   /** YYYY-MM-DD in the organization's timezone. */
   dayKey: string;
+  shiftId?: string;
+  shiftName?: string;
+  shiftStart?: string | null;
+  shiftEnd?: string | null;
+  /** The shift's fixed unpaid break, copied here so a report can work out paid time from the day alone. */
+  shiftUnpaidBreakMinutes?: number;
+  shiftDeductAfterMinutes?: number;
 }
 
 /** The parts of a clock event the summary needs. */
@@ -31,6 +38,8 @@ export interface SummaryEvent {
   timestamp: string;
   late?: boolean;
   earlyDeparture?: boolean;
+  /** A Lenient-mode record outside the allowed time: never part of a summary. */
+  outsideWindow?: boolean;
 }
 
 export interface DailySummary extends SummaryIdentity {
@@ -50,6 +59,11 @@ export interface DailySummary extends SummaryIdentity {
   eventCount: number;
   /** The first check-in of the day was after the reporting window. */
   late: boolean;
+  /**
+   * A manager excused the late mark (docs/LATE-EXCUSE-DESIGN.md). Set only by the excuse route. `late` stays
+   * exactly as recorded; every count uses late AND NOT excused.
+   */
+  lateExcused?: boolean;
   /** The latest check-out was before the closing time. */
   earlyDeparture: boolean;
   schemaVersion: number;
@@ -106,9 +120,29 @@ export function applyEventToSummary(
   if (!prev) {
     // First scan of the day. A check-out with nothing before it (the check-in
     // happened on an earlier day) is recorded but opens and closes nothing.
+    // Firestore rejects keys with value `undefined`, so shift fields are only added when present.
     const isIn = event.type === "in";
+    const shiftFields: Partial<
+      Pick<
+        SummaryIdentity,
+        "shiftId" | "shiftName" | "shiftStart" | "shiftEnd" | "shiftUnpaidBreakMinutes" | "shiftDeductAfterMinutes"
+      >
+    > = {};
+    if (identity.shiftId !== undefined) shiftFields.shiftId = identity.shiftId;
+    if (identity.shiftName !== undefined) shiftFields.shiftName = identity.shiftName;
+    if (identity.shiftStart !== undefined) shiftFields.shiftStart = identity.shiftStart;
+    if (identity.shiftEnd !== undefined) shiftFields.shiftEnd = identity.shiftEnd;
+    if (identity.shiftUnpaidBreakMinutes !== undefined) shiftFields.shiftUnpaidBreakMinutes = identity.shiftUnpaidBreakMinutes;
+    if (identity.shiftDeductAfterMinutes !== undefined) shiftFields.shiftDeductAfterMinutes = identity.shiftDeductAfterMinutes;
+
     return {
-      ...identity,
+      orgId: identity.orgId,
+      managerId: identity.managerId,
+      employeeId: identity.employeeId,
+      employeeName: identity.employeeName,
+      department: identity.department,
+      dayKey: identity.dayKey,
+      ...shiftFields,
       firstIn: isIn ? event.timestamp : null,
       lastOut: isIn ? null : event.timestamp,
       lastEventType: event.type,
@@ -169,7 +203,7 @@ export function summaryFromEvents(
   identity: SummaryIdentity,
   nowIso: string,
 ): DailySummary | null {
-  const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const sorted = events.filter((e) => e.outsideWindow !== true).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   let summary: DailySummary | null = null;
   for (const e of sorted) summary = applyEventToSummary(summary, e, identity, nowIso);
   return summary;

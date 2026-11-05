@@ -751,7 +751,7 @@ export function InAppNotificationCenter({ userId }: { userId: string }) {
       </Button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border bg-popover text-popover-foreground shadow-xl z-50 overflow-hidden">
+        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-96 rounded-2xl border bg-popover text-popover-foreground shadow-xl z-50 overflow-hidden">
           <div className="p-3.5 border-b flex items-center justify-between bg-muted/30">
             <div className="flex items-center gap-2">
               <Bell className="size-4 text-primary" />

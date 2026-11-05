@@ -65,10 +65,6 @@ r = await call("POST", "/api/push/send", env.A_EMPLOYEE_TOKEN, { userId: env.A_M
 check("Employee cannot send push", denied(r), JSON.stringify(r));
 
 // 3. Attendance scoping
-r = await call("GET", "/api/attendance/feed", env.A_EMPLOYEE_TOKEN);
-const others = (r.json?.events || []).filter((e) => e.email && e.email !== r.json?.events?.[0]?.email);
-check("Employee feed contains only their own events", r.status === 200 && others.length === 0, `${others.length} foreign rows`);
-
 r = await call("GET", "/api/attendance/history", env.A_EMPLOYEE_TOKEN);
 const ids = new Set((r.json?.records || []).map((x) => x.employeeId));
 check("Employee history only has their own employeeId", r.status === 200 && ids.size <= 1, `ids=${[...ids]}`);

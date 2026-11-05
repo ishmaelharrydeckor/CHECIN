@@ -13,6 +13,9 @@ import appCss from "../styles.css?url";
 import { registerPushServiceWorker } from "@/lib/push-client";
 import { Toaster } from "@/components/ui/sonner";
 
+// Same value on the server and in the browser (set at build time), so the tag never changes between them.
+const SHARE_IMAGE = `${import.meta.env.VITE_APP_ORIGIN || "https://checin.app"}/share-card.jpg`;
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A1612] text-white px-4 font-sans">
@@ -93,7 +96,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "ChecIN" },
       { property: "og:type", content: "website" },
+      // The picture shown when a link is shared (WhatsApp, LinkedIn, Slack). Must be an absolute address.
+      { property: "og:image", content: SHARE_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "ChecIN: attendance that proves people were actually there" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: SHARE_IMAGE },
       { name: "twitter:title", content: "ChecIN — Unified Workforce Attendance Platform" },
       {
         name: "twitter:description",
@@ -102,21 +111,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
     links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap",
-      },
+      // The main font is fetched right away so text does not jump when it arrives. The fonts are our own
+      // files (public/fonts), so no page contacts another company to show its text.
+      { rel: "preload", href: "/fonts/inter-latin.woff2", as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.json" },
       // All icons are generated from favicon.svg (the ChecIN mark). The ?v= suffix forces browsers
       // to drop any previously cached icon; bump it whenever the artwork changes.
-      { rel: "icon", href: "/favicon.svg?v=2", type: "image/svg+xml" },
-      { rel: "icon", href: "/favicon-32x32.png?v=2", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon-16x16.png?v=2", type: "image/png", sizes: "16x16" },
-      { rel: "shortcut icon", href: "/favicon.ico?v=2" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
+      { rel: "icon", href: "/favicon.svg?v=3", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
+      { rel: "shortcut icon", href: "/favicon.ico?v=3" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3" },
     ],
   }),
   shellComponent: RootShell,
