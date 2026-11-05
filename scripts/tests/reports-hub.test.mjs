@@ -64,7 +64,7 @@ const timesheets = read("src/routes/_authenticated/reports.timesheets.tsx");
 const attendance = read("src/routes/_authenticated/attendance-reports.tsx");
 const shell = read("src/components/AppShell.tsx");
 
-test("the reports menu item now opens the hub, and the old timesheets page moved under it, unchanged in behaviour", () => {
+test("the reports menu item now opens the hub, and the timesheets page sits under it", () => {
   assert.ok(shell.includes('{ to: "/reports", label: "Reports", icon: FileBarChart }'));
   assert.ok(hubPage.includes('createFileRoute("/_authenticated/reports/")'));
   assert.ok(timesheets.includes('createFileRoute("/_authenticated/reports/timesheets")'));
@@ -95,4 +95,20 @@ test("the preview opens the tab it is about, and anything else shows the registe
   assert.ok(attendance.includes('search.tab === "leave" ? "leave"'));
   assert.ok(attendance.includes('useState<"register" | "leave">(search.tab ?? "register")'));
   assert.ok(hub.includes('search={{ tab: report.tab }}'));
+});
+
+test("T0: the old timesheet estimates are switched off and the page points to the register", () => {
+  // docs/TIMESHEET-DESIGN.md section 8, test 8: nothing in the page may work out hours in the browser.
+  assert.ok(!timesheets.includes("/api/attendance/history"), "no scan events are loaded");
+  assert.ok(!/getHours|getMinutes|toISOString\(\)\.split|\* 8|8\.0/.test(timesheets), "no fixed 8 hours, no 09:15, no device clock");
+  assert.ok(!/exportTo(CSV|Excel|PDF)/.test(timesheets), "nothing to download from estimates");
+  assert.ok(!timesheets.includes("firebaseAuth"), "it asks the server for nothing");
+  assert.ok(timesheets.includes('to="/attendance-reports"') && timesheets.includes('tab: "register"'));
+  assert.match(timesheets, /rebuilding/i);
+});
+
+test("T0: the hub card says the timesheet is being rebuilt", () => {
+  const card = HUB_REPORTS.find((r) => r.id === "timesheets");
+  assert.match(card.description, /Being rebuilt/);
+  assert.doesNotMatch(card.description, /Excel|worked out from entrance scans/);
 });
