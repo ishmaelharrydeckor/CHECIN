@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CalendarClock, CalendarDays, Check, FileText, Megaphone, UserCog, type LucideIcon } from "lucide-react";
+import { Bell, CalendarClock, CalendarDays, Check, FileText, Megaphone, UserCog, type LucideIcon } from "lucide-react";
 import type { NotificationItem as Item, NotificationType } from "@/lib/notifications";
 
 const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
@@ -8,6 +8,7 @@ const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   REPORT: FileText,
   SHIFT: CalendarClock,
   ACCOUNT: UserCog,
+  SYSTEM: Bell,
 };
 
 /**

@@ -46,3 +46,14 @@ export function sendErrorMessage(message?: string | null): string {
   const trimmed = typeof message === "string" ? message.trim() : "";
   return trimmed || "We couldn't send the email. Please try again in a minute.";
 }
+
+/** The sentence for a failed send, from Firebase's error code. Anything unknown gets the default. */
+export function verifySendErrorMessage(code?: string | null): string {
+  if (code === "auth/too-many-requests") {
+    return "We sent too many emails to this address just now. Please wait a few minutes and try again.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "No connection. Check your internet and try again.";
+  }
+  return sendErrorMessage(null);
+}

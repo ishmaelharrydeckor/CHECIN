@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChangePasswordCard } from "@/components/ChangePasswordCard";
 import { ReportProblemCard } from "@/components/ReportProblemDialog";
-import { PushNotificationManager } from "@/components/PushNotificationManager";
+import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
+import { ThisDeviceCard } from "@/components/notifications/ThisDeviceCard";
+import { VerifyEmailBannerCard } from "@/components/verify/VerifyEmailBannerCard";
 import { deactivateThisDeviceOnServer } from "@/lib/push-client";
 import { toast } from "sonner";
 import {
@@ -139,11 +141,15 @@ function AccountPage() {
         </CardContent>
       </Card>
 
+      {/* Only shows while the sign-in email is not verified; never blocks anything */}
+      <VerifyEmailBannerCard />
+
       {/* Change password (email/password accounts only) */}
       <ChangePasswordCard />
 
       {/* Notifications on this phone: the only place an employee can switch them on */}
-      <PushNotificationManager />
+      <ThisDeviceCard />
+      <NotificationPreferencesCard />
 
       {/* Report a problem */}
       <ReportProblemCard />

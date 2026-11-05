@@ -13,7 +13,6 @@ import {
   sortNewestFirst,
   unreadBadgeLabel,
 } from "../../src/lib/notifications.ts";
-import { SAMPLE_NOTIFICATIONS, SAMPLE_PREFS } from "../../src/lib/notifications-sample.ts";
 
 test("the badge: nothing at 0, the number up to 9, then 9+", () => {
   const cases = [
@@ -44,6 +43,12 @@ test("this device's state comes from the browser status and the subscription", (
   assert.equal(devicePushStateFrom("something new", true), "off");
 });
 
+const SAMPLE_NOTIFICATIONS = [
+  { id: "a", type: "ANNOUNCEMENT", title: "A", body: "a", url: "/announcements", createdAt: "2026-11-05T09:00:00.000Z", createdAtLabel: "5 Nov, 09:00", isRead: false },
+  { id: "b", type: "LEAVE", title: "B", body: "b", url: "/leave", createdAt: "2026-11-04T09:00:00.000Z", createdAtLabel: "4 Nov, 09:00", isRead: false },
+  { id: "c", type: "SYSTEM", title: "C", body: "c", url: "/notifications", createdAt: "2026-11-03T09:00:00.000Z", createdAtLabel: "3 Nov, 09:00", isRead: true },
+];
+
 test("marking read never changes the list it is given", () => {
   const items = Object.freeze(SAMPLE_NOTIFICATIONS.map((i) => Object.freeze({ ...i })));
   const unreadId = items.find((i) => !i.isRead).id;
@@ -71,17 +76,7 @@ test("only links inside the app are followed", () => {
   assert.equal(safeNotificationUrl(undefined), "/notifications");
 });
 
-test("the sample data covers the cases the screens must handle", () => {
-  assert.ok(SAMPLE_NOTIFICATIONS.some((i) => i.isRead) && SAMPLE_NOTIFICATIONS.some((i) => !i.isRead));
-  assert.ok(SAMPLE_NOTIFICATIONS.some((i) => i.body.length > 200), "a long body");
-  assert.ok(SAMPLE_NOTIFICATIONS.length > BELL_LIST_SIZE, "more than the bell shows");
-  const types = new Set(SAMPLE_NOTIFICATIONS.map((i) => i.type));
-  for (const t of ["ANNOUNCEMENT", "LEAVE", "REPORT", "SHIFT", "ACCOUNT"]) assert.ok(types.has(t), t);
-  for (const i of SAMPLE_NOTIFICATIONS) {
-    assert.ok(i.createdAtLabel, `${i.id} has a server-style time label`);
-    assert.equal(safeNotificationUrl(i.url), i.url, `${i.id} links inside the app`);
-  }
-  assert.deepEqual(Object.keys(SAMPLE_PREFS).sort(), ["account", "announcements", "leave", "pushEnabled", "shifts"]);
+test("the card lists the four categories and the sizes stay small", () => {
   assert.deepEqual(NOTIFICATION_CATEGORIES.map((c) => c.key), ["announcements", "leave", "shifts", "account"]);
   assert.equal(BELL_LIST_SIZE, 5);
   assert.ok(INBOX_PAGE_SIZE <= 20, "style guide 7b: at most 20 rows at a time");
@@ -90,7 +85,6 @@ test("the sample data covers the cases the screens must handle", () => {
 const read = (p) => readFileSync(p, "utf8");
 const files = [
   "src/lib/notifications.ts",
-  "src/lib/notifications-sample.ts",
   "src/components/notifications/useNotifications.ts",
   "src/components/notifications/NotificationBell.tsx",
   "src/components/notifications/NotificationItem.tsx",
@@ -98,17 +92,16 @@ const files = [
   "src/components/notifications/NotificationPreferencesCard.tsx",
   "src/components/notifications/DevicePushCard.tsx",
   "src/routes/_authenticated/notifications.tsx",
-  "src/routes/notifications-preview.tsx",
 ];
 
 test("the screens exist", () => {
   for (const f of files) assert.ok(existsSync(f), f);
 });
 
-test("screens only: no fetch, no Firebase, no timers, no push-client changes", () => {
+test("only the hook fetches; the screens use no Firebase, no timers and no device time formatting", () => {
   for (const f of files) {
     const src = read(f);
-    assert.doesNotMatch(src, /\bfetch\(/, `${f} must not fetch`);
+    if (!f.endsWith("useNotifications.ts")) assert.doesNotMatch(src, /\bfetch\(/, `${f} must not fetch`);
     assert.doesNotMatch(src, /from\s+["'][^"']*firebase/i, `${f} must not import Firebase`);
     assert.doesNotMatch(src, /setInterval|setTimeout/, `${f} must not use timers`);
     assert.doesNotMatch(src, /toLocale(Time|Date)?String/, `${f} must not format times on the device`);
@@ -117,7 +110,7 @@ test("screens only: no fetch, no Firebase, no timers, no push-client changes", (
 
 test("data comes only from the hook, which refreshes on bell open and tab focus", () => {
   const hook = read("src/components/notifications/useNotifications.ts");
-  assert.match(hook, /notifications-sample/);
+  assert.match(hook, /\/api\/push\/notifications/);
   assert.match(hook, /"focus"/);
   assert.match(hook, /visibilitychange/);
   for (const f of files.filter((f) => f.includes("/components/") && !f.endsWith("useNotifications.ts"))) {
@@ -134,10 +127,4 @@ test("every device state is built, and email and SMS are shown as not yet availa
   assert.match(prefs, /Email/);
   assert.match(prefs, /SMS/);
   assert.match(prefs, /Coming later/);
-});
-
-test("the preview route is marked temporary", () => {
-  const src = read("src/routes/notifications-preview.tsx");
-  assert.match(src, /TEMPORARY PREVIEW/);
-  assert.match(src, /noindex/);
 });

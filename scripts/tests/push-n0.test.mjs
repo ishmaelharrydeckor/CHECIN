@@ -152,7 +152,7 @@ test("signing in re-attaches an already-allowed phone to the new person", () => 
 
 test("employees can reach the switch: the Account page offers notifications", () => {
   const account = read("src/routes/_authenticated/account.tsx");
-  assert.ok(account.includes("<PushNotificationManager"));
+  assert.ok(account.includes("<ThisDeviceCard"), "the switch is the This-device card");
 });
 
 // ---- re-attaching a phone only when it changed ------------------------------------------------
