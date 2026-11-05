@@ -16,11 +16,11 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 1.5 | Remove demo/mock leftovers | S | integrator | live | none |
 | 1.1 | Leave requests (basic) | M | Cobberson | live | none |
 | 2.5 | Public holiday calendar | S | Augustine | live | none |
-| 1.2 | Employee self-service page ("My page") | M | Cobberson (#14) | on staging, not yet tested | 1.1 (done) |
-| 2.1 | Reports: attendance register and leave ledger | M | Cobberson (#16) | on staging (screens and real data), not yet tested | 1.1 (done) |
+| 1.2 | Employee self-service page ("My page") | M | Cobberson (#14) | on staging; tested and passed in rounds 5 to 7 (see TEST-LOG.md) | 1.1 (done) |
+| 2.1 | Reports: attendance register and leave ledger | M | Cobberson (#16) | on staging (screens and real data); tested and passed in rounds 5 to 7 (see TEST-LOG.md) | 1.1 (done) |
 | 1.6 | Manager dashboard: Today panel | M | Augustine (#13) | on staging as a screen with sample data; the integrator connects it to the real data next | none |
-| 2.3 | Work from home: employee card and manager list | M | Cobberson (#17, #98) | on staging with real data (card on My page, Today panel, register); not yet tested | 1.1 (done) |
-| 2.4 | Dashboard analytics | M | Augustine (#97) | on staging with real numbers (Dashboard, under Today); not yet tested | daily summaries (done) |
+| 2.3 | Work from home: employee card and manager list | M | Cobberson (#17, #98) | on staging with real data (card on My page, Today panel, register); tested and passed in rounds 5 to 7 (see TEST-LOG.md) | 1.1 (done) |
+| 2.4 | Dashboard analytics | M | Augustine (#97) | on staging with real numbers (Dashboard, under Today); tested and passed in rounds 5 to 7 (see TEST-LOG.md) | daily summaries (done) |
 | 3.1-P6 | Shifts phase 6: repeating patterns | L | Augustine | todo. Brief below; start now | shifts phases 1 to 5b (done) |
 | 2.3b | Work-from-home diary | L | Augustine | todo. Starts after 3.1-P6 is merged. Design approved (docs/WFH-DIARY-DESIGN.md) | 2.3 (done), 3.1-P6 |
 | 3.1-P7 | Shifts phase 7: shift swaps | L | Augustine | todo. Starts after 3.1-P6 is merged. Brief below | 3.1-P6 |
