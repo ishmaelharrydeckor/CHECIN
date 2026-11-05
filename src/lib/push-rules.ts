@@ -57,3 +57,19 @@ export function subscriptionOwnerFromClaims(claims: {
     managerId: text(claims.managerId),
   };
 }
+
+/** What the browser last told the server about this phone. */
+export interface PushSyncNote {
+  userId?: string;
+  endpoint?: string;
+}
+
+/**
+ * True when the phone must be (re)attached to the signed-in person: nothing was recorded yet, the
+ * person is different, or the phone's push address is different. Otherwise a page load changes
+ * nothing, so it must not cost a request (the subscribe route is rate-limited per person).
+ */
+export function needsPushSync(last: PushSyncNote | null, current: { userId: string; endpoint: string }): boolean {
+  if (!last || !last.userId || !last.endpoint) return true;
+  return last.userId !== current.userId || last.endpoint !== current.endpoint;
+}

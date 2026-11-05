@@ -1,6 +1,7 @@
 // Client-side Web Push Notification Manager
 // ChecIN Corporate Attendance & Workforce Platform
 import { firebaseAuth } from "@/integrations/firebase/config";
+import { needsPushSync, type PushSyncNote } from "@/lib/push-rules";
 
 /**
  * Headers for a call to a push route, carrying the signed-in person's own ID token. The server
@@ -283,6 +284,7 @@ export async function unsubscribeDeviceFromPush(userContext: PushUserContext): P
     if (sub) {
       const endpoint = sub.endpoint;
       await sub.unsubscribe();
+      forgetPushSync();
 
       const headers = await authHeaders({ "Content-Type": "application/json" }, userContext.token);
 
@@ -306,6 +308,8 @@ export async function unsubscribeDeviceFromPush(userContext: PushUserContext): P
  * Best effort with a short time limit; signing out must never hang or fail because of this.
  */
 export async function deactivateThisDeviceOnServer(timeoutMs = 2500): Promise<void> {
+  // The phone no longer belongs to this person: forget the note so the next sign-in re-attaches it.
+  forgetPushSync();
   try {
     if (!isPushSupported()) return;
     const reg = await navigator.serviceWorker.getRegistration("/");
@@ -341,14 +345,47 @@ export async function syncPushSubscriptionOnLogin(): Promise<void> {
     if (getPushPermissionStatus() !== "granted") return;
     const sub = await getExistingPushSubscription();
     if (!sub) return;
+    const userId = firebaseAuth.currentUser?.uid;
+    if (!userId) return;
+    // Only when the person or the phone changed: a page reload must not cost a request.
+    if (!needsPushSync(readPushSync(), { userId, endpoint: sub.endpoint })) return;
     const headers = await authHeaders({ "Content-Type": "application/json" });
     if (!headers.Authorization) return;
-    await fetch("/api/push/subscribe", {
+    const res = await fetch("/api/push/subscribe", {
       method: "POST",
       headers,
       body: JSON.stringify({ subscription: sub.toJSON(), device: getDeviceDetails() }),
     });
+    if (res.ok) writePushSync({ userId, endpoint: sub.endpoint });
   } catch {
     // Not critical; the person can switch notifications on again from their Account page.
+  }
+}
+
+const PUSH_SYNC_KEY = "checin.pushSync";
+
+function readPushSync(): PushSyncNote | null {
+  try {
+    const raw = localStorage.getItem(PUSH_SYNC_KEY);
+    return raw ? (JSON.parse(raw) as PushSyncNote) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePushSync(note: PushSyncNote): void {
+  try {
+    localStorage.setItem(PUSH_SYNC_KEY, JSON.stringify(note));
+  } catch {
+    // Private mode: the phone is simply re-attached on the next load.
+  }
+}
+
+/** Forget which person this phone was attached to (signing out, or switching notifications off). */
+export function forgetPushSync(): void {
+  try {
+    localStorage.removeItem(PUSH_SYNC_KEY);
+  } catch {
+    // Nothing to forget.
   }
 }

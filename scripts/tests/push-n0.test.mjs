@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { pushConfigProblem, subscriptionOwnerFromClaims } from "../../src/lib/push-rules.ts";
+import { pushConfigProblem, subscriptionOwnerFromClaims, needsPushSync } from "../../src/lib/push-rules.ts";
 
 const read = (p) => readFileSync(p, "utf8").replace(/\r\n/g, "\n");
 
@@ -153,4 +153,22 @@ test("signing in re-attaches an already-allowed phone to the new person", () => 
 test("employees can reach the switch: the Account page offers notifications", () => {
   const account = read("src/routes/_authenticated/account.tsx");
   assert.ok(account.includes("<PushNotificationManager"));
+});
+
+// ---- re-attaching a phone only when it changed ------------------------------------------------
+
+test("a phone is re-attached only when the person or the device changed", () => {
+  assert.equal(needsPushSync(null, { userId: "u1", endpoint: "e1" }), true, "never synced");
+  assert.equal(needsPushSync({ userId: "u1", endpoint: "e1" }, { userId: "u1", endpoint: "e1" }), false, "same person, same phone");
+  assert.equal(needsPushSync({ userId: "u1", endpoint: "e1" }, { userId: "u2", endpoint: "e1" }), true, "another person signed in");
+  assert.equal(needsPushSync({ userId: "u1", endpoint: "e1" }, { userId: "u1", endpoint: "e2" }), true, "the phone got a new subscription");
+  assert.equal(needsPushSync({ userId: "u1" }, { userId: "u1", endpoint: "e1" }), true, "an incomplete note counts as changed");
+});
+
+test("signing in re-attaches through the rule, and sign-out forgets the note", () => {
+  const client = read("src/lib/push-client.ts");
+  const sync = client.slice(client.indexOf("export async function syncPushSubscriptionOnLogin"));
+  assert.ok(sync.includes("needsPushSync("), "the sync asks the rule first");
+  const off = client.slice(client.indexOf("export async function deactivateThisDeviceOnServer"), client.indexOf("export async function syncPushSubscriptionOnLogin"));
+  assert.ok(off.includes("forgetPushSync"), "signing out clears the note, so the next sign-in re-attaches");
 });
