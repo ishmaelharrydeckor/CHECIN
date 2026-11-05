@@ -31,6 +31,7 @@ import {
   listenToDeviceStatus,
 } from "@/lib/device-manager";
 import { InAppNotificationCenter } from "@/components/PushNotificationManager";
+import { deactivateThisDeviceOnServer, syncPushSubscriptionOnLogin } from "@/lib/push-client";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { JumpTo } from "@/components/nav/JumpTo";
 import { useNavCounts } from "@/components/nav/useNavCounts";
@@ -222,6 +223,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const handleSignOut = async () => {
     try {
       clearUserAppCache();
+      // While still signed in, stop this phone receiving this person's notifications.
+      await deactivateThisDeviceOnServer();
       await fbSignOut(firebaseAuth);
       toast.success("Signed out successfully");
       navigate({ to: "/auth" });
@@ -239,12 +242,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     const unsub = listenToDeviceStatus(user.id, deviceId, () => {
       toast.error("This device session has been revoked from another device.");
-      fbSignOut(firebaseAuth);
+      void deactivateThisDeviceOnServer().finally(() => fbSignOut(firebaseAuth));
       navigate({ to: "/auth" });
     });
 
     return () => unsub();
   }, [user?.id, navigate]);
+
+  // If this phone has already allowed notifications, attach it to whoever is signed in now.
+  useEffect(() => {
+    if (user?.id) void syncPushSubscriptionOnLogin();
+  }, [user?.id]);
 
   const groups = navGroupsFor(canManage);
   const crumb = breadcrumbFor(pathname, groups);

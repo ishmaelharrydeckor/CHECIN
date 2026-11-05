@@ -5,13 +5,15 @@ import { createHash } from "crypto";
 import { FieldPath } from "firebase-admin/firestore";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import type { CorporateRole } from "@/lib/auth-claims";
+import { pushConfigProblem, type PushOwner } from "@/lib/push-rules";
 
 export const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 export const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@checin.app";
 
+const configProblem = pushConfigProblem(process.env);
 let webPushInitialized = false;
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+if (!configProblem) {
   try {
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
     webPushInitialized = true;
@@ -19,7 +21,17 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     console.error("[WebPush] Initialization error:", err);
   }
 } else {
-  console.warn("[WebPush] VAPID keys not configured in environment. Push notifications are disabled.");
+  // On a deployed server a missing key is an outage, so it is logged as an error; locally it is a note.
+  (process.env.VERCEL_ENV ? console.error : console.warn)(`[WebPush] ${configProblem}`);
+}
+
+/**
+ * A plain-language reason push cannot work on this server, or null when it can. Routes answer
+ * with it (HTTP 503) so a missing key is visible, instead of every send quietly doing nothing.
+ */
+export function pushNotConfigured(): string | null {
+  if (webPushInitialized) return null;
+  return configProblem ?? "Push notifications could not be started on this server.";
 }
 
 export type NotificationType =
@@ -75,8 +87,7 @@ const subscriptionsCol = () => firestoreAdmin.collection("push_subscriptions");
 
 /** Save or update a device's push subscription in Firestore */
 export async function savePushSubscription(
-  userId: string,
-  userRole: CorporateRole,
+  owner: PushOwner,
   subscription: {
     endpoint: string;
     keys: { p256dh: string; auth: string };
@@ -86,10 +97,10 @@ export async function savePushSubscription(
     browser?: string;
     userAgent?: string;
     isStandalone?: boolean;
-    orgId?: string;
-    managerId?: string | null;
   } = {},
 ): Promise<StoredPushSubscription> {
+  // Who the device belongs to (and their org and team) comes from the verified token only.
+  const { userId, userRole } = owner;
   if (
     !subscription ||
     !subscription.endpoint ||
@@ -110,8 +121,8 @@ export async function savePushSubscription(
     id: docId,
     userId: cleanUserId,
     userRole,
-    orgId: deviceInfo.orgId || existing?.orgId || null,
-    managerId: deviceInfo.managerId || existing?.managerId || null,
+    orgId: owner.orgId,
+    managerId: owner.managerId,
     endpoint: subscription.endpoint,
     keys: {
       p256dh: subscription.keys.p256dh,

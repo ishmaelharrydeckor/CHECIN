@@ -1,5 +1,24 @@
 // Client-side Web Push Notification Manager
 // ChecIN Corporate Attendance & Workforce Platform
+import { firebaseAuth } from "@/integrations/firebase/config";
+import { needsPushSync, type PushSyncNote } from "@/lib/push-rules";
+
+/**
+ * Headers for a call to a push route, carrying the signed-in person's own ID token. The server
+ * works out who is calling from this token alone; without it every push route answers 401.
+ */
+export async function authHeaders(
+  extra: Record<string, string> = {},
+  fallbackToken?: string,
+): Promise<Record<string, string>> {
+  let token = fallbackToken;
+  try {
+    token = (await firebaseAuth.currentUser?.getIdToken()) || fallbackToken;
+  } catch {
+    // Fall back to whatever token the caller supplied.
+  }
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+}
 
 export interface PushUserContext {
   userId: string;
@@ -231,22 +250,12 @@ export async function subscribeDeviceToPush(userContext: PushUserContext): Promi
   const subJSON = sub.toJSON();
   const device = getDeviceDetails();
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (userContext.token) {
-    headers["Authorization"] = `Bearer ${userContext.token}`;
-  }
+  const headers = await authHeaders({ "Content-Type": "application/json" }, userContext.token);
 
   const res = await fetch("/api/push/subscribe", {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      subscription: subJSON,
-      userContext: {
-        userId: userContext.userId,
-        userRole: userContext.userRole,
-      },
-      device,
-    }),
+    body: JSON.stringify({ subscription: subJSON, device }),
   });
 
   if (!res.ok) {
@@ -275,24 +284,108 @@ export async function unsubscribeDeviceFromPush(userContext: PushUserContext): P
     if (sub) {
       const endpoint = sub.endpoint;
       await sub.unsubscribe();
+      forgetPushSync();
 
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (userContext.token) {
-        headers["Authorization"] = `Bearer ${userContext.token}`;
-      }
+      const headers = await authHeaders({ "Content-Type": "application/json" }, userContext.token);
 
       await fetch("/api/push/subscribe", {
         method: "DELETE",
         headers,
-        body: JSON.stringify({
-          endpoint,
-          userId: userContext.userId,
-        }),
+        body: JSON.stringify({ endpoint }),
       });
     }
     return true;
   } catch (err) {
     console.error("Failed to unsubscribe:", err);
     return false;
+  }
+}
+
+/**
+ * Called just before signing out: tells the server this phone no longer belongs to that person,
+ * so the next person to use the phone does not receive their notifications. The phone's own
+ * permission is left alone, so signing back in re-attaches it (see syncPushSubscriptionOnLogin).
+ * Best effort with a short time limit; signing out must never hang or fail because of this.
+ */
+export async function deactivateThisDeviceOnServer(timeoutMs = 2500): Promise<void> {
+  // The phone no longer belongs to this person: forget the note so the next sign-in re-attaches it.
+  forgetPushSync();
+  try {
+    if (!isPushSupported()) return;
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return;
+    const headers = await authHeaders({ "Content-Type": "application/json" });
+    if (!headers.Authorization) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      await fetch("/api/push/subscribe", {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    // Offline or slow: sign-out carries on regardless.
+  }
+}
+
+/**
+ * Called after signing in: if this phone has already allowed notifications, attach it to the
+ * person who just signed in (the server re-binds a device to whoever registers it). Silent;
+ * does nothing when notifications were never allowed on this device.
+ */
+export async function syncPushSubscriptionOnLogin(): Promise<void> {
+  try {
+    if (getPushPermissionStatus() !== "granted") return;
+    const sub = await getExistingPushSubscription();
+    if (!sub) return;
+    const userId = firebaseAuth.currentUser?.uid;
+    if (!userId) return;
+    // Only when the person or the phone changed: a page reload must not cost a request.
+    if (!needsPushSync(readPushSync(), { userId, endpoint: sub.endpoint })) return;
+    const headers = await authHeaders({ "Content-Type": "application/json" });
+    if (!headers.Authorization) return;
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ subscription: sub.toJSON(), device: getDeviceDetails() }),
+    });
+    if (res.ok) writePushSync({ userId, endpoint: sub.endpoint });
+  } catch {
+    // Not critical; the person can switch notifications on again from their Account page.
+  }
+}
+
+const PUSH_SYNC_KEY = "checin.pushSync";
+
+function readPushSync(): PushSyncNote | null {
+  try {
+    const raw = localStorage.getItem(PUSH_SYNC_KEY);
+    return raw ? (JSON.parse(raw) as PushSyncNote) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePushSync(note: PushSyncNote): void {
+  try {
+    localStorage.setItem(PUSH_SYNC_KEY, JSON.stringify(note));
+  } catch {
+    // Private mode: the phone is simply re-attached on the next load.
+  }
+}
+
+/** Forget which person this phone was attached to (signing out, or switching notifications off). */
+export function forgetPushSync(): void {
+  try {
+    localStorage.removeItem(PUSH_SYNC_KEY);
+  } catch {
+    // Nothing to forget.
   }
 }
