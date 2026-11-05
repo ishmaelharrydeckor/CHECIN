@@ -24,7 +24,7 @@ export const HUB_REPORTS: readonly HubReport[] = [
   {
     id: "timesheets",
     title: "Timesheets",
-    description: "Being rebuilt. Until it is ready, the attendance register has the hours worked by every person on every day.",
+    description: "Hours worked, expected and the difference for each person over a range, opened day by day. Download as CSV, Excel or PDF.",
     openTo: "/reports/timesheets",
   },
   {

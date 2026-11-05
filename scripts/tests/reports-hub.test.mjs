@@ -69,7 +69,7 @@ test("the reports menu item now opens the hub, and the timesheets page sits unde
   assert.ok(hubPage.includes('createFileRoute("/_authenticated/reports/")'));
   assert.ok(timesheets.includes('createFileRoute("/_authenticated/reports/timesheets")'));
   assert.ok(!existsSync("src/routes/_authenticated/reports.tsx"), "the old file would clash with the hub");
-  assert.ok(timesheets.includes('<Link to="/reports">All reports</Link>'), "a way back to the hub");
+  assert.ok(read("src/components/timesheet/TimesheetView.tsx").includes('<Link to="/reports">All reports</Link>'), "a way back to the hub");
 });
 
 test("everything under /reports is still closed to employees", () => {
@@ -97,18 +97,15 @@ test("the preview opens the tab it is about, and anything else shows the registe
   assert.ok(hub.includes('search={{ tab: report.tab }}'));
 });
 
-test("T0: the old timesheet estimates are switched off and the page points to the register", () => {
-  // docs/TIMESHEET-DESIGN.md section 8, test 8: nothing in the page may work out hours in the browser.
-  assert.ok(!timesheets.includes("/api/attendance/history"), "no scan events are loaded");
-  assert.ok(!/getHours|getMinutes|toISOString\(\)\.split|\* 8|8\.0/.test(timesheets), "no fixed 8 hours, no 09:15, no device clock");
-  assert.ok(!/exportTo(CSV|Excel|PDF)/.test(timesheets), "nothing to download from estimates");
-  assert.ok(!timesheets.includes("firebaseAuth"), "it asks the server for nothing");
-  assert.ok(timesheets.includes('to="/attendance-reports"') && timesheets.includes('tab: "register"'));
-  assert.match(timesheets, /rebuilding/i);
+test("the timesheets page shows the real timesheet, for managers and admins only", () => {
+  assert.ok(timesheets.includes("<TimesheetView />"));
+  assert.ok(timesheets.includes("if (!isOrgAdmin && !isManager) return null;"));
+  assert.ok(!/rebuilding/i.test(timesheets), "the notice from T0 is gone");
 });
 
-test("T0: the hub card says the timesheet is being rebuilt", () => {
+test("the hub card describes the new timesheet and still opens the timesheets page", () => {
   const card = HUB_REPORTS.find((r) => r.id === "timesheets");
-  assert.match(card.description, /Being rebuilt/);
-  assert.doesNotMatch(card.description, /Excel|worked out from entrance scans/);
+  assert.equal(card.openTo, "/reports/timesheets");
+  assert.match(card.description, /expected/i);
+  assert.doesNotMatch(card.description, /Being rebuilt|worked out from entrance scans/);
 });
