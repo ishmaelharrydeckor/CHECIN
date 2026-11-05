@@ -4,6 +4,7 @@ import {
   verifyCallerToken,
 } from "@/integrations/firebase/admin.server";
 import { isValidTimezone } from "@/lib/attendance-windows";
+import { timezoneNeedsConfirmation } from "@/lib/timezone-check";
 
 export const Route = createFileRoute("/api/organization/")({
   server: {
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/api/organization/")({
                 name: "My Organization",
                 plan: "Growth (14-Day Trial)",
                 timezone: "UTC",
+                timezoneNeedsConfirmation: true,
                 createdAt: new Date().toISOString(),
               },
             });
@@ -64,6 +66,8 @@ export const Route = createFileRoute("/api/organization/")({
               name: data?.name || "My Organization",
               plan: data?.plan ? `${data.plan.charAt(0).toUpperCase() + data.plan.slice(1)} Plan` : "Growth Plan",
               timezone: data?.timezone || "UTC",
+              // True until an admin has confirmed a timezone that is missing or plain UTC (src/lib/timezone-check.ts).
+              timezoneNeedsConfirmation: timezoneNeedsConfirmation(data?.timezone, data?.timezoneConfirmed),
               createdAt: data?.createdAt || new Date().toISOString(),
             },
           });
@@ -88,7 +92,7 @@ export const Route = createFileRoute("/api/organization/")({
           const name = (body?.name || "").trim();
           const timezone = (body?.timezone || "").trim();
 
-          const updates: Record<string, string> = {
+          const updates: Record<string, string | boolean> = {
             updatedAt: new Date().toISOString(),
           };
 
@@ -98,11 +102,13 @@ export const Route = createFileRoute("/api/organization/")({
               return Response.json({ error: "Invalid timezone (use an IANA name, e.g. Africa/Accra)" }, { status: 400 });
             }
             updates.timezone = timezone;
+            // An admin saving the timezone is confirming it, even when it is the same as before.
+            updates.timezoneConfirmed = true;
           }
 
           await firestoreAdmin.collection("organizations").doc(caller.orgId).set(updates, { merge: true });
 
-          return Response.json({ ok: true, name: updates.name, timezone: updates.timezone });
+          return Response.json({ ok: true, name: updates.name, timezone: updates.timezone, timezoneNeedsConfirmation: false });
         } catch (err) {
           console.error("Update organization error:", err);
           return Response.json({ error: "Failed to update organization" }, { status: 500 });

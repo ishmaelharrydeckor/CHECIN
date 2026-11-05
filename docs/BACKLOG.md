@@ -30,5 +30,13 @@ How to read an entry: **Size** is S (an hour or two), M (a day), L (several days
 - **Size:** M. **Do it when:** night-shift customers say the list is confusing, or after the shift screens (phase 5) are in use.
 - **Done when:** at 01:00, a worker who checked in at 22:00 the day before appears in the list, with a test.
 
+### B4. Backups, point-in-time recovery and a budget alert (need the Blaze plan)
+- **Where:** the live Firebase project `checin-d172e` (a console and command-line action, not code). The exact steps are in `docs/OPERATIONS.md`, "Backups" and "Usage and cost".
+- **What happens now:** the live database has no scheduled backup and no point-in-time recovery, and there is no budget alert. The free plan does not offer them.
+- **What to do:** when the live project moves to the Blaze plan: turn on point-in-time recovery, create a daily backup kept for 14 days, set a Google Cloud budget alert with email to the owner, and do one restore test into a throwaway database (then repeat monthly).
+- **Why it was left:** it needs the paid plan and a console action by the owner, and there is no real customer data to lose yet.
+- **Size:** S (about an hour, plus the restore test). **Do it when:** before the first paying customer, and at the same time the live project moves to Blaze (decision D1).
+- **Done when:** the Firebase console shows point-in-time recovery and a daily schedule on `checin-d172e`, a budget alert exists, and the restore test date is written in `docs/OPERATIONS.md`.
+
 ## Done
 _Nothing yet._
