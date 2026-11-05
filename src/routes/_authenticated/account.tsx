@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChangePasswordCard } from "@/components/ChangePasswordCard";
 import { ReportProblemCard } from "@/components/ReportProblemDialog";
+import { ShortcutsSettingsCard } from "@/components/shortcuts/ShortcutsSettingsCard";
 import { toast } from "sonner";
 import {
   User,
@@ -139,6 +140,7 @@ function AccountPage() {
       <ChangePasswordCard />
 
       {/* Report a problem */}
+      <ShortcutsSettingsCard />
       <ReportProblemCard />
 
       {/* Quick Access Client Portals */}

@@ -6,13 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useShortcutActions } from "@/components/shortcuts/useShortcutAction";
 import { authedFetch } from "@/components/shifts/shiftApi";
 import { DiaryDayDialog } from "@/components/wfh/diary/DiaryDayDialog";
 import { DiaryReviewList } from "@/components/wfh/diary/DiaryReviewList";
 import { DiarySettingsCard } from "@/components/wfh/diary/DiarySettingsCard";
 import { useAuth } from "@/lib/auth";
 import { formatMinutes } from "@/lib/wfh-diary-ui";
-import { isDayKey, shiftDay, teamTotals, type TeamDay, type TeamReply } from "@/lib/wfh-diary-review";
+import { decisionState, isDayKey, moveSelection, shiftDay, sortForReview, teamTotals, type TeamDay, type TeamReply } from "@/lib/wfh-diary-review";
 
 export const Route = createFileRoute("/_authenticated/wfh-review")({
   head: () => ({ meta: [{ title: "Work diary review — ChecIN" }] }),
@@ -26,6 +37,9 @@ function WorkDiaryReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [open, setOpen] = useState<TeamDay | null>(null);
+  // Keyboard: the person j and k are on, and a decision waiting for "Are you sure?".
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmFor, setConfirmFor] = useState<{ day: TeamDay; decision: "approve" | "flag" } | null>(null);
 
   const load = useCallback(async (chosen: string | null) => {
     setError(null);
@@ -56,15 +70,52 @@ function WorkDiaryReviewPage() {
     toast.success(decision === "approve" ? `${d.employeeName || "The day"} approved.` : `${d.employeeName || "The day"} flagged.`);
   }
 
+  const changeDay = (next: string) => {
+    if (!isDayKey(next)) return;
+    setData(null);
+    setSelectedId(null);
+    void load(next);
+  };
+
+  // Keyboard shortcuts (src/lib/shortcuts.ts). While a person's day is open only a and f work, and never without asking.
+  const ordered = data ? sortForReview(data.days) : [];
+  const askToDecide = (decision: "approve" | "flag") => {
+    const target = open ?? ordered.find((d) => d.employeeId === selectedId) ?? null;
+    if (!target) return void toast.message("Choose a person first: j and k move down and up the list.");
+    const can = decisionState(target);
+    if (decision === "approve" ? !can.approve : !can.flag) {
+      return void toast.error(can.note ?? (decision === "approve" ? "This day is already approved." : "This day is already flagged."));
+    }
+    setConfirmFor({ day: target, decision });
+  };
+  useShortcutActions({
+    "prev-day": () => !open && day && changeDay(shiftDay(day, -1)),
+    "next-day": () => !open && day && changeDay(shiftDay(day, 1)),
+    refresh: () => !open && void load(day),
+    "list-next": () => {
+      if (open) return;
+      const next = moveSelection(ordered.map((d) => d.employeeId), selectedId, 1);
+      setSelectedId(next);
+      if (next) document.getElementById(`diary-row-${next}`)?.scrollIntoView({ block: "nearest" });
+    },
+    "list-prev": () => {
+      if (open) return;
+      const next = moveSelection(ordered.map((d) => d.employeeId), selectedId, -1);
+      setSelectedId(next);
+      if (next) document.getElementById(`diary-row-${next}`)?.scrollIntoView({ block: "nearest" });
+    },
+    "list-open": () => {
+      const row = ordered.find((d) => d.employeeId === selectedId);
+      if (!open && row) setOpen(row);
+    },
+    "decide-approve": () => askToDecide("approve"),
+    "decide-flag": () => askToDecide("flag"),
+  });
+
   // Anyone else is sent away by the app shell; show nothing meanwhile.
   if (!isOrgAdmin && !isManager) return null;
 
   const totals = data ? teamTotals(data.days) : null;
-  const changeDay = (next: string) => {
-    if (!isDayKey(next)) return;
-    setData(null);
-    void load(next);
-  };
 
   return (
     <div className="space-y-6">
@@ -135,7 +186,7 @@ function WorkDiaryReviewPage() {
                   <Total label="Approved hours" value={formatMinutes(totals.approvedMinutes)} />
                 </dl>
               )}
-              <DiaryReviewList days={data.days} busyId={busyId} onOpen={setOpen} onDecide={(d, decision) => void decide(d, decision)} />
+              <DiaryReviewList days={data.days} busyId={busyId} selectedId={selectedId} onOpen={setOpen} onDecide={(d, decision) => void decide(d, decision)} />
               {data.capped && (
                 <p className="text-xs text-muted-foreground">
                   Showing the first people only. Choose another day or ask an administrator if someone is missing.
@@ -148,6 +199,33 @@ function WorkDiaryReviewPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmFor !== null} onOpenChange={(o) => !o && setConfirmFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmFor?.decision === "approve" ? "Approve" : "Flag"} {confirmFor?.day.employeeName || "this person"}'s day?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmFor?.decision === "approve"
+                ? `Their counted time on ${confirmFor?.day.dayKey} will count as diary hours.`
+                : `${confirmFor?.day.dayKey} is marked as flagged and its time does not count.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const c = confirmFor;
+                setConfirmFor(null);
+                if (c) void decide(c.day, c.decision);
+              }}
+            >
+              {confirmFor?.decision === "approve" ? "Approve" : "Flag"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {open && (
         <DiaryDayDialog

@@ -10,11 +10,14 @@ import { decisionState, managerStatusLabel, sortForReview, type TeamDay } from "
 export function DiaryReviewList({
   days,
   busyId,
+  selectedId = null,
   onOpen,
   onDecide,
 }: {
   days: TeamDay[];
   busyId: string | null;
+  /** The person the keyboard is on (j and k); drawn with an outline. */
+  selectedId?: string | null;
   onOpen: (day: TeamDay) => void;
   onDecide: (day: TeamDay, decision: "approve" | "flag") => void;
 }) {
@@ -25,7 +28,12 @@ export function DiaryReviewList({
         const can = decisionState(d);
         const busy = busyId === d.employeeId;
         return (
-          <li key={d.employeeId} className="p-3 sm:p-4">
+          <li
+            key={d.employeeId}
+            id={`diary-row-${d.employeeId}`}
+            aria-current={selectedId === d.employeeId ? "true" : undefined}
+            className={`p-3 sm:p-4 ${selectedId === d.employeeId ? "ring-2 ring-inset ring-[#0E2322]/40 bg-slate-50" : ""}`}
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <button
                 type="button"

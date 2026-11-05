@@ -33,6 +33,7 @@ import {
 import { InAppNotificationCenter } from "@/components/PushNotificationManager";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { JumpTo } from "@/components/nav/JumpTo";
+import { GlobalShortcuts } from "@/components/shortcuts/GlobalShortcuts";
 import { useNavCounts } from "@/components/nav/useNavCounts";
 import { EMPTY_NAV_COUNTS, badgeLabel, badgeText, breadcrumbFor, countFor, flattenNav, type NavCounts } from "@/lib/nav-helpers";
 import { ReportProblemButton } from "@/components/ReportProblemDialog";
@@ -425,6 +426,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="px-3 pb-3">{renderFooter(false)}</div>
           </SheetContent>
         </Sheet>
+
+        {/* Keyboard shortcuts for the whole signed-in app (src/lib/shortcuts.ts). Only pages in this person's menu. */}
+        <GlobalShortcuts canManage={canManage} allowedPaths={flattenNav(groups).map((i) => i.to)} onToggleMenu={toggleCollapsed} />
 
         {/* Main Page Canvas */}
         <main id="main-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 focus:outline-none">

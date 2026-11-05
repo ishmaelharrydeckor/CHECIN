@@ -63,6 +63,20 @@ export function shiftDay(day: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// ---------------------------------------------------------------- moving through the list with the keyboard
+
+/**
+ * The person the keyboard is on after j (delta 1) or k (delta -1). With nobody chosen yet, j goes to the first person
+ * and k to the last. It stops at the ends and never wraps, so a held key cannot jump from the last to the first.
+ * Returns null for an empty list, or when the chosen person is no longer in it, so the screen never highlights a ghost.
+ */
+export function moveSelection(ids: readonly string[], current: string | null, delta: 1 | -1): string | null {
+  if (ids.length === 0) return null;
+  const at = current === null ? -1 : ids.indexOf(current);
+  if (at === -1) return delta === 1 ? ids[0] : ids[ids.length - 1];
+  return ids[Math.min(ids.length - 1, Math.max(0, at + delta))];
+}
+
 // ---------------------------------------------------------------- the team list
 
 /** People to look at first: those with something flagged for review, then undecided days, then decided ones. */

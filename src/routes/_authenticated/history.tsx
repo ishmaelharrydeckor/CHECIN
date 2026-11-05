@@ -238,6 +238,7 @@ function HistoryPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search employee, email, or entrance..."
+                data-shortcut-search
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 text-sm"
