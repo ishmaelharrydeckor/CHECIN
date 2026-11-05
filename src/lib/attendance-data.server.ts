@@ -29,7 +29,7 @@ export const RECENT_EVENT_LIMIT = 20;
 export const SHIFT_ASSIGNMENT_CAP_TODAY = 4000;
 export const SHIFT_ASSIGNMENT_CAP_RANGE = 12000;
 
-interface OrgContext {
+export interface OrgContext {
   timezone: string;
   roster: RosterMember[];
   shifts: ShiftSettings;
