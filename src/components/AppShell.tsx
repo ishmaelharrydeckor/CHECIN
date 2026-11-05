@@ -15,6 +15,7 @@ import {
   Inbox,
   CalendarClock,
   AlarmClock,
+  Bell,
   Building2,
   Tablet,
   ScanLine,
@@ -30,7 +31,7 @@ import {
   getDeviceId,
   listenToDeviceStatus,
 } from "@/lib/device-manager";
-import { InAppNotificationCenter } from "@/components/PushNotificationManager";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { deactivateThisDeviceOnServer, syncPushSubscriptionOnLogin } from "@/lib/push-client";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { JumpTo } from "@/components/nav/JumpTo";
@@ -79,6 +80,7 @@ function navGroupsFor(canManage: boolean): NavGroup[] {
           { to: "/leave", label: "Leave", icon: Umbrella },
           { to: "/holidays", label: "Holidays", icon: CalendarDays },
           { to: "/announcements", label: "Notices", icon: Megaphone },
+          { to: "/notifications", label: "Notifications", icon: Bell },
         ],
       },
       {
@@ -105,6 +107,7 @@ function navGroupsFor(canManage: boolean): NavGroup[] {
         { to: "/leave", label: "Leave", icon: Umbrella },
         { to: "/holidays", label: "Holidays", icon: CalendarDays },
         { to: "/announcements", label: "Notices", icon: Megaphone },
+        { to: "/notifications", label: "Notifications", icon: Bell },
       ],
     },
   ];
@@ -406,7 +409,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-1 sm:gap-2">
             <JumpTo items={jumpItems} />
-            {user?.id && <InAppNotificationCenter userId={user.id} />}
+            {user?.id && <NotificationBell />}
             {isPlatformOwner && (
               <Link
                 to="/owner/reports"

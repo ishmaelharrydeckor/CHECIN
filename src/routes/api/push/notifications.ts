@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { resolveCallerIdentity } from "@/lib/caller-identity.server";
+import { loadOrgTimezone } from "@/lib/org-day.server";
+import { formatNotificationTime } from "@/lib/notifications";
 
 /**
  * In-app notification history.
@@ -58,7 +60,14 @@ export const Route = createFileRoute("/api/push/notifications")({
             return timeB - timeA;
           });
 
-          return Response.json({ notifications: combined });
+          // Times are written here, in the organization's timezone (never the phone's).
+          const timezone = identity.orgId ? await loadOrgTimezone(identity.orgId).catch(() => "UTC") : "UTC";
+          const notifications = combined.map((item) => ({
+            ...item,
+            createdAtLabel: formatNotificationTime(item.createdAt, timezone),
+          }));
+
+          return Response.json({ notifications });
         } catch (err: any) {
           return Response.json({ error: err.message }, { status: 500 });
         }

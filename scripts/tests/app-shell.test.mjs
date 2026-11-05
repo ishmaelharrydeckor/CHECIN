@@ -26,7 +26,7 @@ test("a manager or admin still has every page they had in the top menu", () => {
 
 test("an employee still has only their own pages", () => {
   const links = linksOf(employeeBlock);
-  assert.deepEqual(links.sort(), ["/announcements", "/history", "/holidays", "/leave", "/me", "/my-shifts", "/wfh-diary"]);
+  assert.deepEqual(links.sort(), ["/announcements", "/history", "/holidays", "/leave", "/me", "/my-shifts", "/notifications", "/wfh-diary"]);
   for (const forbidden of ["/dashboard", "/reports", "/departments", "/settings", "/shifts", "/late-arrivals"]) {
     assert.ok(!links.includes(forbidden), `employee menu must not have ${forbidden}`);
   }
@@ -48,7 +48,7 @@ test("sign out, account, kiosk, scanner and notifications are all still reachabl
   assert.ok(shell.includes("handleSignOut") && shell.includes("clearUserAppCache()"));
   assert.ok(shell.includes('to="/account"'));
   assert.ok(shell.includes('to="/kiosk"') && shell.includes('to="/scan"'));
-  assert.ok(shell.includes("InAppNotificationCenter") && shell.includes("ReportProblemButton"));
+  assert.ok(shell.includes("NotificationBell") && shell.includes("ReportProblemButton"));
   assert.ok(shell.includes("registerOrVerifyDevice") && shell.includes("listenToDeviceStatus"), "device session handling is kept");
 });
 

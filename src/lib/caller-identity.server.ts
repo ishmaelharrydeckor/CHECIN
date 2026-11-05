@@ -15,6 +15,8 @@ export interface CallerIdentity {
   /** The verified Firebase Auth uid. */
   userId: string;
   role: AppRole;
+  /** From the verified token's claims; null for an account with no organization. */
+  orgId: string | null;
   isStaff: boolean;
 }
 
@@ -24,7 +26,8 @@ export async function resolveCallerIdentity(request: Request): Promise<CallerIde
   const caller = await verifyCallerToken(authHeader);
   if (caller) {
     const role = (caller.role as AppRole | undefined) ?? "employee";
-    return { userId: caller.uid, role, isStaff: role === "org_admin" || role === "manager" };
+    const orgId = typeof caller.orgId === "string" && caller.orgId ? caller.orgId : null;
+    return { userId: caller.uid, role, orgId, isStaff: role === "org_admin" || role === "manager" };
   }
 
   return null;

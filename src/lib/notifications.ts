@@ -5,7 +5,7 @@
  * The design is docs/NOTIFICATIONS-DESIGN.md (sections 4.5, 4.6 and 5).
  */
 
-export type NotificationType = "ANNOUNCEMENT" | "LEAVE" | "REPORT" | "SHIFT" | "ACCOUNT";
+export type NotificationType = "ANNOUNCEMENT" | "LEAVE" | "REPORT" | "SHIFT" | "ACCOUNT" | "SYSTEM";
 
 export interface NotificationItem {
   id: string;
@@ -93,4 +93,84 @@ export function markAllItemsRead(items: readonly NotificationItem[]): Notificati
 export function safeNotificationUrl(url: unknown): string {
   if (typeof url !== "string" || !url.startsWith("/") || url.startsWith("//")) return "/notifications";
   return url;
+}
+
+const SCREEN_TYPES: readonly NotificationType[] = ["ANNOUNCEMENT", "LEAVE", "REPORT", "SHIFT", "ACCOUNT", "SYSTEM"];
+
+/**
+ * The type a screen shows for what the server saved. The server also saves ATTENDANCE and TEST;
+ * those, and anything unknown, show as a plain system notice.
+ */
+export function screenTypeFrom(serverType: unknown): NotificationType {
+  return SCREEN_TYPES.find((t) => t === serverType) ?? "SYSTEM";
+}
+
+/**
+ * "5 Nov, 23:30": a saved time written in the organization's timezone (never the device's).
+ * An unknown timezone falls back to UTC; an unreadable time gives an empty string.
+ */
+export function formatNotificationTime(iso: unknown, timezone: unknown): string {
+  if (typeof iso !== "string") return "";
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return "";
+  const zones = [typeof timezone === "string" ? timezone : "UTC", "UTC"];
+  for (const timeZone of zones) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(when);
+      const get = (type: string) => parts.find((x) => x.type === type)?.value ?? "";
+      return `${get("day")} ${get("month")}, ${get("hour")}:${get("minute")}`;
+    } catch {
+      // Not a real timezone: try UTC.
+    }
+  }
+  return "";
+}
+
+/** One saved inbox row as the screens show it; null when it has no id. */
+export function notificationFromRow(row: Record<string, unknown>, timezone: unknown): NotificationItem | null {
+  const id = typeof row?.id === "string" && row.id ? row.id : null;
+  if (!id) return null;
+  const text = (v: unknown, fallback: string) => (typeof v === "string" && v.trim() ? v : fallback);
+  const createdAt = typeof row.createdAt === "string" ? row.createdAt : "";
+  return {
+    id,
+    type: screenTypeFrom(row.type),
+    title: text(row.title, "Notification"),
+    body: typeof row.body === "string" ? row.body : "",
+    url: safeNotificationUrl(row.url),
+    createdAt,
+    createdAtLabel:
+      typeof row.createdAtLabel === "string" && row.createdAtLabel ? row.createdAtLabel : formatNotificationTime(createdAt, timezone),
+    isRead: row.isRead === true,
+  };
+}
+
+/** The card's switches from the saved preferences. Everything is on until someone switches it off. */
+export function prefsFromServer(saved: Record<string, unknown> | null | undefined): NotificationPrefs {
+  const on = (key: string) => saved?.[key] !== false;
+  return {
+    pushEnabled: on("pushEnabled"),
+    announcements: on("announcements"),
+    leave: on("leave"),
+    shifts: on("shifts"),
+    account: on("account"),
+  };
+}
+
+/** Only the card's own five switches are sent to be saved, nothing else the browser holds. */
+export function prefsToServer(prefs: Record<string, unknown>): NotificationPrefs {
+  return {
+    pushEnabled: prefs.pushEnabled === true,
+    announcements: prefs.announcements === true,
+    leave: prefs.leave === true,
+    shifts: prefs.shifts === true,
+    account: prefs.account === true,
+  };
 }
