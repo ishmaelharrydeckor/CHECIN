@@ -26,10 +26,11 @@ Companion to [V2-TASK-PLAN.md](V2-TASK-PLAN.md). That file is the full plan; thi
 | 3.1-P7 | Shifts phase 7: shift swaps | L | Augustine | todo. Starts after 3.1-P6 is merged. Brief below | 3.1-P6 |
 | 3.1-P8 | Shifts phase 8: breaks | M | Cobberson (the calculation, #128); integrator (wiring) | done: wired into shifts, assignments, summaries, the setting and the register report (see `docs/SHIFTS-DESIGN.md`, build plan 8) | shifts phases 1 to 5b (done) |
 | 3.1-P3b | Shifts phase 3b: Lenient mode | M | Cobberson (rules, #129); integrator (wiring) | done: wired into the scan route, History, the refused list and the settings screen (see `docs/SHIFTS-DESIGN.md`, 3b) | shifts phases 1 to 5b (done) |
+| R1 | HR and payroll market research (no code) | M | Cobberson | todo. Brief: `docs/HR-PAYROLL-RESEARCH-BRIEF.md`; start now | none |
 | 2.6 | Notification screens: bell, inbox page, preferences, this-device card (screens, sample data) | M | Augustine | todo. Brief below. Design is a draft (`docs/NOTIFICATIONS-DESIGN.md`); the integrator builds the routes | none |
 | 1.4a | Email verification screens: check-your-email, finish setup, Account banner (screens, sample data) | S | Augustine | todo. Brief below. Design is a draft (`docs/EMAIL-VERIFICATION-DESIGN.md`); the integrator builds the routes | none |
 
-Next: **2.6** and **1.4a** (Augustine) are screens only, with sample data; the integrator builds the routes behind them. Otherwise nothing is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
+Next: **2.6** and **1.4a** (Augustine) are screens only, with sample data; the integrator builds the routes behind them. **R1** (Cobberson) is research only, no code. Otherwise nothing else is open for teammates right now. Screens for the next features (shift swaps, scheduled reports) are written up as design notes first; new tasks will be added here once approved. Integrator-only work: plan gating, billing, email verification, leave types and balances, shifts phases 6 to 8, and phase 3.
 
 Update the Status column in your PR (`todo` > `in progress` > `in review` > `on staging` > `done`).
 
