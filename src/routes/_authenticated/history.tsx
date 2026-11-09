@@ -130,6 +130,15 @@ function HistoryPage() {
   // Undone scans stay on screen (struck through) but are not exported as attendance.
   const exportable = useMemo(() => filteredRecords.filter((r) => !r.voided), [filteredRecords]);
 
+  // The libraries load on first use, so a file can take a moment and can fail (for example with no connection).
+  const runExport = async (make: () => Promise<void>) => {
+    try {
+      await make();
+    } catch {
+      toast.error("Could not create the file. Please try again.");
+    }
+  };
+
   const handleExportCSV = () => {
     if (exportable.length === 0) {
       toast.info("No records to export.");
@@ -144,7 +153,7 @@ function HistoryPage() {
       Timestamp: new Date(r.timestamp).toLocaleString(),
       Verification: r.verifiedMethod,
     }));
-    exportToCSV(rows, `ChecIN-Attendance-Log-${Date.now()}`);
+    void runExport(() => exportToCSV(rows, `ChecIN-Attendance-Log-${Date.now()}`));
   };
 
   const handleExportExcel = () => {
@@ -161,7 +170,7 @@ function HistoryPage() {
       Timestamp: new Date(r.timestamp).toLocaleString(),
       Verification: r.verifiedMethod,
     }));
-    exportToExcel(rows, `ChecIN-Attendance-Log-${Date.now()}`);
+    void runExport(() => exportToExcel(rows, `ChecIN-Attendance-Log-${Date.now()}`));
   };
 
   const handleExportPDF = () => {
@@ -177,7 +186,7 @@ function HistoryPage() {
       new Date(r.timestamp).toLocaleString(),
       "HMAC Verified",
     ]);
-    exportToPDF("Attendance Event Audit Log", headers, rows, `ChecIN-Audit-${Date.now()}`);
+    void runExport(() => exportToPDF("Attendance Event Audit Log", headers, rows, `ChecIN-Audit-${Date.now()}`));
   };
 
   return (

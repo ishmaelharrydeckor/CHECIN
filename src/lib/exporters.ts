@@ -1,12 +1,12 @@
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// The Excel and PDF libraries are large (about 800 KB together). They are loaded here, when a file is actually
+// asked for, so a page that only offers an export button does not pay for them on every visit.
 
-export function exportToExcel(
+export async function exportToExcel(
   rows: Record<string, unknown>[],
   filename: string,
   sheet = "Attendance",
 ) {
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   wb.Props = {
@@ -19,7 +19,8 @@ export function exportToExcel(
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-export function exportToCSV(rows: Record<string, unknown>[], filename: string) {
+export async function exportToCSV(rows: Record<string, unknown>[], filename: string) {
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.json_to_sheet(rows);
   const csv = XLSX.utils.sheet_to_csv(ws);
   const header = `# CHECIN WORKFORCE ATTENDANCE REPORT: ${filename}\n# Generated: ${new Date().toISOString()}\n`;
@@ -36,6 +37,7 @@ export async function exportToPDF(
   rows: (string | number)[][],
   filename: string,
 ) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const doc = new jsPDF();
 
   doc.setFontSize(14);
