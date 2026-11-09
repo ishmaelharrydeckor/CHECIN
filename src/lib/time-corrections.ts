@@ -25,6 +25,8 @@ export interface TimeCorrection {
   id: string;
   orgId: string;
   employeeId: string;
+  /** The person's name as on that day's summary, so a list needs no second read. */
+  employeeName?: string;
   /** The person's manager on that day. Decides who may approve. */
   managerId: string | null;
   dayKey: string;

@@ -345,6 +345,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---- Time corrections (a missing check-out recorded with a reason, docs/PAYROLL-OVERTIME-DESIGN.md 3.4) ----
+    // Written by the server only (/api/corrections). The person, their manager and org admins can read.
+    match /time_corrections/{correctionId} {
+      allow read: if inOrg(resource.data) && (
+        isOrgAdmin() ||
+        (isManager() && resource.data.managerId == request.auth.uid) ||
+        resource.data.employeeId == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
     // Default Deny: Catch-all for any collection not explicitly matched above
     match /{document=**} {
       allow read, write: if false;

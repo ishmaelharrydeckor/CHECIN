@@ -63,6 +63,7 @@ test("the preferences route uses it and no longer saves the browser's object as 
 const TYPED_REFUSALS = new Map([
   ["src/routes/api/attendance/late-excuse.ts", "Refused"],
   ["src/routes/api/check-in/undo.ts", "UndoRefused"],
+  ["src/routes/api/corrections.ts", "Refused"],
 ]);
 
 test("no route sends an error's own text, or its details, to the browser", () => {
