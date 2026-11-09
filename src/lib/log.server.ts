@@ -5,6 +5,8 @@
  * Never put secrets, tokens, passwords or full email addresses in `fields`.
  */
 
+import { alertOnError } from "./alert.server";
+
 export type LogOutcome = "ok" | "denied" | "error" | "rate_limited";
 
 /** Use the platform's request id when present, otherwise generate one. */
@@ -32,6 +34,9 @@ export function logEvent(entry: LogEntry): void {
     level: entry.outcome === "error" ? "error" : "info",
     ...entry,
   });
-  if (entry.outcome === "error") console.error(line);
-  else console.log(line);
+  if (entry.outcome === "error") {
+    console.error(line);
+    // Tell the owner (only when ALERT_WEBHOOK_URL is set; never throws, never slows the request).
+    alertOnError(entry);
+  } else console.log(line);
 }

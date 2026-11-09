@@ -8,6 +8,7 @@ import { POLL_EVERY_MS, isIdle, shouldPoll, shouldRefreshOnReturn } from "@/lib/
 import { formatClock, type TodaySummaryData } from "@/lib/attendance-today";
 import { TodayPanel } from "@/components/dashboard/TodayPanel";
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
+import { TimezoneNotice } from "@/components/TimezoneNotice";
 import { TeamRosterSection } from "@/components/dashboard/TeamRosterSection";
 import { buildSetupSteps, setupHiddenKey, setupProgress, type SetupLocation } from "@/lib/setup-checklist";
 import { AnalyticsSection } from "@/components/analytics/AnalyticsSection";
@@ -71,6 +72,8 @@ function DashboardPage() {
   const [orgName, setOrgName] = useState<string>("My Organization");
   const [totalHeadcount, setTotalHeadcount] = useState<number>(1);
   const [pendingInvitesCount, setPendingInvitesCount] = useState<number>(0);
+  // Set (to the current timezone) while the organization's timezone is missing or plain UTC and unconfirmed.
+  const [timezoneToConfirm, setTimezoneToConfirm] = useState<string | null>(null);
   // Every invitation the admin has made, in any state: it is what ticks the "Invite your team" step.
   const [invitesSentCount, setInvitesSentCount] = useState<number>(0);
   // Numbers and feed come from the server, computed for TODAY in the organization's timezone.
@@ -185,6 +188,7 @@ function DashboardPage() {
         const orgData = await orgRes.json();
         if (orgData.ok && orgData.organization) {
           setOrgName(orgData.organization.name);
+          setTimezoneToConfirm(orgData.organization.timezoneNeedsConfirmation === true ? String(orgData.organization.timezone || "UTC") : null);
         }
       }
 
@@ -462,6 +466,9 @@ function DashboardPage() {
             </button>
           )}
       </div>
+
+      {/* A missing or plain-UTC timezone that nobody confirmed makes late flags and daily totals wrong by hours. */}
+      {isOrgAdmin && timezoneToConfirm && <TimezoneNotice timezone={timezoneToConfirm} />}
 
       {/* New organizations: what is left to set up. Gone for good once all three steps are done. */}
       {showSetup && setupSteps && (
