@@ -155,14 +155,14 @@ test("every readable collection is limited to the organization first (or is one 
 });
 
 test("a manager's reads are limited to their own team wherever the records belong to a team", () => {
-  for (const name of ["clock_events", "daily_summaries", "late_excuses", "leave_requests", "shift_assignments", "wfh_days", "shift_patterns", "refused_scans"]) {
+  for (const name of ["clock_events", "daily_summaries", "late_excuses", "leave_requests", "shift_assignments", "wfh_days", "shift_patterns", "refused_scans", "time_corrections"]) {
     const read = allowLines(all.get(name)).find((a) => a.ops.includes("read"));
     assert.match(read.cond, /isManager\(\) && resource\.data\.managerId == request\.auth\.uid/, name);
   }
 });
 
 test("records made by the server cannot be created, changed or deleted from a browser", () => {
-  const SERVER_ONLY = ["clock_events", "daily_summaries", "late_excuses", "team_changes", "shifts", "shift_assignments", "wfh_days", "shift_patterns", "shift_swaps", "refused_scans"];
+  const SERVER_ONLY = ["clock_events", "daily_summaries", "late_excuses", "team_changes", "shifts", "shift_assignments", "wfh_days", "shift_patterns", "shift_swaps", "refused_scans", "time_corrections"];
   for (const name of SERVER_ONLY) {
     assert.equal(canWrite(all.get(name)), false, name);
   }

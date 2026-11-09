@@ -21,6 +21,7 @@ import { initializeApp, cert, deleteApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { dayKey } from "../src/lib/attendance-day.ts";
 import { summaryDocId, summaryFromEvents } from "../src/lib/daily-summary.ts";
+import { applyCorrections } from "../src/lib/time-corrections.ts";
 
 const PRODUCTION_PROJECT_ID = process.env.PRODUCTION_FIREBASE_PROJECT_ID || "checin-d172e";
 
@@ -125,8 +126,18 @@ async function backfillDay(day) {
   let batch = db.batch();
   let inBatch = 0;
   for (const { identity, events } of groups.values()) {
-    const summary = summaryFromEvents(events, identity, nowIso);
+    // A rebuild must not lose an approved time correction either: it stands in as the missing check-out.
+    const cSnap = await db
+      .collection("time_corrections")
+      .where("orgId", "==", identity.orgId)
+      .where("employeeId", "==", identity.employeeId)
+      .where("dayKey", "==", day)
+      .limit(20)
+      .get();
+    const corrected = applyCorrections(events, cSnap.docs.map((d) => d.data()));
+    const summary = summaryFromEvents(corrected.events, identity, nowIso);
     if (!summary) continue;
+    if (corrected.applied.length > 0) summary.correctedBy = corrected.applied[0];
     // A rebuild must not lose a manager's decision: an excused late mark stays excused.
     if (summary.late === true) {
       const ex = await db.collection("late_excuses").doc(summaryDocId(identity.employeeId, day)).get();
