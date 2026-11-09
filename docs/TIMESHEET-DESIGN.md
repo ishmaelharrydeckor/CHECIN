@@ -1,6 +1,6 @@
 # ChecIN: Timesheet Design (replaces the Timesheets report)
 
-Status: **decisions 1 to 6 approved by the integrator on 2026-11-05 (section 10); building in the order of section 9.** This is a design note because it is about hours, and hours become pay ([REVIEW-CHECKLIST.md](REVIEW-CHECKLIST.md), section 2b). It follows the approved principle in the overtime and payroll note (PR #83, `PAYROLL-OVERTIME-DESIGN.md`): **ChecIN measures time and never calculates pay.** This note builds the live review screen. The overtime note later freezes the same numbers into pay periods; it does not need a second calculation.
+Status: **built (T0 to T4), waiting for testing in [ROUND-9-TEST-CHECKLIST.md](ROUND-9-TEST-CHECKLIST.md).** Decisions 1 to 6 were approved by the integrator on 2026-11-05 (section 10). This is a design note because it is about hours, and hours become pay ([REVIEW-CHECKLIST.md](REVIEW-CHECKLIST.md), section 2b). It follows the approved principle in the overtime and payroll note (PR #83, `PAYROLL-OVERTIME-DESIGN.md`): **ChecIN measures time and never calculates pay.** This note builds the live review screen. The overtime note later freezes the same numbers into pay periods; it does not need a second calculation.
 
 ## 1. The goal in one sentence
 
@@ -119,6 +119,10 @@ Reports, Timesheets (same address, so bookmarks keep working). Standard page tit
 | **T2** | `GET /api/reports/timesheet` and its security tests | Tests 1, 4 and 6 pass |
 | **T3** | The screen, the daily detail panel, phone layout, CSV, Excel, PDF and daily detail CSV | Test 7; checked by hand on staging as admin, manager and employee |
 | **T4** | Delete the old page logic, point the hub at the new page, update the Round checklist | Test 8 |
+
+**Built:** T0 (PR #201, the old estimates switched off), T1 (#202, the calculation), T2 (#203, the route), T3 (#204, the screen and downloads), T4 (the test checklist and this note). One difference from section 4: the CSV files are clean tables with no heading lines so payroll tools can read them; the range, timezone and generation time are in the file name, on Excel's Details sheet and in the PDF heading.
+
+**Left alone on purpose:** the History page still has its own CSV, Excel and PDF export of individual scan events (`src/lib/exporters.ts`). That is a list of events, not hours, so it does not claim any totals; it can move to the shared export code later.
 
 ## 10. Decisions (integrator, 2026-11-05: all six recommendations accepted)
 
