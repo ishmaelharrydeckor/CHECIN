@@ -11,6 +11,8 @@
  * their shift" mean (from the server clock) and passes the answer in.
  */
 import { shiftMinutes } from "./shift-engine.ts";
+import { weekdayIndex } from "./attendance-today.ts";
+import { standardMinutesFor, type StandardWorkday } from "./standard-workday.ts";
 
 /** The same day states as the attendance register. */
 export type TimesheetStatus = "present" | "absent" | "leave" | "holiday" | "wfh" | "off" | "other" | "expected";
@@ -94,6 +96,12 @@ export interface TimesheetRow {
 export interface TimesheetOptions {
   /** The organization tracks breaks: expected time is the shift less its break, and paid time is shown. */
   breaksTracked: boolean;
+  /**
+   * The organization's standard workday, if an admin set one. It gives a person with NO shift an expected time (the
+   * standard length on a work day, nothing on other days). Not set: they have no expected time, as before. A shift
+   * always wins over it.
+   */
+  standardWorkday?: StandardWorkday | null;
 }
 
 // ----------------------------------------------------------------------------- small helpers
@@ -135,7 +143,10 @@ export function buildTimesheetDay(input: TimesheetDayInput, options: TimesheetOp
         : Math.max(0, worked - breakMins);
   }
 
-  const expected = NO_HOURS_OWED.has(input.status) ? 0 : expectedShiftMinutes(input.shift, options.breaksTracked);
+  let expected = NO_HOURS_OWED.has(input.status) ? 0 : expectedShiftMinutes(input.shift, options.breaksTracked);
+  if (expected === null && options.standardWorkday && /^\d{4}-\d{2}-\d{2}$/.test(input.dayKey)) {
+    expected = standardMinutesFor(options.standardWorkday, weekdayIndex(input.dayKey));
+  }
   const lateExcused = input.lateExcused === true;
 
   return {

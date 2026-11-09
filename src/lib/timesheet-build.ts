@@ -12,6 +12,7 @@ import type { AttendanceRegister, RegisterRow } from "./report-types.ts";
 import { dayKey as dayKeyOf } from "./attendance-day.ts";
 import { addDays } from "./attendance-today.ts";
 import { crossesMidnight, zonedTimeToMs } from "./shift-engine.ts";
+import type { StandardWorkday } from "./standard-workday.ts";
 import {
   buildTimesheetRow,
   timesheetSummary,
@@ -57,6 +58,8 @@ export interface TimesheetReport {
   diaryTracked: boolean;
   /** At least one person-day had an expected length (so Expected and Difference mean something). */
   anyExpected: boolean;
+  /** The organization's standard workday for people with no shift, or null when none is set. */
+  standardWorkday: StandardWorkday | null;
 }
 
 const isText = (v: unknown): v is string => typeof v === "string" && v.length > 0;
@@ -83,6 +86,8 @@ export function buildTimesheetReport(input: {
   summaries: readonly TimesheetSummaryInput[];
   assignments?: readonly TimesheetAssignmentInput[];
   nowMs: number;
+  /** Set by an org admin; gives people with no shift an expected time. */
+  standardWorkday?: StandardWorkday | null;
 }): TimesheetReport {
   const { register, nowMs } = input;
   const breaksTracked = register.breaksTracked === true;
@@ -133,7 +138,7 @@ export function buildTimesheetReport(input: {
 
     const built = buildTimesheetRow(
       { employeeId: row.employeeId, name: row.name, department: row.department, days },
-      { breaksTracked },
+      { breaksTracked, standardWorkday: input.standardWorkday ?? null },
     );
     const t = row.totals;
     return diaryTracked
@@ -159,5 +164,6 @@ export function buildTimesheetReport(input: {
     breaksTracked,
     diaryTracked,
     anyExpected: rows.some((r) => r.totals.expectedMinutes !== null),
+    standardWorkday: input.standardWorkday ?? null,
   };
 }

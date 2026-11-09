@@ -3,6 +3,7 @@ import { loadOrgContext } from "@/lib/attendance-data.server";
 import { authorizeReportCaller } from "@/lib/report-data.server";
 import { parseReportRange, registerRangeError } from "@/lib/report-data";
 import { loadRegisterForScope } from "@/lib/register-load.server";
+import { loadStandardWorkday } from "@/lib/standard-workday.server";
 import { buildTimesheetReport } from "@/lib/timesheet-build";
 import { correlationId, logEvent } from "@/lib/log.server";
 
@@ -35,6 +36,8 @@ export const Route = createFileRoute("/api/reports/timesheet")({
           if (tooLong) return Response.json({ error: tooLong }, { status: 400 });
 
           const { register, summaries, assignments } = await loadRegisterForScope({ scope, range, context, request });
+          // Gives people with no shift an expected time, if the org admin set a standard workday (one read of the org).
+          const standardWorkday = await loadStandardWorkday(scope.orgId);
           const report = buildTimesheetReport({
             register,
             summaries,
@@ -44,6 +47,7 @@ export const Route = createFileRoute("/api/reports/timesheet")({
               shift: { start: a.shift.start, end: a.shift.end, unpaidBreakMinutes: a.shift.unpaidBreakMinutes },
             })),
             nowMs: Date.now(),
+            standardWorkday,
           });
 
           logEvent({

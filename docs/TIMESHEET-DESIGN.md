@@ -122,6 +122,8 @@ Reports, Timesheets (same address, so bookmarks keep working). Standard page tit
 
 **Built:** T0 (PR #201, the old estimates switched off), T1 (#202, the calculation), T2 (#203, the route), T3 (#204, the screen and downloads), T4 (the test checklist and this note). One difference from section 4: the CSV files are clean tables with no heading lines so payroll tools can read them; the range, timezone and generation time are in the file name, on Excel's Details sheet and in the PDF heading.
 
+**Standard workday (decision 1, follow-up):** built. An org admin can set how long a day is and which weekdays (a card at the top of the Timesheets page, `PUT /api/organization/workday`, stored on the organization as `standardDayMinutes` and `workDays`). It gives a person with no shift an expected time: the standard length on a work day, nothing on other days. A shift always wins over it, and until it is set nothing changes. The overtime work reads the same two fields, so there is one place to set it.
+
 **Left alone on purpose:** the History page still has its own CSV, Excel and PDF export of individual scan events (`src/lib/exporters.ts`). That is a list of events, not hours, so it does not claim any totals; it can move to the shared export code later.
 
 ## 10. Decisions (integrator, 2026-11-05: all six recommendations accepted)
