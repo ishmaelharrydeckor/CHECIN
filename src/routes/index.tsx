@@ -4,6 +4,7 @@ import { BarChart3, Briefcase, CalendarClock, FileBarChart, Smartphone, Users, t
 import { firebaseAuth } from "@/integrations/firebase/config";
 import { ChecInLogo } from "@/components/ChecInLogo";
 import { PublicHeader } from "@/components/PublicHeader";
+import { PLAN_GROWTH_FEATURES, PLAN_STARTER_FEATURES, TRIAL_DAYS, YEARLY_DISCOUNT, perMonth } from "@/lib/pricing";
 import { CountUp, FocusText, useScrollReveal } from "@/components/landing/Motion";
 import {
   ActivityPanel,
@@ -544,17 +545,18 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING SECTION: Monthly / Yearly Toggle & 3 Cards */}
+      {/* PRICING SECTION: per person per month, free trial of everything, plans differ by features */}
       <section id="pricing" className="py-24 px-4 sm:px-6 max-w-7xl mx-auto">
         <div data-reveal className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-block text-sm text-[#0E2322] bg-[#E8FCE4] px-4 py-1.5 rounded-full mb-4 font-medium">
             Pricing
           </div>
           <h2 className="text-3xl sm:text-[42px] leading-[1.2] font-normal tracking-[-0.02em] text-[#0E2322] mb-4">
-            Simple Pricing That Scales With You
+            Pay per person. Try everything first.
           </h2>
           <p className="text-lg sm:text-[20px] text-[#6D6D6D] max-w-[686px] mx-auto leading-[1.4] font-normal mb-8">
-            Transparent per-employee pricing: implementation, integrations, and compliance packs included.
+            Every plan starts with a {TRIAL_DAYS}-day free trial of every feature. After that you pay a small monthly price for
+            each person on your team.
           </p>
 
           {/* Monthly / Yearly Switcher */}
@@ -579,134 +581,94 @@ function LandingPage() {
             >
               <span>Yearly</span>
               <span className="bg-[#FFD153] text-[#122300] text-[12px] px-2 py-0.5 rounded-full font-bold ml-1">
-                Save 20%
+                Save {YEARLY_DISCOUNT * 100}%
               </span>
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-          {/* Starter Card */}
-          <div className="bg-white border border-[#E2E8F0] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-sm">
+          {/* Starter */}
+          <div data-reveal="1" className="bg-white border border-[#E2E8F0] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-sm">
             <div>
-              <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0E2322] mb-2">
-                Starter
-              </h3>
+              <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0E2322] mb-2">Starter</h3>
               <p className="text-base sm:text-[20px] text-[#6D6D6D] leading-[1.3] mb-6 font-normal">
-                For small teams getting attendance under control.
+                Everything to run attendance at your door.
               </p>
-              <div className="flex items-baseline mb-4">
-                <span className="text-5xl sm:text-[58px] font-medium tracking-tight text-[#0E2322]">$0</span>
-                <span className="text-base sm:text-[20px] text-[#6D6D6D] ml-2 font-normal">
-                  /User/Month
+              <div className="flex items-baseline mb-1">
+                <span className="text-5xl sm:text-[58px] font-medium tracking-tight text-[#0E2322]">
+                  {perMonth("starter", billingCycle === "yearly")}
                 </span>
+                <span className="text-base sm:text-[20px] text-[#6D6D6D] ml-2 font-normal">per person, per month</span>
               </div>
-              <p className="text-xs sm:text-[14px] font-normal text-[#6D6D6D] bg-slate-100 px-3 py-1.5 rounded-md mb-8 inline-block">
-                Free Up To 15 Employees
+              <p className="text-sm text-[#6D6D6D] mb-8">
+                {billingCycle === "yearly" ? "Billed yearly" : "Billed monthly"}
               </p>
               <ul className="space-y-4 text-base sm:text-[16px] text-[#6D6D6D] font-normal">
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Time Clock & Timesheets
-                </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Leave Requests & Balances
-                </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> 1 Location · Basic Reports
-                </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Email Support
-                </li>
+                {PLAN_STARTER_FEATURES.map((f) => (
+                  <li key={f} className="flex items-start">
+                    <span className="text-emerald-700 font-bold mr-3 text-lg leading-snug">✓</span> {f}
+                  </li>
+                ))}
               </ul>
             </div>
             <Link
               to="/auth"
               className="w-full mt-10 py-3.5 rounded-full bg-[#C0FD9B] hover:opacity-90 text-[#122300] font-medium text-base sm:text-[16px] transition text-center inline-block no-underline"
             >
-              Get Started Free
+              Start {TRIAL_DAYS}-day free trial
             </Link>
           </div>
 
-          {/* Growth Card (Featured Dark Card) */}
-          <div className="bg-[#0E2322] text-white border-2 border-[#C0FD9B]/40 rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-2xl relative">
+          {/* Growth (featured) */}
+          <div data-reveal="2" className="bg-[#0E2322] text-white border-2 border-[#C0FD9B]/40 rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-2xl relative">
             <div>
-              <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#C0FD9B] mb-2">
-                Growth
-              </h3>
+              <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#C0FD9B] mb-2">Growth</h3>
               <p className="text-base sm:text-[20px] text-[#ADC4BD] leading-[1.3] mb-6 font-normal">
-                For scaling companies with managers and multiple shifts.
+                For teams that work in shifts or from home.
               </p>
-              <div className="flex items-baseline mb-4">
+              <div className="flex items-baseline mb-1">
                 <span className="text-5xl sm:text-[58px] font-medium tracking-tight text-white">
-                  {billingCycle === "yearly" ? "$6.40" : "$8"}
+                  {perMonth("growth", billingCycle === "yearly")}
                 </span>
-                <span className="text-base sm:text-[20px] text-[#ADC4BD] ml-2 font-normal">
-                  /User/Month
-                </span>
+                <span className="text-base sm:text-[20px] text-[#ADC4BD] ml-2 font-normal">per person, per month</span>
               </div>
-              <p className="text-xs sm:text-[14px] font-normal text-[#ADC4BD] bg-white/10 px-3 py-1.5 rounded-md mb-8 inline-block">
-                {billingCycle === "yearly"
-                  ? "Billed Annually · Save 20%"
-                  : "Billed Monthly · Flexible Cancellation"}
+              <p className="text-sm text-[#ADC4BD] mb-8">
+                {billingCycle === "yearly" ? "Billed yearly" : "Billed monthly"}
               </p>
               <ul className="space-y-4 text-base sm:text-[16px] text-white/90 font-normal">
-                <li className="flex items-center">
-                  <span className="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Everything In Starter
-                </li>
-                <li className="flex items-center">
-                  <span className="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Kiosk Rotating QR Handshake
-                </li>
-                <li className="flex items-center">
-                  <span className="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Multi-Manager Workgroups
-                </li>
-                <li className="flex items-center">
-                  <span className="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Leave Approval Workflows
-                </li>
-                <li className="flex items-center">
-                  <span className="text-[#C0FD9B] font-bold mr-3 text-lg">✓</span> Unlimited Locations & Exports
-                </li>
+                {PLAN_GROWTH_FEATURES.map((f) => (
+                  <li key={f} className="flex items-start">
+                    <span className="text-[#C0FD9B] font-bold mr-3 text-lg leading-snug">✓</span> {f}
+                  </li>
+                ))}
               </ul>
             </div>
             <Link
               to="/auth"
               className="w-full mt-10 py-3.5 rounded-full bg-[#FFD153] hover:brightness-105 text-[#122300] font-medium text-base sm:text-[16px] transition shadow-lg text-center inline-block no-underline"
             >
-              Start 14-Day Trial
+              Start {TRIAL_DAYS}-day free trial
             </Link>
           </div>
 
-          {/* Enterprise Card */}
-          <div className="bg-white border border-[#E2E8F0] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-sm">
+          {/* Enterprise */}
+          <div data-reveal="3" className="bg-white border border-[#E2E8F0] rounded-[32px] p-8 sm:p-10 flex flex-col justify-between shadow-sm">
             <div>
-              <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0E2322] mb-2">
-                Enterprise
-              </h3>
+              <h3 className="text-2xl sm:text-[28px] font-normal tracking-[-0.02em] text-[#0E2322] mb-2">Enterprise</h3>
               <p className="text-base sm:text-[20px] text-[#6D6D6D] leading-[1.3] mb-6 font-normal">
-                For 1,000+ employees across regional offices.
+                For large organizations with needs of their own.
               </p>
-              <div className="flex items-baseline mb-4">
-                <span className="text-5xl sm:text-[58px] font-medium tracking-tight text-[#0E2322]">
-                  Custom
-                </span>
+              <div className="flex items-baseline mb-1">
+                <span className="text-5xl sm:text-[58px] font-medium tracking-tight text-[#0E2322]">Let's talk</span>
               </div>
-              <p className="text-xs sm:text-[14px] font-normal text-[#6D6D6D] bg-slate-100 px-3 py-1.5 rounded-md mb-8 inline-block">
-                Volume Pricing & SLA Guarantee
-              </p>
+              <p className="text-sm text-[#6D6D6D] mb-8">Priced for your size</p>
               <ul className="space-y-4 text-base sm:text-[16px] text-[#6D6D6D] font-normal">
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Everything In Growth
+                <li className="flex items-start">
+                  <span className="text-emerald-700 font-bold mr-3 text-lg leading-snug">✓</span> Everything in Growth
                 </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> SSO, SCIM & Audit Logs
-                </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Payroll & HRIS Integration
-                </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Statutory Compliance Per Region
-                </li>
-                <li className="flex items-center">
-                  <span className="text-emerald-700 font-bold mr-3 text-lg">✓</span> Dedicated Account Manager
+                <li className="flex items-start">
+                  <span className="text-emerald-700 font-bold mr-3 text-lg leading-snug">✓</span> Tell us what you need, and we will tell you honestly whether ChecIN can do it
                 </li>
               </ul>
             </div>
@@ -714,7 +676,7 @@ function LandingPage() {
               href="mailto:support@checin.com?subject=Enterprise%20Inquiry"
               className="w-full mt-10 py-3.5 rounded-full bg-[#C0FD9B] hover:opacity-90 text-[#122300] font-medium text-base sm:text-[16px] transition text-center inline-block no-underline"
             >
-              Contact Enterprise
+              Contact us
             </a>
           </div>
         </div>

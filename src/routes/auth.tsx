@@ -672,7 +672,7 @@ function AuthPage() {
                     </Button>
 
                     <p className="text-center text-xs text-muted-foreground leading-relaxed pt-1">
-                      Includes 14-day free trial on Growth plan. No credit card required.
+                      Includes a 14-day free trial of every feature. No credit card required.
                     </p>
 
                     <div className="pt-3 text-center text-xs text-muted-foreground border-t border-slate-100">
