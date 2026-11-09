@@ -206,6 +206,11 @@ export const Route = createFileRoute("/api/announcements/")({
             return Response.json({ error: "Unauthorized" }, { status: 401 });
           }
 
+          // A caller with no organization must never match a record that has none.
+          if (!caller.orgId) {
+            return Response.json({ error: "Forbidden" }, { status: 403 });
+          }
+
           const url = new URL(request.url);
           const id = url.searchParams.get("id");
           if (!id) {

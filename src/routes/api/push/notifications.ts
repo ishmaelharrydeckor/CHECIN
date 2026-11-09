@@ -68,8 +68,9 @@ export const Route = createFileRoute("/api/push/notifications")({
           }));
 
           return Response.json({ notifications });
-        } catch (err: any) {
-          return Response.json({ error: err.message }, { status: 500 });
+        } catch (err) {
+          console.error("GET /api/push/notifications error:", err);
+          return Response.json({ error: "We couldn't load your notifications." }, { status: 500 });
         }
       },
 
@@ -120,8 +121,9 @@ export const Route = createFileRoute("/api/push/notifications")({
           }
 
           return Response.json({ error: "Invalid parameters" }, { status: 400 });
-        } catch (err: any) {
-          return Response.json({ error: err.message }, { status: 500 });
+        } catch (err) {
+          console.error("POST /api/push/notifications error:", err);
+          return Response.json({ error: "We couldn't update your notifications." }, { status: 500 });
         }
       },
     },
