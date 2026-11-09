@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { gateFeature } from "@/lib/plan-gate.server";
 import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { summaryDocId } from "@/lib/daily-summary";
@@ -101,6 +102,9 @@ async function propose(request: Request, caller: Caller, orgId: string, body: Re
   if (caller.role !== "employee" && caller.role !== "manager") {
     return refuse(403, "Only people with shifts can propose a swap.");
   }
+  // Plan check (off unless PLAN_ENFORCEMENT is set). A swap already in progress can always be finished or cancelled.
+  const blocked = await gateFeature(orgId, "shift_swaps", { uid: caller.uid, request });
+  if (blocked) return blocked;
   const tooMany = await limited(`shift_swaps_propose_${caller.uid}`, 30);
   if (tooMany) return tooMany;
 

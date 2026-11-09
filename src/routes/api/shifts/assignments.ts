@@ -4,6 +4,7 @@ import {
   getAuthAdmin,
   verifyCallerToken,
 } from "@/integrations/firebase/admin.server";
+import { gateFeature } from "@/lib/plan-gate.server";
 import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { dayKey } from "@/lib/attendance-day";
@@ -231,6 +232,10 @@ export const Route = createFileRoute("/api/shifts/assignments")({
               { status: 403 },
             );
           }
+
+          // Plan check (off unless PLAN_ENFORCEMENT is set). Only adding assignments is gated, never removing them.
+          const blocked = await gateFeature(orgId, "shifts", { uid: caller.uid, request });
+          if (blocked) return blocked;
 
           const rate = await checkRateLimit(`shifts_assign_${caller.uid}`, {
             limit: 60,
