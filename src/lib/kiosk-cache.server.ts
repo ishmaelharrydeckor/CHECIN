@@ -39,6 +39,30 @@ export interface KioskCacheEntry {
 
 const cache = new Map<string, KioskCacheEntry>();
 
+/**
+ * Ids that are known NOT to be a paired tablet, remembered for a few seconds. The token route is reachable without
+ * signing in, so anyone can send made-up ids; without this each one would cost database reads. Only the fact "no such
+ * paired tablet" is kept (never a secret), the list is bounded, and pairing or revoking a tablet clears its id at once.
+ */
+export const KIOSK_MISS_TTL_MS = 15_000;
+const MAX_MISSES = 1000;
+const misses = new Map<string, number>();
+
+export function noteMissingKiosk(locationId: string, now: number = Date.now()): void {
+  if (misses.size >= MAX_MISSES) misses.clear();
+  misses.set(locationId, now + KIOSK_MISS_TTL_MS);
+}
+
+export function isKnownMissingKiosk(locationId: string, now: number = Date.now()): boolean {
+  const until = misses.get(locationId);
+  if (until === undefined) return false;
+  if (now >= until) {
+    misses.delete(locationId);
+    return false;
+  }
+  return true;
+}
+
 /** Returns a cached entry only if it is still fresh. */
 export function getCachedKiosk(
   locationId: string,
@@ -62,11 +86,13 @@ export function setCachedKiosk(locationId: string, entry: KioskCacheEntry): void
 
 export function invalidateKiosk(locationId: string): void {
   cache.delete(locationId);
+  misses.delete(locationId);
 }
 
 /** Test helper. */
 export function clearKioskCache(): void {
   cache.clear();
+  misses.clear();
 }
 
 /** How soon the kiosk should ask again (ms). Server decides; the kiosk only obeys. */

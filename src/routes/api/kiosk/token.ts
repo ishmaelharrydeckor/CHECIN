@@ -2,7 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin } from "@/integrations/firebase/admin.server";
 import { timingSafeHashMatch, generateKioskToken } from "@/lib/kiosk-crypto.server";
 import { getKioskMode, KIOSK_MODE_LABEL, type KioskMode } from "@/lib/attendance-windows";
-import { getCachedKiosk, pollIntervalFor, setCachedKiosk } from "@/lib/kiosk-cache.server";
+import {
+  getCachedKiosk,
+  isKnownMissingKiosk,
+  noteMissingKiosk,
+  pollIntervalFor,
+  setCachedKiosk,
+} from "@/lib/kiosk-cache.server";
 import { ensureChannelId, readChannelNote, rotateChannelIfDue } from "@/lib/kiosk-channel.server";
 import { noteForFallback, isChannelDue } from "@/lib/kiosk-channel";
 import { loadKiosk } from "@/lib/kiosk-loader.server";
@@ -18,7 +24,7 @@ export const Route = createFileRoute("/api/kiosk/token")({
           }
 
           const body = await request.json();
-          const locationId = (body?.locationId || "").trim();
+          const locationId = typeof body?.locationId === "string" ? body.locationId.trim() : "";
 
           if (!locationId) {
             return Response.json({ error: "Missing locationId" }, { status: 400 });
@@ -26,10 +32,15 @@ export const Route = createFileRoute("/api/kiosk/token")({
 
           // Kiosk record (secret hash, org, location hours, timezone): cached for a
           // short TTL so a poll no longer costs 3 extra reads. See kiosk-cache.server.ts.
+          // An id that was just found not to be a paired tablet costs no database read to refuse again.
+          if (isKnownMissingKiosk(locationId)) {
+            return Response.json({ error: "Kiosk not paired or location revoked" }, { status: 401 });
+          }
           let entry = getCachedKiosk(locationId);
           const fromCache = entry !== null;
           if (!entry) entry = await loadKiosk(locationId);
           if (!entry) {
+            noteMissingKiosk(locationId);
             return Response.json({ error: "Kiosk not paired or location revoked" }, { status: 401 });
           }
 
@@ -39,6 +50,7 @@ export const Route = createFileRoute("/api/kiosk/token")({
             // The kiosk may have been re-paired since we cached it: reload once.
             entry = await loadKiosk(locationId);
             if (!entry) {
+              noteMissingKiosk(locationId);
               return Response.json({ error: "Kiosk not paired or location revoked" }, { status: 401 });
             }
             isValid = timingSafeHashMatch(secret, entry.secretHash);
@@ -121,10 +133,8 @@ export const Route = createFileRoute("/api/kiosk/token")({
           });
         } catch (err: any) {
           console.error("POST /api/kiosk/token error:", err);
-          return Response.json(
-            { error: "Failed to mint kiosk token", detail: err?.message || "Internal server error" },
-            { status: 500 },
-          );
+          // The reason stays in the server log; the caller (who may be anyone) is told nothing about it.
+          return Response.json({ error: "Failed to mint kiosk token" }, { status: 500 });
         }
       },
     },
