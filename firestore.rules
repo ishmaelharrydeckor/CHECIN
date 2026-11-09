@@ -44,12 +44,11 @@ service cloud.firestore {
     match /organizations/{targetOrgId} {
       // Any signed-in member of this organization can read its metadata
       allow read: if isSignedIn() && orgId() == targetOrgId;
-      // Only org_admin can update organization details, and only display fields —
-      // plan/billing, createdById etc. are server-managed (Admin SDK only)
-      allow update: if isOrgAdmin() && orgId() == targetOrgId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "timezone", "updatedAt"]);
-      // Creation and deletion managed exclusively by server Admin SDK
-      allow create, delete: if false;
+      // Every change (name, timezone, plan, billing, switches) is made by the server (/api/organization and the
+      // other settings routes, Admin SDK), which validates it. The browser only reads. (A browser update used to be
+      // allowed for the org admin on the name and timezone, which skipped the server's checks, for example that a
+      // timezone is a real one.)
+      allow create, update, delete: if false;
     }
 
     // ---- 2. Users (Display Profile Only — NEVER stores a role field or modifies tenancy) ----
@@ -70,11 +69,13 @@ service cloud.firestore {
     }
 
     // ---- 3. Locations (Physical entrance & office locations) ----
-    // Holds NO secrets. Holds name, orgId, createdAt.
+    // Holds NO secrets. Holds name, orgId, hours, createdAt.
+    // Written by the server only (/api/locations, Admin SDK), which checks the fields. The browser only reads.
+    // (A browser write used to be allowed for an org admin, with no check on the fields and no rule stopping
+    // orgId being changed, so a location could be moved into another organization.)
     match /locations/{locationId} {
       allow read: if inOrg(resource.data);
-      allow create: if isOrgAdmin() && inOrg(request.resource.data);
-      allow update, delete: if isOrgAdmin() && inOrg(resource.data);
+      allow create, update, delete: if false;
     }
 
     // ---- 4. Clock Events (Append-only physical presence scan logs) ----
@@ -159,18 +160,14 @@ service cloud.firestore {
     }
 
     // ---- 6. Announcements (Company & Team notice boards) ----
+    // Written by the server only (/api/announcements, Admin SDK), which checks who may post to which team, the
+    // length of the text and the author. The browser only reads. (A browser write used to be allowed for admins and
+    // managers with no check on the fields, and an update could change orgId or managerId, moving a notice onto
+    // another organization's or another team's board.)
     match /announcements/{announcementId} {
       // All org members read announcements
       allow read: if inOrg(resource.data);
-      // Org Admin can create org-wide; Manager can create team announcements
-      allow create: if inOrg(request.resource.data) && (
-        isOrgAdmin() ||
-        (isManager() && request.resource.data.managerId == request.auth.uid)
-      );
-      allow update, delete: if inOrg(resource.data) && (
-        isOrgAdmin() ||
-        (isManager() && resource.data.managerId == request.auth.uid)
-      );
+      allow create, update, delete: if false;
     }
 
     // ---- 7. User Devices (Active sessions & audit) ----
