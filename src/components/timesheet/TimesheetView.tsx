@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
+import { workdaySummary } from "@/lib/standard-workday";
+import { StandardWorkdayCard } from "./StandardWorkdayCard";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet, FileText, Inbox, Loader2, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,6 +55,7 @@ type DownloadKind = "csv" | "xlsx" | "pdf" | "daily";
  */
 export function TimesheetView() {
   const { data, loading, error, asked, load, retry } = useTimesheet();
+  const { isOrgAdmin } = useAuth();
   const isDesktop = useIsDesktop();
 
   const [preset, setPreset] = useState<RangePreset | "custom">("last7");
@@ -206,6 +210,9 @@ export function TimesheetView() {
         )}
       </div>
 
+      {/* Org admins can give people with no shift an expected time */}
+      {isOrgAdmin && <StandardWorkdayCard />}
+
       {/* Before anything is asked for */}
       {!asked && !loading && (
         <div className="rounded-2xl border border-border/70 bg-white p-10 text-center space-y-2">
@@ -316,8 +323,10 @@ export function TimesheetView() {
 
               {data.anyExpected && (
                 <p className="text-xs text-muted-foreground">
-                  Extra and short compare paid time with the time the person's shift expects. They are shown as they are: not approved overtime.
-                  People with no shift show hours only.
+                  Extra and short compare paid time with the time the person's shift expects. They are shown as they are: not approved overtime.{" "}
+                  {data.standardWorkday
+                    ? `People with no shift are measured against the standard workday (${workdaySummary(data.standardWorkday)}).`
+                    : "People with no shift show hours only."}
                 </p>
               )}
             </>
