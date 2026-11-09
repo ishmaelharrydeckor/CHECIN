@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { firestoreAdmin, verifyCallerToken } from "@/integrations/firebase/admin.server";
+import { gateFeature } from "@/lib/plan-gate.server";
 import { checkRateLimit } from "@/lib/rate-limit.server";
 import { correlationId, logEvent } from "@/lib/log.server";
 import { canAssignTo } from "@/lib/shift-requests";
@@ -112,6 +113,11 @@ async function applyEdit(request: Request, mode: "edit" | "end"): Promise<Respon
   const auth = await authManager(request, mode === "end" ? "end" : "change");
   if (!auth.ok) return auth.response;
   const { caller, orgId } = auth;
+  // Changing a pattern rewrites future days, so it is gated. Ending one only stops it, so it never is.
+  if (mode === "edit") {
+    const blocked = await gateFeature(orgId, "shift_patterns", { uid: caller.uid, request });
+    if (blocked) return blocked;
+  }
   const tooMany = await limited(`shifts_patterns_${caller.uid}`, 60);
   if (tooMany) return tooMany;
 
@@ -241,6 +247,10 @@ export const Route = createFileRoute("/api/shifts/patterns")({
           const auth = await authManager(request, "set up");
           if (!auth.ok) return auth.response;
           const { caller, orgId } = auth;
+
+          // Plan check (off unless PLAN_ENFORCEMENT is set): creating a pattern and filling it ahead both add assignments.
+          const blocked = await gateFeature(orgId, "shift_patterns", { uid: caller.uid, request });
+          if (blocked) return blocked;
 
           const body = await request.json().catch(() => null);
           const action = body && typeof body === "object" ? (body as Record<string, unknown>).action : undefined;
