@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import type { AnalyticsSummary } from "@/lib/analytics-types";
 import { formatClock } from "@/lib/attendance-today";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarDays } from "lucide-react";
 import { AnalyticsKpiTiles } from "./AnalyticsKpiTiles";
-import { AnalyticsTrendChart } from "./AnalyticsTrendChart";
+
+// The chart library is large; it loads when the chart is first shown, not with the whole dashboard.
+const AnalyticsTrendChart = lazy(() => import("./AnalyticsTrendChart").then((m) => ({ default: m.AnalyticsTrendChart })));
 import { AnalyticsDepartments } from "./AnalyticsDepartments";
 import { formatDateLong, hasData } from "./format";
 
@@ -82,7 +85,9 @@ export function AnalyticsPanel({ data, loading, error, period, onPeriodChange, o
         </Card>
       ) : (
         <>
-          <AnalyticsTrendChart trend={data.trend} />
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-2xl" aria-label="Loading the chart" />}>
+            <AnalyticsTrendChart trend={data.trend} />
+          </Suspense>
           <AnalyticsDepartments departments={data.byDepartment} />
         </>
       )}
