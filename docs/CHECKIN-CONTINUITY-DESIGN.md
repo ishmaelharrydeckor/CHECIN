@@ -38,7 +38,7 @@ A normal check-in needs two live connections: the **tablet** must get a fresh co
 ## 4. Option B in detail: attended check-in
 
 **The person's code ("My check-in card").**
-- A page in the employee portal shows the person's **name, photo (if they have one) and a QR code**. It is made once and **saved on the phone**, so it opens with no connection; the picture is drawn on the phone. It can also be saved as an image or printed, for someone with no smartphone.
+- A page in the employee portal shows the person's **name and a QR code** (no photo: decided 2026-11-17, see section 6a). It is made once and **saved on the phone**, so it opens with no connection; the picture is drawn on the phone. It can also be saved as an image or printed, for someone with no smartphone.
 - The code is fixed per person (not rotating): `ck1.{organization}.{person}.{version}.{signature}`, signed by the server with a secret that never leaves it. It cannot be guessed or forged. The `version` is stored server-side (`checkin_cards/{person}`, server-written only, default-deny).
 - An admin (or the person's manager) can **replace** a person's code if it is lost or shared: the version goes up and the old code is refused from that moment.
 
@@ -46,7 +46,7 @@ A normal check-in needs two live connections: the **tablet** must get a fresh co
 
 **The manager's side ("Scan people in").**
 1. **Start a session.** The manager taps **Scan people in**, chooses a location they are allowed to use, and a session starts. A session is the stretch of time the scanner is switched on, from Start to Stop or the time limit. **Proposed: 4 hours (admin setting, 1 to 8), one active session per manager.** Morning arrival is one session, closing time another.
-2. **Scan.** The camera stays open and reads one code after another. Each result fills the screen briefly: the person's **name and photo**, and **"Checked in 08:02"** or **"Checked out 17:05"**. The manager confirms the face matches the name. A running count and the last scans are listed.
+2. **Scan.** The camera stays open and reads one code after another. Each result fills the screen briefly: the person's **name** (and department), and **"Checked in 08:02"** or **"Checked out 17:05"**. The manager, who can see who is standing in front of them, confirms it is that person. A running count and the last scans are listed.
 3. **Mistakes.** The same manager can undo a scan within two minutes (the same idea as a person undoing their own scan). A repeat scan inside the cooldown says so and records nothing.
 4. **Self-scans refused.** A manager cannot scan their own code; another permitted manager or an admin scans them.
 
@@ -62,14 +62,13 @@ A normal check-in needs two live connections: the **tablet** must get a fresh co
 
 **The engineering risk, and how I'd handle it.** The scan route is the busiest and most sensitive code in the product. The attended route must record a check-in the same way, so I would first **pull the "record a check-in for this person" step out into one shared function with the scan route's behaviour unchanged**, protected by new tests that pin down today's behaviour (direction, cooldown, shifts, retries, summaries), and only then add the attended route on top. That refactor is its own PR, reviewed before the feature.
 
-**What it does not claim.** It does not prove where the manager is (no GPS, ever). It adds accountability: a permitted, named person looked at each person and answers for the scan, and the admin can see it. A fixed code can be copied, so on its own it would be weak; the controls are that only a permitted manager's active session can submit it, the manager sees the face and name, every scan is flagged and attributed, and a code can be replaced at once. I called fixed badge codes "not planned" in the first revision; with the human check and the session limit they are acceptable **as a fallback**, and still not as the normal way to check in.
+**What it does not claim.** It does not prove where the manager is (no GPS, ever). It adds accountability: a permitted, named person looked at each person and answers for the scan, and the admin can see it. A fixed code can be copied, so on its own it would be weak; the controls are that only a permitted manager's active session can submit it, the manager sees the person and their name, every scan is flagged and attributed, and a code can be replaced at once. I called fixed badge codes "not planned" in the first revision; with the human check and the session limit they are acceptable **as a fallback**, and still not as the normal way to check in.
 
 ### Guarding against misuse, with no routine work for the admin
 
 In an outage everyone knows the tablet is down, so some will try their luck. The guard in the moment is a manager looking at a person; the rest must be automatic.
 
 **In the pilot (all automatic, nobody has to review anything):**
-- **The photo is shown large**, and a person with **no photo** shows "no photo on file: check ID", which also nudges everyone to add one at onboarding (section 6b).
 - **A speed limit, enforced by the system.** A real queue cannot be scanned faster than about one person a second. Faster than that, or the same card twice in a row, is **refused on the spot** with a message to the manager. No one reviews it later.
 - **Marked in the records.** Every scan carries the manager's name and the mark "recorded on a manager's device", inside the reports that already exist. No new report to read.
 - **One quiet alert, only when something is unusual:** a single line in the admin's existing notices if a session records an unusually large number of people, or one person's check-ins are mostly on a manager's device over a week. Normal sessions say nothing.
@@ -95,18 +94,18 @@ For a crowd, a permitted manager can show the door code on their own phone (an "
 
 ## 6a. Photos, and a longer road to face checks
 
-Stage 1 and 2 are in this work; stages 3 and 4 are long term.
+**Decided by the owner on 2026-11-17: no photo in the check-in flow.** It adds storage and a read to every scan for little gain, and the manager can see who is in front of them. Everything below is a long road, not part of this work.
 
 | Stage | What | Risk |
 |---|---|---|
-| 1 | A profile photo when someone joins (an admin can require it) | Low |
-| 2 | The manager sees the photo when scanning | Low |
+| 1 (later) | A profile photo when someone joins | Low |
+| 2 (later) | The manager sees the photo when scanning | Low |
 | 3 (long term) | **The phone's own unlock as the check** (passkeys: fingerprint or face unlock on the person's phone). ChecIN never receives the face or fingerprint, only "the owner unlocked it" | Medium; the safest real verification |
 | 4 (long term) | ChecIN comparing a face to the photo | High: biometric data is especially sensitive under data-protection laws (Ghana's included). Needs explicit consent, careful storage, probably registration, a defence against someone holding up a photo, and it must work on cheap phones. Get a lawyer's view first |
 
 ## 6b. Onboarding worth completing
 
-Today a new person gives an email and a password and nothing else. A short, friendly onboarding would also collect **a name and a photo**, show **their check-in card straight away** (so it is saved on the phone for an outage), offer to **add ChecIN to the home screen** and **allow notifications**, and show a **three-line tour** (scan, leave, shifts). For an organization's first admin it would end in the existing setup checklist. The photo needs somewhere to be stored (small, resized on the phone); that, the screens and the order of steps are a **separate design note** (onboarding and profile photo), written next. This note only needs the photo to exist.
+Today a new person gives an email and a password and nothing else. A short, friendly onboarding would also collect **a name**, show **their check-in card straight away** (so it is saved on the phone for an outage), offer to **add ChecIN to the home screen** and **allow notifications**, and show a **three-line tour** (scan, leave, shifts). For an organization's first admin it would end in the existing setup checklist. The steps, the screens and the bulk import from a spreadsheet are a **separate design note** (onboarding), settled one decision at a time.
 
 ## 7. The amendment to AGENTS.md
 
@@ -138,6 +137,6 @@ Add when the first build PR lands, so the rules and the code agree:
 2. **Anyone in the organization** can be scanned by a permitted manager (not only their own team).
 3. **Only locations that already have a paired tablet** can be used, because the scan route needs the location's record. (A site with no tablet at all is a later option.)
 4. **Undo within two minutes** by the manager who scanned.
-5. **The card shows the photo** if the person has one, and the name always.
+5. **No photo** on the card or the manager's screen (decided 2026-11-17).
 6. **Replacing a code:** an admin, or the person's manager.
 7. **Option A (the manager shows a door code)** after B, only if pilots ask.
